@@ -10,6 +10,7 @@
 #include "explorer/componentinfo.h"
 #include "explorer/instructionexplainer.h"
 #include "explorer/mission.h"
+#include "explorer/missionprogress.h"
 #include "explorer/modelprofile.h"
 #include "explorer/tracerecorder.h"
 #include "explorer/tracereplay.h"
@@ -48,6 +49,8 @@ private slots:
   void tst_cacheModel();
   void tst_cacheModelMatchesRipes();
   void tst_missionStepsProgressLive();
+  void tst_progressScoring();
+  void tst_progressFromVerifiedChecks();
   void tst_explainerFirstProgram();
   void tst_explainerLoadUseHazard();
   void tst_explainerDetectsUnresolvedHazard();
@@ -355,6 +358,97 @@ void tst_missions::tst_missionStepsProgressLive() {
   // cycle 7, which squashes the instructions in IF and ID.
   QCOMPARE(firstFlushCycle, qint64(7));
   QVERIFY(!evaluateChecks(m.steps[2].checks, state, m).passed);
+}
+
+void tst_missions::tst_progressScoring() {
+  // Stars: half of the steps (rounded up), all steps, solved challenge.
+  QCOMPARE(missionStars({3, 0, false}), 0);
+  QCOMPARE(missionStars({3, 1, false}), 0);
+  QCOMPARE(missionStars({3, 2, false}), 1);
+  QCOMPARE(missionStars({3, 3, false}), 2);
+  QCOMPARE(missionStars({3, 3, true}), 3);
+  QCOMPARE(missionStars({3, 0, true}), 1);
+  QCOMPARE(missionStars({4, 2, false}), 1);
+  QCOMPARE(missionStars({1, 1, false}), 2);
+  QCOMPARE(missionStars({0, 0, true}), 1);
+
+  QCOMPARE(missionXp({3, 0, false}), 0);
+  QCOMPARE(missionXp({3, 2, false}), 2 * kXpPerStep);
+  QCOMPARE(missionXp({3, 3, true}), 3 * kXpPerStep + kXpPerChallenge);
+  QCOMPARE(missionXp({3, 7, false}), 3 * kXpPerStep); // clamped to the steps
+
+  QCOMPARE(playerLevel(0).level, 1);
+  QCOMPARE(playerLevel(0).title, QString("Fetch"));
+  QCOMPARE(playerLevel(kXpPerLevel - 1).level, 1);
+  QCOMPARE(playerLevel(kXpPerLevel).level, 2);
+  QCOMPARE(playerLevel(kXpPerLevel).title, QString("Decode"));
+  QCOMPARE(playerLevel(kXpPerLevel).xpIntoLevel, 0);
+  const auto all = playerLevel(4 * (3 * kXpPerStep + kXpPerChallenge));
+  QCOMPARE(all.level, 5);
+  QCOMPARE(all.title, QString("Write-back"));
+  QCOMPARE(all.xpIntoLevel, 400);
+
+  // Unlocks follow the catalog order; progress in a mission unlocks it.
+  const std::vector<MissionRecord> records = {
+      {3, 3, false}, {3, 1, false}, {3, 0, false}, {3, 0, true}, {3, 0, false}};
+  QCOMPARE(missionStatus(records, 0), MissionStatus::InProgress);
+  QCOMPARE(missionStatus(records, 1), MissionStatus::InProgress);
+  QCOMPARE(missionStatus(records, 2), MissionStatus::Locked);
+  QCOMPARE(missionStatus(records, 3), MissionStatus::Solved);
+  QCOMPARE(missionStatus(records, 4), MissionStatus::Available);
+  QCOMPARE(missionStatus({{3, 0, false}}, 0), MissionStatus::Available);
+  QCOMPARE(missionStatus(records, 9), MissionStatus::Locked);
+
+  // Persistent progress over the real catalog.
+  MissionProgress progress({"m1-first-program/1", "m1-first-program/1"}, {});
+  QCOMPARE(progress.verifiedSteps(), QStringList({"m1-first-program/1"}));
+  QVERIFY(progress.stepVerified("m1-first-program", 0));
+  QVERIFY(!progress.recordStep("m1-first-program", 0));
+  QVERIFY(progress.recordStep("m1-first-program", 1));
+  QVERIFY(progress.recordStep("m1-first-program", 2));
+  QVERIFY(progress.recordSolved("m3-branch-and-flush"));
+  QVERIFY(!progress.recordSolved("m3-branch-and-flush"));
+  QCOMPARE(MissionProgress::stepKey("m2-pipeline-hazards", 0),
+           QString("m2-pipeline-hazards/1"));
+  const auto totals = progress.totals(m_missions);
+  QCOMPARE(totals.missions, 4);
+  QCOMPARE(totals.steps, 12);
+  QCOMPARE(totals.verifiedSteps, 3);
+  QCOMPARE(totals.solved, 1);
+  QCOMPARE(totals.xp, 3 * kXpPerStep + kXpPerChallenge);
+  QCOMPARE(totals.stars, 3);
+  QCOMPARE(totals.maxStars, 12);
+  const auto recs = progress.records(m_missions);
+  QCOMPARE(missionStatus(recs, 0), MissionStatus::InProgress);
+  QCOMPARE(missionStatus(recs, 1), MissionStatus::Available);
+  QCOMPARE(missionStatus(recs, 2), MissionStatus::Solved);
+  QCOMPARE(missionStatus(recs, 3), MissionStatus::Available);
+}
+
+void tst_missions::tst_progressFromVerifiedChecks() {
+  // Scores only come from checks that passed on the simulator: run Mission
+  // 1's example, record the steps whose checks pass, then solve the
+  // challenge with the reference solution.
+  const auto &m = mission(1);
+  MissionProgress progress;
+  auto state = run(m.processor, m.example);
+  for (size_t i = 0; i < m.steps.size(); ++i)
+    if (evaluateChecks(m.steps[i].checks, state, m).passed)
+      progress.recordStep(m.id, i);
+  QVERIFY(!evaluateChecks(m.challengeChecks, state, m).passed);
+  QCOMPARE(progress.record(m).verifiedSteps, 3);
+  QCOMPARE(missionStars(progress.record(m)), 2);
+  QCOMPARE(progress.totals(m_missions).xp, 3 * kXpPerStep);
+
+  state = run(m.processor, m.referenceSolution);
+  QVERIFY(evaluateChecks(m.challengeChecks, state, m).passed);
+  progress.recordSolved(m.id);
+  QCOMPARE(missionStars(progress.record(m)), 3);
+  QCOMPARE(progress.totals(m_missions).xp, 3 * kXpPerStep + kXpPerChallenge);
+  QCOMPARE(missionStatus(progress.records(m_missions), 1),
+           MissionStatus::Available);
+  QCOMPARE(missionStatus(progress.records(m_missions), 2),
+           MissionStatus::Locked);
 }
 
 void tst_missions::tst_explainerFirstProgram() {
