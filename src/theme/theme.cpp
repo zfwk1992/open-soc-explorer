@@ -85,7 +85,7 @@ Tokens classicTokens() {
   t.muted = mix(p.color(QPalette::Text), p.color(QPalette::Base), 0.42);
   t.accent = p.color(QPalette::Highlight);
   t.accentText = p.color(QPalette::HighlightedText);
-  t.accent2 = p.color(QPalette::Link);
+  t.accent2 = QColor(t.dark ? "#a58bff" : "#5b3fc4");
   t.ok = QColor(t.dark ? "#7bd88f" : "#1b7f3a");
   t.warn = QColor(t.dark ? "#f5b041" : "#a86400");
   t.bad = QColor(t.dark ? "#ff8a80" : "#b3261e");

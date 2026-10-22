@@ -83,6 +83,10 @@ public:
 
   void tabVisibilityChanged(bool visible) override;
 
+protected:
+  bool eventFilter(QObject *watched, QEvent *event) override;
+
+public:
   /// Loads a trace file (e.g. converted from gem5) for offline replay.
   bool openTraceFile(const QString &path, QString *error = nullptr);
 

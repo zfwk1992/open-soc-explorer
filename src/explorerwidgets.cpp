@@ -412,6 +412,10 @@ bool PipelineStrip::setStages(
     m_tiles.push_back(tile);
     m_lanes.push_back(lane);
   }
+  // Models with one or two stages keep normal-sized tiles.
+  for (auto &[lane, layout] : lanes)
+    if (layout->count() < 3)
+      layout->addStretch(1);
   m_overlay->raise();
   updateGeometry();
   update();

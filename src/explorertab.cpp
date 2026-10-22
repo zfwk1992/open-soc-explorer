@@ -500,6 +500,7 @@ void ExplorerTab::setupUi() {
   m_timeline->setObjectName("explorerTimeline");
   m_timelineModel = new InstructionTimelineModel(this);
   m_timeline->setModel(m_timelineModel);
+  m_timeline->viewport()->installEventFilter(this);
   m_timeline->setItemDelegate(new TimelineDelegate(m_timeline));
   m_timeline->setShowGrid(false);
   m_timeline->horizontalHeader()->setDefaultSectionSize(44);
@@ -605,6 +606,26 @@ void ExplorerTab::setupUi() {
   root->addWidget(mainSplitter, 1);
 
   updateExplanation();
+}
+
+bool ExplorerTab::eventFilter(QObject *watched, QEvent *event) {
+  // Keep the selected cycle in view when the timeline is resized.
+  if (watched == m_timeline->viewport() && event->type() == QEvent::Resize &&
+      m_replay && m_timelineModel->rowCount() > 0)
+    QMetaObject::invokeMethod(
+        this,
+        [this] {
+          if (!m_replay || m_timelineModel->rowCount() == 0)
+            return;
+          const int row =
+              std::max(0, m_timelineModel->rowForInstance(m_selected));
+          m_timeline->scrollTo(
+              m_timelineModel->index(row,
+                                     m_timelineModel->columnForCycle(m_cycle)),
+              QAbstractItemView::EnsureVisible);
+        },
+        Qt::QueuedConnection);
+  return RipesTab::eventFilter(watched, event);
 }
 
 void ExplorerTab::tabVisibilityChanged(bool visible) {

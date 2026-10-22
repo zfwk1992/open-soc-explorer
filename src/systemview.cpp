@@ -75,7 +75,7 @@ constexpr qreal kGapX = 30;
 constexpr qreal kGapY = 52;
 constexpr qreal kDieMargin = 30;
 constexpr qreal kDieTop = 38;
-constexpr qreal kNsW = 172;
+constexpr qreal kNsW = 192;
 constexpr qreal kNsH = 56;
 
 /// One statistic (or parameter) shown on a chip, taken verbatim from the
@@ -230,7 +230,9 @@ public:
       p->setFont(tf);
       p->setPen(t.muted);
       p->drawText(QRectF(icon.right() + 8, r.top() + 8, r.width() - 50, 18),
-                  Qt::AlignLeft | Qt::AlignVCenter, m_title);
+                  Qt::AlignLeft | Qt::AlignVCenter,
+                  QFontMetricsF(tf).elidedText(m_title, Qt::ElideRight,
+                                               r.width() - 50));
       QFont sf = base;
       sf.setItalic(true);
       if (sf.pointSizeF() > 0)
@@ -405,8 +407,10 @@ public:
     const QFont f = overlineFont(QApplication::font(), 0.8);
     p->setFont(f);
     p->setPen(isGame() ? t.accent : t.muted);
-    p->drawText(QRectF(r.left() + 32, r.top() + 6, r.width() - 44, 22),
-                Qt::AlignLeft | Qt::AlignVCenter, m_label);
+    p->drawText(
+        QRectF(r.left() + 32, r.top() + 6, r.width() - 44, 22),
+        Qt::AlignLeft | Qt::AlignVCenter,
+        QFontMetricsF(f).elidedText(m_label, Qt::ElideRight, r.width() - 44));
   }
 
 private:
@@ -734,11 +738,9 @@ void SystemView::rebuild() {
              contentWidth + 2 * (kDieMargin + channelSpace),
              (rowBottom.empty() ? 0 : rowBottom.back()) + kDieTop + kDieMargin);
   if (!m_header.system.empty())
-    m_scene->addItem(
-        new DieItem(die, QString("Simulated by %1 · %2")
-                             .arg(engine, m_header.source.modelName.isEmpty()
-                                              ? m_header.source.model
-                                              : m_header.source.modelName)));
+    m_scene->addItem(new DieItem(
+        die,
+        QString("Simulated by %1 · %2").arg(engine, m_header.source.model)));
 
   // Typical SoC components that are not part of this simulation, outside
   // the die.
