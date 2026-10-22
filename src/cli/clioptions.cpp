@@ -130,6 +130,16 @@ void addCLIOptions(QCommandLineParser &parser, Ripes::CLIModeOptions &options) {
       "output", "Report output file. If not set, report is printed to stdout.",
       "path"));
   parser.addOption(QCommandLineOption("json", "JSON-formatted report."));
+  parser.addOption(QCommandLineOption(
+      "trace-out",
+      "Write an Open SoC Explorer execution trace (JSON Lines, schema "
+      "documented in docs/TRACE_PROTOCOL.md) to this file.",
+      "path"));
+  parser.addOption(QCommandLineOption(
+      "trace-max-cycles",
+      "Maximum number of cycles recorded by --trace-out. Longer runs produce a "
+      "trace marked as truncated.",
+      "cycles", "1000000"));
 
   parser.addOption(QCommandLineOption("all", "Enable all report options."));
 
@@ -246,6 +256,16 @@ bool parseCLIOptions(QCommandLineParser &parser, QString &errorMessage,
   }
 
   options.outputFile = parser.value("output");
+
+  options.traceOutput = parser.value("trace-out");
+  if (parser.isSet("trace-max-cycles")) {
+    bool ok;
+    options.traceMaxCycles = parser.value("trace-max-cycles").toLongLong(&ok);
+    if (!ok || options.traceMaxCycles <= 0) {
+      errorMessage = "Invalid cycle count specified (--trace-max-cycles).";
+      return false;
+    }
+  }
 
   // Configure L1 cache simulation from either a named preset or a JSON spec.
   if (parser.isSet("cache-preset") && parser.isSet("cache-config")) {

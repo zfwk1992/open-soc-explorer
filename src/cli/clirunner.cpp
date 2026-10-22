@@ -2,6 +2,7 @@
 #include "cachesim/cachesim.h"
 #include "cachesim/l1cacheshim.h"
 #include "ccmanager.h"
+#include "explorer/tracerecorder.h"
 #include "io/iomanager.h"
 #include "loaddialog.h"
 #include "processorhandler.h"
@@ -60,6 +61,13 @@ CLIRunner::CLIRunner(const CLIModeOptions &options)
   // exercised during the headless run.
   if (m_options.l1iCache || m_options.l1dCache)
     setupCaches();
+
+  // Record an execution trace. The recorder must exist before the program is
+  // loaded, so that it observes the processor reset and starts at cycle 0.
+  if (!m_options.traceOutput.isEmpty()) {
+    m_traceRecorder = std::make_unique<Explorer::TraceRecorder>(this);
+    m_traceRecorder->setMaxCycles(m_options.traceMaxCycles);
+  }
 
   // Connect systemIO output to stdout.
   connect(&SystemIO::get(), &SystemIO::doPrint, this, [&](auto text) {
@@ -130,6 +138,27 @@ int CLIRunner::run() {
   if (postRun())
     return 1;
 
+  if (writeTrace())
+    return 1;
+
+  return 0;
+}
+
+/**
+ * Writes the recorded Open SoC Explorer trace, if requested (--trace-out).
+ *
+ * @return 0 on success, or 1 if the trace could not be written.
+ */
+int CLIRunner::writeTrace() {
+  if (!m_traceRecorder)
+    return 0;
+  QString err;
+  if (!m_traceRecorder->exportJsonl(m_options.traceOutput, &err)) {
+    error(err);
+    return 1;
+  }
+  info("Trace written to '" + m_options.traceOutput + "' (" +
+       QString::number(m_traceRecorder->eventCount()) + " events)");
   return 0;
 }
 
