@@ -140,7 +140,7 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
       what = p.contains("cause_instance")
                  ? Text::tr("squashed by %1 (%2)")
                        .arg(p["cause_instance"].toString(),
-                            p.value("cause").toString())
+                            localizedTraceText(p.value("cause").toString()))
                  : Text::tr("squashed");
       break;
     case EventType::InstructionRetire:

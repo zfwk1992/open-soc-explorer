@@ -384,8 +384,12 @@ CriterionResult evaluateCriterion(const MissionCriterion &c,
     r.passed = s.programLoaded && !sameProgram(s.source, mission.example);
   } else if (c.kind == "cycle_at_least") {
     const auto n = p.value("cycles").toLongLong();
-    r.description = counted(n, "Executed at least %1 clock cycle",
-                            "Executed at least %1 clock cycles");
+    r.description =
+        counted(n,
+                QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                  "Executed at least %1 clock cycle"),
+                QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                  "Executed at least %1 clock cycles"));
     r.passed = s.programLoaded && s.cycle >= n;
     r.detail = Text::tr("current cycle: %1").arg(s.cycle);
   } else if (c.kind == "finished") {
@@ -436,8 +440,12 @@ CriterionResult evaluateCriterion(const MissionCriterion &c,
                          .arg(it->second.isEmpty() ? Text::tr("(unknown)")
                                                    : it->second);
   } else if (c.kind == "retired_at_least") {
-    r.description = counted(count, "At least %1 instruction executed",
-                            "At least %1 instructions executed");
+    r.description =
+        counted(count,
+                QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                  "At least %1 instruction executed"),
+                QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                  "At least %1 instructions executed"));
     r.passed = s.stats.retired >= static_cast<quint64>(count);
     r.detail = measured(QString::number(s.stats.retired));
   } else if (c.kind == "retired_mnemonic_at_least") {
@@ -453,38 +461,60 @@ CriterionResult evaluateCriterion(const MissionCriterion &c,
     r.passed = n >= static_cast<quint64>(count);
     r.detail = measured(QString::number(n));
   } else if (c.kind == "retired_branches_at_least") {
-    r.description = counted(count, "At least %1 conditional branch executed",
-                            "At least %1 conditional branches executed");
+    r.description =
+        counted(count,
+                QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                  "At least %1 conditional branch executed"),
+                QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                  "At least %1 conditional branches executed"));
     r.passed = s.stats.retiredBranches >= static_cast<quint64>(count);
     r.detail = measured(QString::number(s.stats.retiredBranches));
   } else if (c.kind == "stall_cycles_at_least") {
-    r.description = counted(count, "At least %1 stall cycle observed",
-                            "At least %1 stall cycles observed");
+    r.description =
+        counted(count,
+                QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                  "At least %1 stall cycle observed"),
+                QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                  "At least %1 stall cycles observed"));
     r.passed = s.stats.stallCycles >= static_cast<quint64>(count);
     r.detail = measured(QString::number(s.stats.stallCycles));
   } else if (c.kind == "stall_cycles_at_most") {
-    r.description =
-        counted(count, "At most %1 stall cycle", "At most %1 stall cycles");
+    r.description = counted(
+        count,
+        QT_TRANSLATE_NOOP("Ripes::Explorer::Mission", "At most %1 stall cycle"),
+        QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                          "At most %1 stall cycles"));
     r.passed =
         runComplete(s) && s.stats.stallCycles <= static_cast<quint64>(count);
     r.detail = runComplete(s) ? measured(QString::number(s.stats.stallCycles))
                               : needRun;
   } else if (c.kind == "squashed_at_least") {
-    r.description = counted(count, "At least %1 squashed (flushed) instruction",
-                            "At least %1 squashed (flushed) instructions");
+    r.description = counted(
+        count,
+        QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                          "At least %1 squashed (flushed) instruction"),
+        QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                          "At least %1 squashed (flushed) instructions"));
     r.passed = s.stats.squashed >= static_cast<quint64>(count);
     r.detail = measured(QString::number(s.stats.squashed));
   } else if (c.kind == "squashed_at_most") {
-    r.description = counted(count, "At most %1 squashed (flushed) instruction",
-                            "At most %1 squashed (flushed) instructions");
+    r.description = counted(
+        count,
+        QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                          "At most %1 squashed (flushed) instruction"),
+        QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                          "At most %1 squashed (flushed) instructions"));
     r.passed =
         runComplete(s) && s.stats.squashed <= static_cast<quint64>(count);
     r.detail =
         runComplete(s) ? measured(QString::number(s.stats.squashed)) : needRun;
   } else if (c.kind == "cycles_at_most") {
     const auto n = p.value("cycles").toLongLong();
-    r.description =
-        counted(n, "Completed within %1 cycle", "Completed within %1 cycles");
+    r.description = counted(n,
+                            QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                              "Completed within %1 cycle"),
+                            QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                              "Completed within %1 cycles"));
     r.passed = runComplete(s) && s.stats.cycles <= n;
     r.detail =
         runComplete(s) ? measured(QString::number(s.stats.cycles)) : needRun;
@@ -495,8 +525,11 @@ CriterionResult evaluateCriterion(const MissionCriterion &c,
     r.detail = runComplete(s) ? measured(QString::number(s.stats.cpi, 'f', 2))
                               : needRun;
   } else if (c.kind == "memory_reads_at_least") {
-    r.description = counted(count, "At least %1 data memory read",
-                            "At least %1 data memory reads");
+    r.description = counted(count,
+                            QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                              "At least %1 data memory read"),
+                            QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                              "At least %1 data memory reads"));
     r.passed = runComplete(s) && s.stats.memoryReads >= quint64(count);
     r.detail = runComplete(s) ? measured(QString::number(s.stats.memoryReads))
                               : needRun;
@@ -508,8 +541,12 @@ CriterionResult evaluateCriterion(const MissionCriterion &c,
             ? simulateCache(*mission.dataCache, s.dataAccesses, wordBytes)
             : CacheCounts();
     if (c.kind == "dcache_misses_at_least") {
-      r.description = counted(count, "At least %1 data cache miss",
-                              "At least %1 data cache misses");
+      r.description =
+          counted(count,
+                  QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                    "At least %1 data cache miss"),
+                  QT_TRANSLATE_NOOP("Ripes::Explorer::Mission",
+                                    "At least %1 data cache misses"));
       r.passed = runComplete(s) && counts.misses >= quint64(count);
     } else {
       const double percent = p.value("percent").toDouble();

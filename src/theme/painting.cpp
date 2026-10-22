@@ -4,6 +4,7 @@
 
 #include <QFontMetricsF>
 #include <QLinearGradient>
+#include <QLocale>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
@@ -524,6 +525,9 @@ QIcon glyphIcon(Glyph g, const QColor &color, int size) {
 }
 
 QFont overlineFont(const QFont &base, qreal scale) {
+  // Chinese characters need more size than upper-case Latin labels.
+  if (QLocale().language() == QLocale::Chinese)
+    scale = std::min(1.0, scale * 1.3);
   QFont f = base;
   if (base.pointSizeF() > 0)
     f.setPointSizeF(base.pointSizeF() * scale);

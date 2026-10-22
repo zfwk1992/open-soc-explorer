@@ -54,6 +54,7 @@ public:
   };
   explicit HudBanner(QWidget *parent = nullptr);
   void setBadges(const std::vector<Badge> &badges, const QString &note);
+  const std::vector<Badge> &badges() const { return m_badges; }
 
   QSize sizeHint() const override;
   QSize minimumSizeHint() const override;

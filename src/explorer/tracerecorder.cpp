@@ -874,7 +874,10 @@ void TraceRecorder::recordTransitionLocked(CycleState &cur) {
         ev.payload["cause_instance"] =
             Trace::instanceName(prev.stageSlots[c].instance);
         ev.payload["cause"] =
-            crec.decoded.isSystem ? "system call" : "control-flow change";
+            crec.decoded.isSystem
+                ? QT_TRANSLATE_NOOP("Ripes::Explorer::TraceText", "system call")
+                : QT_TRANSLATE_NOOP("Ripes::Explorer::TraceText",
+                                    "control-flow change");
         ev.causeSequence = crec.lastSequence;
       }
     }

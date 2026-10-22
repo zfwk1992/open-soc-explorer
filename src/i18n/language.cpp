@@ -254,6 +254,18 @@ QString missionLanguage() {
   return current() == Language::ChineseSimplified ? "zh_CN" : QString();
 }
 
+/// The default QLocale follows the language (Qt's dialogs, CJK-aware text
+/// layout such as Theme::overlineFont()). English keeps the system locale
+/// unless that is Chinese.
+void applyLocale(Language lang) {
+  if (lang == Language::ChineseSimplified)
+    QLocale::setDefault(QLocale(QLocale::Chinese, QLocale::China));
+  else if (QLocale::system().language() == QLocale::Chinese)
+    QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+  else
+    QLocale::setDefault(QLocale::system());
+}
+
 void apply() {
   auto &s = state();
   const Language lang = configuredLanguage();
@@ -281,6 +293,7 @@ void apply() {
     QCoreApplication::removeTranslator(s.translator);
     s.translatorInstalled = false;
   }
+  applyLocale(s.current);
   updateMenu();
 }
 
