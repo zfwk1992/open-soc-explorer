@@ -23,6 +23,10 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
+#include <algorithm>
+#include <functional>
+#include <map>
+
 #include "VSRTL/core/vsrtl_design.h"
 #include "explorer/componentinfo.h"
 #include "explorer/instructionexplainer.h"

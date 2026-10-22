@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Part of Open SoC Explorer: end-to-end test of the Explorer and Missions tabs
 // in the real main window. Set OSX_SCREENSHOT_DIR to save screenshots.
+#include <QApplication>
 #include <QDir>
 #include <QLabel>
 #include <QListWidget>
@@ -242,5 +243,15 @@ void tst_explorergui::tst_mission3ChallengeSolved() {
   screenshot("missions-mission3-solved");
 }
 
-QTEST_MAIN(tst_explorergui)
+int main(int argc, char **argv) {
+  // Default to the offscreen platform so that the test behaves the same on
+  // every operating system and in CI.
+  if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM"))
+    qputenv("QT_QPA_PLATFORM", "offscreen");
+  QApplication app(argc, argv);
+  QTEST_SET_MAIN_SOURCE_PATH
+  tst_explorergui test;
+  return QTest::qExec(&test, argc, argv);
+}
+
 #include "tst_explorergui.moc"

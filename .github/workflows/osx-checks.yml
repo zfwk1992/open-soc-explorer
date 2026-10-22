@@ -1,0 +1,28 @@
+# Open SoC Explorer: fast checks that do not need a Qt build. The C++ build and
+# all QtTest suites (including the Open SoC Explorer tests) run in test.yml.
+name: Open SoC Explorer checks
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+jobs:
+  trace-tools:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Trace tool unit tests
+      run: python3 -m unittest discover -s tools/trace -v
+
+    - name: Mission definitions are valid JSON
+      run: |
+        for f in src/explorer/missions/*.json; do
+          python3 -m json.tool "$f" > /dev/null || { echo "invalid: $f"; exit 1; }
+        done
