@@ -152,6 +152,7 @@ struct TraceHeader {
   quint64 entryPoint = 0;
   quint64 textStart = 0;
   quint64 textSize = 0;
+  /// SHA-256 of the loaded program image (see programImageHash()).
   QString programHash;
   /// Architectural state at startCycle.
   qint64 startCycle = 0;

@@ -14,7 +14,12 @@
 #include "tracetypes.h"
 
 namespace Ripes {
+class Program;
 namespace Explorer {
+
+/// SHA-256 (hex) over the name, address and contents of every section of
+/// @p program. Identifies the loaded program image in traces.
+QString programImageHash(const Program &program);
 
 /**
  * @brief The TraceRecorder class

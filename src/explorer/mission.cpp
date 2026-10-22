@@ -13,6 +13,7 @@
 #include "isa/rvisainfo_common.h"
 #include "processorhandler.h"
 #include "processorregistry.h"
+#include "tracerecorder.h"
 
 // Q_INIT_RESOURCE must be used outside of any namespace.
 static void initMissionResources() { Q_INIT_RESOURCE(missions); }
@@ -224,7 +225,8 @@ MissionState captureMissionState(const Trace::Trace &trace,
   const bool traceMatches =
       trace.header.source.model == s.processor &&
       (!s.programLoaded ||
-       trace.header.programHash == ProcessorHandler::getProgram()->sourceHash);
+       trace.header.programHash ==
+           programImageHash(*ProcessorHandler::getProgram()));
   if (traceMatches) {
     TraceReplay replay(trace);
     s.stats = replay.stats();

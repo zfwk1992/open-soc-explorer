@@ -2,6 +2,7 @@
 // Part of Open SoC Explorer.
 #include "tracerecorder.h"
 
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QUuid>
 
@@ -41,6 +42,16 @@ QString accessName(MemoryAccess::Type t) {
 }
 
 } // namespace
+
+QString programImageHash(const Program &program) {
+  QCryptographicHash hash(QCryptographicHash::Sha256);
+  for (const auto &[name, section] : program.sections) {
+    hash.addData(name.toUtf8());
+    hash.addData(QByteArray::number(static_cast<qulonglong>(section.address)));
+    hash.addData(section.data);
+  }
+  return QString::fromLatin1(hash.result().toHex());
+}
 
 TraceRecorder::TraceRecorder(QObject *parent, bool attach) : QObject(parent) {
   if (attach)
@@ -223,7 +234,7 @@ void TraceRecorder::beginRunLocked() {
       h.textStart = text->address;
       h.textSize = text->data.size();
     }
-    h.programHash = program->sourceHash;
+    h.programHash = programImageHash(*program);
   }
 
   m_nextSequence = 0;

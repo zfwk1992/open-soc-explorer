@@ -107,7 +107,7 @@ QJsonObject headerToJson(const Trace &trace) {
   program["entry_point"] = toHex(h.entryPoint, h.xlen);
   program["text_start"] = toHex(h.textStart, h.xlen);
   program["text_size"] = static_cast<qint64>(h.textSize);
-  program["source_hash"] = h.programHash;
+  program["image_sha256"] = h.programHash;
   o["program"] = program;
 
   QJsonObject processor;
@@ -296,7 +296,7 @@ std::optional<Trace> readJsonl(QIODevice &in, QString *error) {
       h.entryPoint = fromHex(program["entry_point"].toString()).value_or(0);
       h.textStart = fromHex(program["text_start"].toString()).value_or(0);
       h.textSize = program["text_size"].toInteger();
-      h.programHash = program["source_hash"].toString();
+      h.programHash = program["image_sha256"].toString();
       const auto processor = o["processor"].toObject();
       h.xlen = processor["xlen"].toInt(32);
       for (const auto &sv : processor["stages"].toArray()) {
