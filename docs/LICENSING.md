@@ -105,3 +105,14 @@ used as external tools or separate submodules:
 | Gemmini | BSD-3-Clause (UC Berkeley) |
 | Apache TVM / VTA | Apache-2.0 |
 | NVDLA | NVIDIA Open NVDLA License |
+| NEORV32 (VHDL RISC-V SoC) | BSD-3-Clause |
+| GHDL / NVC (VHDL simulators) | GPL-2.0-or-later / GPL-3.0 (tools) |
+| Yosys, nextpnr (synthesis, place and route) | ISC |
+| cocotb (testbenches) | BSD-3-Clause |
+| MAME (emulator, external tool only) | GPL-2.0-or-later as a whole; most source files BSD-3-Clause; "MAME" is a registered trademark |
+| RPCS3 (PS3 emulator, external tool only) | GPL-2.0 |
+| ngdevkit (Neo Geo homebrew SDK, open-source BIOS) | GPLv3+ (per its distribution packages) |
+| MiSTer Neo Geo core (FPGA) | not yet determined |
+
+Console firmware, BIOS images and game ROMs are copyrighted by their owners
+and are never added to this repository (see ROADMAP.md, Milestone 9).

@@ -37,7 +37,7 @@ squashed instruction's journey. Every value comes from the recorded trace.*
 | **CPU component inspector**: purpose, live input/output signal values and wiring of datapath components (VSRTL models), instruction in the component's stage | ✅ |
 | **Learning missions 1–3** (first program, pipeline hazards, branch & flush) with live-verified steps and scored challenges | ✅ |
 | Python trace tool (`tools/trace/osx_trace.py`: validate, summary, ASCII pipeline) | ✅ |
-| SoC topology view, gem5 adapter, Ibex/Verilator RTL adapter, AI-accelerator lab, Physical-AI workloads, missions 4–7 | 🗺️ planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
+| SoC topology view, gem5 adapter, Ibex/Verilator RTL adapter, AI-accelerator lab, Physical-AI workloads, VHDL/FPGA lab, classic-console architecture research track (Neo Geo, PS3 Cell), missions 4–10 | 🗺️ planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 <p align="center">
   <img src="docs/images/missions-mission1.png" width="49%" alt="Missions tab">
