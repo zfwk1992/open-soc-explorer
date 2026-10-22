@@ -25,7 +25,9 @@ layer adds on top of it.
 |---|---|---|
 | Ripes (VSRTL datapath models) | **Supported** (live and offline traces) | `educational-model` |
 | Ripes ISA simulator | **Supported** | `functional-iss` |
-| gem5 | Planned (offline trace import) | to be defined per CPU model |
+| gem5 `O3CPU`, `TimingSimpleCPU` (RISC-V, SE mode) | **Supported** (offline conversion, §6) | `cycle-level-simulator` |
+| gem5 `AtomicSimpleCPU` | **Supported** (offline conversion, §6) | `functional-iss` |
+| gem5 `MinorCPU` | Not supported yet (converter rejects it) | – |
 | Verilator + Ibex RTL | Planned | `rtl-cycle-accurate` for the pinned RTL revision only |
 | AI accelerator models | Planned | to be defined |
 
@@ -112,7 +114,75 @@ executed. The adapter handles both (`memAccessReportedAfterExecution` in
 `src/explorer/modelprofile.cpp`) and states the timing in each event's
 `timing` field.
 
-## 6. Mission scoring
+## 6. gem5 traces
+
+gem5 runs outside Open SoC Explorer; `tools/gem5/gem5_to_osx.py` converts
+its output. gem5 is a configurable cycle-level simulator. Its timing is a
+property of the configured model (CPU model, caches, DRAM), not of a
+particular chip, and the trace says which configuration was used
+(`system`, from `config.json`).
+
+### 6.1 What is converted and how it is labelled
+
+| Information | gem5 source | Observability |
+|---|---|---|
+| O3CPU fetch, decode, rename, dispatch, issue, complete and commit times per dynamic instruction | `O3PipeView` records (`src/cpu/o3/dyn_inst.cc`) | `direct` |
+| O3CPU wrong-path instructions (never committed) | `O3PipeView` commit tick 0 | `inferred`: that the instruction never committed is reported by gem5, but the squash **time** is not; the event is placed one cycle after its last recorded stage |
+| Simple CPU decode/execution start | `Exec` record tick = `BaseSimpleCPU::preExecute` | `direct` |
+| Simple CPU completion | start of the next instruction | `inferred` (upper bound: includes the next instruction's fetch) |
+| Register results | `Exec` `D=` value; destination register from the instruction word (ELF) or gem5's disassembly | `direct`; placed at commit |
+| Data addresses | `Exec` `A=` | `direct`; access **time** is not in the trace, the event is placed at commit |
+| Components, parameters, connections | `config.json` | as reported |
+| Statistics (cache hits/misses, DRAM bursts, IPC, ...) | `stats.txt` | as reported, not recomputed |
+
+Not available from these gem5 outputs, and therefore not shown: initial
+register values (registers are *unknown* until written), cache hits/misses
+per access (only totals from `stats.txt`), bus transactions, DRAM commands.
+No `cache.*` or `bus.*` events are generated.
+
+### 6.2 Time
+
+`time.tick` holds gem5 ticks (1 tick = 1 ps). `time.cycle` is
+`tick / clock period` of the CPU's clock domain from `config.json`; the
+period is stated in the header and the Explorer banner. gem5 cycles are not
+comparable with Ripes cycles: the models, memories and clock assumptions
+differ.
+
+### 6.3 Out-of-order replay
+
+O3CPU holds several instructions per stage and commits several per cycle.
+The Explorer shows the oldest instruction of a stage plus the number of
+others. Operand values in explanations are reconstructed in commit order,
+including instructions that committed earlier in the same cycle
+(`TraceReplay::registersBeforeRetire`).
+
+### 6.4 Findings from the gem5 runs
+
+Measured with gem5 v26.0.0.0 (details and commands:
+[tools/gem5/README.md](../tools/gem5/README.md)):
+
+* **Same program, same architectural result.** `loop_sum` (the Mission 3
+  loop) ends with `a0 = 55` on gem5's O3, TimingSimple and AtomicSimple CPUs
+  and on Ripes, with the same committed instruction stream (tested by
+  `test_gem5_to_osx.py`, `RipesComparisonTest`).
+* **Instruction counts differ by one.** gem5 commits 35 instructions, Ripes
+  retires 36: the final exit `ecall` ends the gem5 simulation and gem5 does
+  not count it (`commitStats0.numInsts 35`). Instructions that are still in
+  flight when gem5 exits have no `O3PipeView` record and do not appear.
+* **Cold start.** The first instruction is fetched at cycle 81 (O3) / 78
+  (TimingSimple): the instruction cache misses all the way to DRAM. Traces
+  therefore start at tick 0, not at the first fetch.
+* **Cycle counts are model properties.** `loop_sum` takes 248 cycles on O3
+  with L1 + L2, 163 on TimingSimple with L1, 35 on AtomicSimple, and 60 on
+  Ripes' 5-stage model with ideal memory. None of these describes a real
+  chip.
+* **Prefetchers are part of the simulated system.** gem5's standard-library
+  cache hierarchy gives every cache a stride prefetcher. In the sequential
+  `array_sum` run the L1D prefetcher issued 484 prefetches, 120 of them
+  useful. The System view lists the prefetchers; cache statistics must be
+  read with them in mind.
+
+## 7. Mission scoring
 
 Missions verify conditions against the live processor state and against the
 statistics of a **complete** trace (from reset, not truncated, program

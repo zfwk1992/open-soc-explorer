@@ -145,9 +145,10 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
                       p["value"].toString());
       break;
     case EventType::MemoryRequest:
-      what = QString("data memory %1 request @ %2 (%3 bytes)")
-                 .arg(p["access"].toString(), p["address"].toString())
-                 .arg(p["bytes"].toUInt());
+      what = QString("data memory %1 request @ %2")
+                 .arg(p["access"].toString(), p["address"].toString());
+      if (p.contains("bytes"))
+        what += QString(" (%1 bytes)").arg(p["bytes"].toUInt());
       break;
     case EventType::MemoryResponse:
       what = QString("data memory %1 value %2")
@@ -185,7 +186,12 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
   auto valueOf = [&](RegClass cls, unsigned idx) -> std::optional<quint64> {
     if (!before.has_value())
       return std::nullopt;
-    const auto it = before->find(cls == RegClass::FPR ? "fpr" : "gpr");
+    const QString file = cls == RegClass::FPR ? "fpr" : "gpr";
+    // x0 is always known; other registers only if the trace provides them.
+    if (!(cls == RegClass::GPR && idx == 0) &&
+        !replay.registerKnownBeforeRetire(id, file, static_cast<int>(idx)))
+      return std::nullopt;
+    const auto it = before->find(file);
     if (it == before->end() || idx >= it->second.size())
       return std::nullopt;
     return it->second[idx];
@@ -207,10 +213,15 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
 
     const auto rs1 = valueOf(d.rs1Class, d.rs1);
     const auto rs2 = valueOf(d.rs2Class, d.rs2);
-    if (before.has_value() && d.rdClass == RegClass::GPR && d.writesRd())
+    // Only check against the ISA when every source operand is known.
+    const bool operandsKnown =
+        (d.rs1Class == RegClass::None || rs1.has_value()) &&
+        (d.rs2Class == RegClass::None || rs2.has_value());
+    if (before.has_value() && operandsKnown && d.rdClass == RegClass::GPR &&
+        d.writesRd())
       e.expected = evaluateIntegerResult(d, e.pc, rs1.value_or(0),
                                          rs2.value_or(0), h.xlen);
-    if (before.has_value() && d.isBranch)
+    if (before.has_value() && operandsKnown && d.isBranch)
       e.branchCondition =
           evaluateBranch(d, rs1.value_or(0), rs2.value_or(0), h.xlen);
   }
@@ -273,11 +284,25 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
                       .arg(inst->endCycle);
 
   // ---- Hazards ------------------------------------------------------------
-  qint64 decodeCycle = inst->firstCycle;
-  if (profile.has_value() && !profile->decodeStage.isEmpty())
+  // Decode time: the model's decode stage (Ripes) or the engine's decode
+  // event (e.g. gem5). Without either, only the first cycle is known.
+  qint64 decodeCycle = -1;
+  if (profile.has_value() && !profile->decodeStage.isEmpty()) {
     for (const auto &[cycle, stage] : inst->stageEntries)
       if (h.stages[stage].name == profile->decodeStage)
         decodeCycle = cycle;
+  } else {
+    for (size_t idx : inst->events)
+      if (t.events[idx].type == EventType::InstructionDecode) {
+        decodeCycle = t.events[idx].cycle;
+        break;
+      }
+  }
+  const QString since = decodeCycle >= 0
+                            ? QString("was decoded at cycle %1")
+                            : QString("entered the pipeline at cycle %1");
+  if (decodeCycle < 0)
+    decodeCycle = inst->firstCycle;
   if (d.valid && !d.compressed) {
     const auto &order = replay.retirementOrder();
     for (const auto &op : e.operands) {
@@ -304,11 +329,11 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
         continue;
       QString text =
           QString("RAW dependency on %1: produced by %2 (%3), which retired at "
-                  "cycle %4, after this instruction was decoded at cycle %5.")
+                  "cycle %4, after this instruction %5.")
               .arg(op.name, Trace::instanceName(producer->id),
                    escape(producer->assembly))
               .arg(producer->endCycle)
-              .arg(decodeCycle);
+              .arg(since.arg(decodeCycle));
       if (!inst->heldCycles.empty())
         text += QString(" It was resolved by stalling for %1 cycle(s).")
                     .arg(inst->heldCycles.size());
@@ -351,6 +376,9 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
       if (!d.isLoad && !d.isStore && !d.isSystem)
         e.sourceRefs << "src/processors/RISC-V/rv_alu.h";
     }
+  } else if (!h.source.sourceFile.isEmpty()) {
+    // Other engines name their model's implementation (e.g. "gem5: ...").
+    e.sourceRefs << h.source.sourceFile;
   }
   e.sourceRefs << (d.isMulDiv ? "src/isa/rv_m_ext.cpp"
                               : "src/isa/rv_i_ext.cpp");
@@ -454,11 +482,12 @@ QString explanationToHtml(const InstructionExplanation &e, bool dark) {
             "'>(architectural values before retirement)</span></h4><ul>";
     for (const auto &op : e.operands) {
       html += "<li><b>" + op.role + "</b> = " + escape(op.name) + " = ";
-      html +=
-          op.value.has_value()
-              ? QString("<code>%1</code> (%2)")
-                    .arg(hex(*op.value, bits), signedValue(*op.value, bits))
-              : QString("<i>not available (instruction did not retire)</i>");
+      html += op.value.has_value()
+                  ? QString("<code>%1</code> (%2)")
+                        .arg(hex(*op.value, bits), signedValue(*op.value, bits))
+                  : QString("<i>not available (the instruction did not retire, "
+                            "or the trace does not contain this register's "
+                            "value)</i>");
       html += "</li>";
     }
     if (d.hasImm)

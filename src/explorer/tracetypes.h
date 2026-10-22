@@ -16,7 +16,7 @@ namespace Trace {
 /// Version of the Open SoC Explorer trace schema emitted and accepted by this
 /// build. Bump the minor version for backwards compatible additions and the
 /// major version for breaking changes.
-inline constexpr const char *kSchemaVersion = "0.1.0";
+inline constexpr const char *kSchemaVersion = "0.2.0";
 
 /// Version of the Open SoC Explorer extensions layered on top of Ripes.
 inline constexpr const char *kExplorerVersion = "0.1.0";
@@ -88,6 +88,8 @@ qint64 instanceFromName(const QString &name);
 struct TraceEvent {
   quint64 sequence = 0;
   qint64 cycle = 0;
+  /// Engine tick (e.g. gem5 ticks), if the engine has one.
+  std::optional<qint64> tick;
   EventType type = EventType::StateSnapshot;
   /// Hierarchical component path, e.g. "soc.cpu0.pipeline.ex".
   QString component;
@@ -140,12 +142,44 @@ struct TraceSource {
   bool operator==(const TraceSource &other) const = default;
 };
 
+/// A hardware component that the producing engine actually simulated
+/// (schema >= 0.2.0). Components that are not simulated must not be listed.
+struct SystemComponent {
+  /// Hierarchical path, e.g. "soc.cpu0" or "board.cache_hierarchy.l1d-cache-0".
+  QString path;
+  /// Engine-specific type, e.g. "RV5S" or "Cache".
+  QString type;
+  /// One of "cpu", "cache", "interconnect", "memory-controller", "memory",
+  /// "peripheral", "other".
+  QString role;
+  QString description;
+  /// Configuration parameters as reported by the engine.
+  QVariantMap parameters;
+  /// Aggregate statistics as reported by the engine (end of simulation).
+  QVariantMap statistics;
+  /// Paths of components this one is connected to (downstream), as reported
+  /// by the engine. Views must not draw connections that are not listed.
+  QStringList connections;
+  /// Meaning/unit of parameters and the engine's own description of
+  /// statistics, keyed like parameters/statistics (optional).
+  QVariantMap parameterInfo;
+  QVariantMap statisticInfo;
+
+  bool operator==(const SystemComponent &other) const = default;
+};
+
 struct TraceHeader {
   QString schemaVersion = kSchemaVersion;
   QString runId;
   QString createdUtc;
   TraceSource source;
   QString clockDomain = kRipesClockDomain;
+  /// Human readable description of the clock domain.
+  QString clockDomainDescription;
+  /// If the engine has a tick-based time base (e.g. gem5), the number of
+  /// ticks per cycle of clockDomain and the tick unit; 0 otherwise.
+  qint64 ticksPerCycle = 0;
+  QString tickUnit;
   unsigned xlen = 32;
   std::vector<StageDesc> stages;
   std::vector<RegisterFileDesc> registerFiles;
@@ -158,6 +192,8 @@ struct TraceHeader {
   qint64 startCycle = 0;
   quint64 initialPc = 0;
   std::map<QString, std::vector<quint64>> initialRegisters;
+  /// Simulated hardware components (may be empty).
+  std::vector<SystemComponent> system;
 };
 
 struct TraceCompleteness {

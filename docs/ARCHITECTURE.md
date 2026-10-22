@@ -18,7 +18,9 @@ Open SoC Explorer
 │   │     timeline, pipeline strip, events, registers at any cycle,
 │   │     instruction explanations, CPU component inspector, statistics
 │   ├── Learning missions .......... MissionsTab (src/missionstab.*)    [new]
-│   ├── SoC explorer ............... —                                  [planned]
+│   ├── System view ................ SystemView (src/systemview.*)     [new]
+│   │     components and connections the engine simulated, parameters,
+│   │     engine statistics; absent SoC blocks drawn as "not simulated"
 │   └── Accelerator explorer ....... —                                  [planned]
 │
 ├── Simulation control ............. Ripes ProcessorHandler + toolbar   [Ripes]
@@ -35,7 +37,7 @@ Open SoC Explorer
 │
 ├── Simulation adapters
 │   ├── Ripes ...................... TraceRecorder + ModelProfile        [new]
-│   ├── gem5 ....................... —                                  [planned]
+│   ├── gem5 (offline) ............. tools/gem5/gem5_to_osx.py          [new]
 │   ├── Verilator / Ibex ........... —                                  [planned]
 │   └── AI accelerator ............. —                                  [planned]
 │
@@ -43,7 +45,8 @@ Open SoC Explorer
     ├── RISC-V CPU ................. Ripes models (src/processors)     [Ripes]
     ├── Cache ...................... Ripes CacheSim (beside the CPU)    [Ripes]
     ├── Memory ..................... ideal VSRTL memories, MMIO         [Ripes]
-    └── Interconnect, DMA, accelerator ........................... [planned]
+    ├── Caches, crossbars, DRAM .... gem5 classic memory system         [gem5, external]
+    └── DMA, accelerator ........................................... [planned]
 ```
 
 Only directories that contain code exist; planned modules have no
@@ -106,20 +109,47 @@ interface does not expose: fidelity class and note, implementation file,
 decode and memory stage names, whether the model reports memory accesses
 after execution (ISS), forwarding/hazard-detection flags.
 
-## 5. Adding another simulation engine (planned design)
+## 5. Other simulation engines
 
 An adapter for another engine produces a `Trace::Trace` (or a JSON Lines file
 following the protocol):
 
 1. Fill `TraceHeader` honestly: `engine`, `engine_version`, `model`,
-   `fidelity`, `fidelity_note`, time domain(s), stages if the model has a
-   pipeline view.
+   `fidelity`, `fidelity_note`, time domain(s) with the engine's tick length,
+   stages if the model has a pipeline view, and the simulated components
+   (`system`).
 2. Emit only events the engine observes; use `observability: inferred` for
    anything derived; use `time.tick` for engine ticks.
-3. Offline import first (e.g. gem5 `O3PipeView`/exec traces, Ibex
-   `trace_core_*.log` RVFI-based traces), live streaming later.
-4. Everything above the trace layer (replay, Explorer, statistics) then works
-   unchanged; missions can be written for the new engine.
+3. Offline import first, live streaming later.
+4. Everything above the trace layer (replay, Explorer, System view,
+   statistics) then works unchanged; missions can be written for the new
+   engine.
+
+### 5.1 gem5 (offline, implemented)
+
+```
+gem5.opt --debug-flags=Exec...,O3PipeView tools/gem5/se_trace.py prog.elf
+   │  trace.out (Exec records, O3PipeView records), config.json, stats.txt
+   ▼
+tools/gem5/gem5_to_osx.py  ──►  trace.jsonl (schema 0.2.0, engine "gem5")
+   ▼
+Explorer: "Open a trace file for offline replay…"
+```
+
+* gem5 runs outside Open SoC Explorer (see `tools/gem5/README.md`); nothing
+  of gem5 is linked or vendored.
+* The converter is standard-library Python. Its mapping from gem5 records
+  to events, and what is `direct` versus `inferred`, is documented at the
+  top of `gem5_to_osx.py` and in [SIMULATION_FIDELITY.md](SIMULATION_FIDELITY.md).
+* `TraceReplay` handles several instructions per stage (O3CPU) and
+  register files without initial values (gem5 does not report them), and
+  computes operands in commit order when several instructions retire in
+  the same cycle.
+
+### 5.2 Planned
+
+Ibex RTL via Verilator (RVFI-based `trace_core_*.log` plus selected
+signals) and accelerator models, see [ROADMAP.md](ROADMAP.md).
 
 ## 6. Code map
 
@@ -136,8 +166,12 @@ following the protocol):
 | `src/explorer/mission.{h,cpp}`, `missions/*.json` | Mission format, loader, criteria evaluation |
 | `src/explorertab.{h,cpp}` | Explorer tab GUI |
 | `src/missionstab.{h,cpp}` | Missions tab GUI |
+| `src/systemview.{h,cpp}` | System view: simulated components, connections, parameters, statistics |
 | `src/cli/clioptions.*`, `src/cli/clirunner.*` | `--trace-out`, `--trace-max-cycles` |
 | `tools/trace/osx_trace.py` | Python validate/summary/replay |
+| `tools/gem5/se_trace.py` | gem5 configuration (stdlib board, CPU model and cache options) |
+| `tools/gem5/gem5_to_osx.py` | gem5 output → trace protocol converter |
+| `tools/gem5/workloads/` | RISC-V workloads for gem5 (Mission 3 loop, strided array sum) |
 | `test/tst_trace.cpp`, `test/tst_missions.cpp`, `test/tst_explorergui.cpp` | Tests |
 
 Upstream files touched (kept minimal to ease syncing with Ripes):

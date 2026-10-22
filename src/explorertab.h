@@ -27,6 +27,7 @@ class QVBoxLayout;
 
 namespace Ripes {
 
+class SystemView;
 namespace Explorer {
 class TraceRecorder;
 }
@@ -77,6 +78,9 @@ public:
   ~ExplorerTab() override;
 
   void tabVisibilityChanged(bool visible) override;
+
+  /// Loads a trace file (e.g. converted from gem5) for offline replay.
+  bool openTraceFile(const QString &path, QString *error = nullptr);
 
 public slots:
   void setCycle(qint64 cycle);
@@ -133,6 +137,7 @@ private:
   QTableWidget *m_registers = nullptr;
   QTextBrowser *m_explanation = nullptr;
   QTextBrowser *m_statistics = nullptr;
+  SystemView *m_systemView = nullptr;
   QTabWidget *m_sideTabs = nullptr;
 
   QTreeWidget *m_componentTree = nullptr;

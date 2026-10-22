@@ -42,6 +42,32 @@ core.
   of that value against the ISA semantics, data dependencies on older
   instructions still in flight, its journey through the pipeline, and the
   source files that implement it.
+* **System**: the hardware the engine simulated. For Ripes that is a CPU,
+  an ideal memory and the I/O peripherals; for gem5 also caches,
+  prefetchers, crossbars, a memory controller and DRAM. Click a component
+  for its parameters (with their meaning) and the engine's end-of-run
+  statistics. Dashed boxes are typical SoC blocks that this engine does
+  **not** simulate.
+
+### 2.1 Exploring a gem5 run
+
+gem5 simulates a configurable out-of-order (or simpler) RISC-V core with a
+real cache hierarchy and DRAM. Produce a trace with
+[tools/gem5](../tools/gem5/README.md) and open it with *Open a trace file for
+offline replay…*. Things to look at:
+
+* the first ~80 cycles are empty: the very first instruction fetch misses in
+  every cache and goes to DRAM;
+* stages hold several instructions at once (`+N more`) and several
+  instructions commit in the same cycle;
+* red rows are wrong-path instructions fetched after a mispredicted branch;
+* registers are *unknown* until the program writes them, because gem5's
+  trace does not contain initial register values;
+* in *System*, compare the L1 data cache misses of `array_sum` (strided) and
+  `array_sum_seq` (sequential) with a 4 KiB L1, see the measured table in
+  [tools/gem5/README.md](../tools/gem5/README.md).
+
+![gem5 O3CPU run in the Explorer](images/explorer-gem5-o3.png)
 
 ## 3. Missions
 
