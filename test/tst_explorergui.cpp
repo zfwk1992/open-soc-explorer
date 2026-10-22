@@ -3,6 +3,8 @@
 // in the real main window. Set OSX_SCREENSHOT_DIR to save screenshots.
 #include <QApplication>
 #include <QDir>
+#include <QGraphicsItem>
+#include <QGraphicsView>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
@@ -22,6 +24,7 @@
 #include "missionstab.h"
 #include "processorhandler.h"
 #include "ripessettings.h"
+#include "systemview.h"
 
 using namespace Ripes;
 
@@ -55,6 +58,7 @@ private slots:
   void tst_explorerReplaysTrace();
   void tst_componentInspector();
   void tst_mission3ChallengeSolved();
+  void tst_systemViewRipes();
   void cleanupTestCase();
 };
 
@@ -241,6 +245,38 @@ void tst_explorergui::tst_mission3ChallengeSolved() {
               ->text()
               .startsWith("✓"));
   screenshot("missions-mission3-solved");
+}
+
+void tst_explorergui::tst_systemViewRipes() {
+  // Live trace of the Mission 3 solution on RV32_5S (previous test).
+  activateTab(kExplorerTab);
+  m_explorer->findChild<QTabWidget *>("explorerSideTabs")->setCurrentIndex(4);
+  auto *view = m_explorer->findChild<QGraphicsView *>("systemTopology");
+  QVERIFY(view);
+  QStringList simulated, notSimulated;
+  for (auto *item : view->scene()->items()) {
+    const QString key = item->data(0).toString();
+    if (key.startsWith("not-simulated:"))
+      notSimulated << key.section(':', 1);
+    else if (!key.isEmpty())
+      simulated << key;
+  }
+  simulated.sort();
+  // Ripes simulates a CPU and an ideal memory; this program uses no MMIO.
+  QCOMPARE(simulated, QStringList({"soc.cpu0", "soc.mem"}));
+  for (const QString role :
+       {"cache", "interconnect", "memory-controller", "dma", "accelerator"})
+    QVERIFY2(notSimulated.contains(role), qPrintable(role));
+
+  auto *systemView = m_explorer->findChild<SystemView *>();
+  systemView->selectComponent("soc.cpu0");
+  QCOMPARE(systemView->selectedComponent(), QString("soc.cpu0"));
+  const QString details =
+      m_explorer->findChild<QTextBrowser *>("systemDetails")->toPlainText();
+  QVERIFY(details.contains("RV32_5S"));
+  QVERIFY(details.contains("Parameters"));
+  QVERIFY(details.contains("instructions_retired"));
+  screenshot("explorer-system-ripes");
 }
 
 int main(int argc, char **argv) {
