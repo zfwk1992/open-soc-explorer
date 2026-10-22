@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Part of Open SoC Explorer: tests for the learning missions, the instruction
 // explainer and the component knowledge base.
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTranslator>
+#include <QXmlStreamReader>
 #include <QtTest/QTest>
 
 #include "cachesim/cachesim.h"
@@ -14,6 +20,8 @@
 #include "explorer/modelprofile.h"
 #include "explorer/tracerecorder.h"
 #include "explorer/tracereplay.h"
+#include "explorer/tracetext.h"
+#include "i18n/upstreamstrings.h"
 #include "processorhandler.h"
 #include "processorregistry.h"
 #include "programloader.h"
@@ -55,6 +63,9 @@ private slots:
   void tst_explainerLoadUseHazard();
   void tst_explainerDetectsUnresolvedHazard();
   void tst_explainerSquashedInstruction();
+  void tst_missionTranslations();
+  void tst_translationCatalogue();
+  void tst_translatedTexts();
 };
 
 void tst_missions::initTestCase() {
@@ -524,6 +535,141 @@ void tst_missions::tst_explainerSquashedInstruction() {
     return;
   }
   QFAIL("no squashed instruction found");
+}
+
+void tst_missions::tst_missionTranslations() {
+  // Every mission parses in English and in Chinese, has no missing Chinese
+  // text, and both languages share ids, steps and checks.
+  QString error;
+  const auto zh = loadBuiltinMissions(&error, "zh_CN");
+  QVERIFY2(error.isEmpty(), qPrintable(error));
+  QCOMPARE(zh.size(), m_missions.size());
+  QDir dir(":/missions");
+  int files = 0;
+  for (const auto &file : dir.entryList({"*.json"}, QDir::Files)) {
+    QFile f(dir.filePath(file));
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const auto o = QJsonDocument::fromJson(f.readAll()).object();
+    QVERIFY2(parseMission(o, &error).has_value(), qPrintable(error));
+    QVERIFY2(parseMission(o, &error, "zh_CN").has_value(), qPrintable(error));
+    const auto missing = missingTranslations(o, "zh_CN");
+    QVERIFY2(missing.isEmpty(),
+             qPrintable(file + " lacks zh_CN: " + missing.join(", ")));
+    ++files;
+  }
+  QCOMPARE(files, int(m_missions.size()));
+  for (size_t i = 0; i < zh.size(); ++i) {
+    const auto &en = m_missions[i];
+    const auto &cn = zh[i];
+    QCOMPARE(cn.id, en.id);
+    QCOMPARE(cn.processor, en.processor);
+    QCOMPARE(cn.example, en.example);
+    QCOMPARE(cn.referenceSolution, en.referenceSolution);
+    QCOMPARE(cn.steps.size(), en.steps.size());
+    QCOMPARE(cn.learn.size(), en.learn.size());
+    QVERIFY(cn.title != en.title);
+    QVERIFY(cn.objective != en.objective);
+    QVERIFY(cn.challenge != en.challenge);
+    for (size_t s = 0; s < en.steps.size(); ++s) {
+      QVERIFY(cn.steps[s].title != en.steps[s].title);
+      QCOMPARE(cn.steps[s].checks.size(), en.steps[s].checks.size());
+      for (size_t c = 0; c < en.steps[s].checks.size(); ++c) {
+        QCOMPARE(cn.steps[s].checks[c].kind, en.steps[s].checks[c].kind);
+        QCOMPARE(cn.steps[s].checks[c].params, en.steps[s].checks[c].params);
+      }
+    }
+    QCOMPARE(cn.challengeChecks.size(), en.challengeChecks.size());
+  }
+  // A language without translations falls back to English.
+  const auto fr = loadBuiltinMissions(&error, "fr");
+  QCOMPARE(fr.front().title, m_missions.front().title);
+}
+
+void tst_missions::tst_translationCatalogue() {
+  // translations/open-soc-explorer_zh_CN.ts: no unfinished or empty
+  // translations, placeholders kept, and the texts looked up at run time
+  // (upstream literals, trace texts) are present.
+  QFile file(QString(OSX_SOURCE_DIR) +
+             "/translations/open-soc-explorer_zh_CN.ts");
+  QVERIFY(file.open(QIODevice::ReadOnly));
+  QXmlStreamReader xml(&file);
+  QString context, source;
+  std::map<QString, QSet<QString>> sources;
+  QStringList unfinished, badPlaceholders;
+  int messages = 0;
+  static const QRegularExpression placeholder("%\\d");
+  auto placeholders = [&](const QString &s) {
+    QStringList list;
+    for (auto it = placeholder.globalMatch(s); it.hasNext();)
+      list << it.next().captured();
+    list.sort();
+    return list;
+  };
+  while (!xml.atEnd()) {
+    xml.readNext();
+    if (!xml.isStartElement())
+      continue;
+    if (xml.name() == QLatin1String("name")) {
+      context = xml.readElementText();
+    } else if (xml.name() == QLatin1String("source")) {
+      source = xml.readElementText();
+      sources[context].insert(source);
+      ++messages;
+    } else if (xml.name() == QLatin1String("translation")) {
+      const bool isUnfinished =
+          xml.attributes().value("type") == QLatin1String("unfinished");
+      const QString translation = xml.readElementText();
+      if (isUnfinished || translation.isEmpty())
+        unfinished << context + ": " + source;
+      else if (placeholders(translation) != placeholders(source))
+        badPlaceholders << context + ": " + source;
+    }
+  }
+  QVERIFY2(!xml.hasError(), qPrintable(xml.errorString()));
+  qInfo("%d messages, %d unfinished", messages, int(unfinished.size()));
+  QVERIFY(messages > 700);
+  QVERIFY2(unfinished.isEmpty(), qPrintable(unfinished.join("\n")));
+  QVERIFY2(badPlaceholders.isEmpty(), qPrintable(badPlaceholders.join("\n")));
+  for (const auto &text : I18n::upstreamSourceTexts())
+    QVERIFY2(sources["Upstream"].contains(text), qPrintable(text));
+  for (const auto &text : knownTraceTexts())
+    QVERIFY2(sources[kTraceTextContext].contains(text), qPrintable(text));
+}
+
+void tst_missions::tst_translatedTexts() {
+  // With the embedded catalogue installed, the texts built by the explorer
+  // library are Chinese; identifiers, numbers and register names are kept.
+  QTranslator translator;
+  QVERIFY(translator.load(":/i18n/open-soc-explorer_zh_CN.qm"));
+  QVERIFY(QCoreApplication::installTranslator(&translator));
+  const auto &m = mission(1);
+  auto state = run(m.processor, "addi x5, x0, 100\nadd x6, x5, x0");
+  auto report = evaluateChecks(m.challengeChecks, state, m);
+  QVERIFY(!report.passed);
+  QStringList zh;
+  for (const auto &r : report.results)
+    zh << r.description + " [" + r.detail + "]";
+  QVERIFY2(zh.join("; ").contains("最后写入者：addi"),
+           qPrintable(zh.join("; ")));
+  QVERIFY(zh.join("; ").contains("t0 (x5)"));
+  QCOMPARE(localizedTraceText("3 register write(s) could not be attributed to "
+                              "a retiring instruction (e.g. system call side "
+                              "effects or manual edits)."),
+           QString("有 3 次寄存器写入无法归属到某条退休的指令（例如系统调用的副"
+                   "作用或手动修改）。"));
+  QVERIFY(localizedTraceText(modelProfile(ProcessorID::RV32_5S).fidelityNote)
+              .contains("教学数据通路模型"));
+  QCOMPARE(localizedTraceText("gem5's own statistic text"),
+           QString("gem5's own statistic text"));
+  QVERIFY(componentInfo("alu")->title.contains("算术逻辑单元"));
+  QCOMPARE(levelTitle(1), QString("取指"));
+  QCoreApplication::removeTranslator(&translator);
+
+  // English again without the catalogue.
+  report = evaluateChecks(m.challengeChecks, state, m);
+  QVERIFY(failures(report).contains("last written by: addi"));
+  QCOMPARE(componentInfo("alu")->title, QString("Arithmetic logic unit (ALU)"));
+  QCOMPARE(levelTitle(1), QString("Fetch"));
 }
 
 QTEST_MAIN(tst_missions)

@@ -10,6 +10,8 @@
 #include <QGraphicsView>
 #include <QLabel>
 #include <QListWidget>
+#include <QMenu>
+#include <QMenuBar>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
@@ -28,10 +30,13 @@
 #include "edittab.h"
 #include "explorer/mission.h"
 #include "explorer/missionprogress.h"
+#include "explorer/tracejson.h"
+#include "explorer/tracetext.h"
 #include "explorertab.h"
 #include "explorerwidgets.h"
 #include "fancytabbar/fancytabbar.h"
 #include "gem5sample.h"
+#include "i18n/language.h"
 #include "mainwindow.h"
 #include "missionstab.h"
 #include "processorhandler.h"
@@ -52,8 +57,8 @@ constexpr int kCardRole = Qt::UserRole + 1;
 // Settings the test changes; restored in cleanupTestCase().
 const char *const kIsolatedSettings[] = {
     RIPES_SETTING_OSX_MISSION_STEPS, RIPES_SETTING_OSX_MISSIONS_COMPLETED,
-    RIPES_SETTING_OSX_THEME, RIPES_SETTING_OSX_REDUCED_MOTION,
-    RIPES_SETTING_COLORSCHEME};
+    RIPES_SETTING_OSX_THEME,         RIPES_SETTING_OSX_REDUCED_MOTION,
+    RIPES_SETTING_COLORSCHEME,       RIPES_SETTING_OSX_LANGUAGE};
 
 /// Animation driver with a virtual clock for the demo recording: Qt's
 /// animations advance only when a frame is taken, so that the video shows
@@ -93,6 +98,8 @@ public:
   ~DemoRecorder() { m_clock.uninstall(); }
 
   void caption(const QString &text) { m_caption = text; }
+  /// Pop-up windows (menus) drawn onto the frames while they are visible.
+  void setOverlays(const QList<QWidget *> &overlays) { m_overlays = overlays; }
   void hold(int ms) {
     for (int t = 0; t < ms; t += kFrameMs)
       frame();
@@ -129,6 +136,10 @@ private:
         m_window->grab().toImage().convertToFormat(QImage::Format_RGB32);
     QPainter p(&img);
     p.setRenderHint(QPainter::Antialiasing);
+    for (auto *w : m_overlays)
+      if (w->isVisible())
+        p.drawPixmap(m_window->mapFromGlobal(w->mapToGlobal(QPoint(0, 0))),
+                     w->grab());
     if (!m_caption.isEmpty()) {
       QFont f = QApplication::font();
       f.setPointSizeF(f.pointSizeF() * 1.25);
@@ -172,6 +183,7 @@ private:
   }
 
   QWidget *m_window;
+  QList<QWidget *> m_overlays;
   QString m_dir;
   QPointF m_pointer;
   QString m_caption;
@@ -195,6 +207,8 @@ private:
   QVariantMap missionCard(int row) const;
   QStringList stripMoves() const;
   void screenshot(const QString &name);
+  bool triggerAction(const QString &text);
+  QString badgeText() const;
 
   MainWindow *m_window = nullptr;
   MissionsTab *m_missions = nullptr;
@@ -212,7 +226,9 @@ private slots:
   void tst_systemViewRipes();
   void tst_gem5TraceInExplorer();
   void tst_themes();
+  void tst_language();
   void tst_demoVideo();
+  void tst_languageDemoVideo();
   void cleanupTestCase();
 };
 
@@ -228,6 +244,8 @@ void tst_explorergui::initTestCase() {
   RipesSettings::setValue(RIPES_SETTING_OSX_REDUCED_MOTION, false);
   RipesSettings::setValue(RIPES_SETTING_COLORSCHEME,
                           static_cast<int>(ColorScheme::System));
+  // The tests check English texts; tst_language switches the language.
+  RipesSettings::setValue(RIPES_SETTING_OSX_LANGUAGE, "en");
   m_window = new MainWindow();
   m_window->resize(1680, 1000);
   m_window->show();
@@ -275,6 +293,22 @@ QStringList tst_explorergui::stripMoves() const {
   }
   moves.sort();
   return moves;
+}
+
+bool tst_explorergui::triggerAction(const QString &text) {
+  for (auto *action : m_window->findChildren<QAction *>())
+    if (action->text() == text) {
+      action->trigger();
+      return true;
+    }
+  return false;
+}
+
+QString tst_explorergui::badgeText() const {
+  QStringList parts;
+  for (const auto &b : m_explorer->findChild<HudBanner *>()->badges())
+    parts << b.label + ": " + b.value;
+  return parts.join(" | ");
 }
 
 void tst_explorergui::activateTab(int index) {
@@ -698,6 +732,171 @@ void tst_explorergui::tst_themes() {
   QVERIFY(Theme::animationsEnabled());
 }
 
+void tst_explorergui::tst_language() {
+  auto *bar = m_window->findChild<FancyTabBar *>();
+  auto *sideTabs = m_explorer->findChild<QTabWidget *>("explorerSideTabs");
+  auto *mapTitle = m_missions->findChild<QLabel *>("missionOverline");
+  auto *banner = m_explorer->findChild<QLabel *>("explorerBanner");
+  auto stepChecks = [&] {
+    QStringList texts;
+    for (auto *frame : m_missions->findChildren<QFrame *>("missionStep"))
+      for (auto *l : frame->findChildren<QLabel *>())
+        if (l->objectName().isEmpty())
+          texts << l->text();
+    return texts.join("\n");
+  };
+  QCOMPARE(I18n::current(), I18n::Language::English);
+
+  // Mission 3 at the first flush, on the live trace.
+  QVERIFY(triggerAction("Return to the live trace"));
+  loadMission(2);
+  runToEnd();
+  activateTab(kExplorerTab);
+  sideTabs->setCurrentIndex(0);
+  m_explorer->setCycle(7);
+  m_explorer->selectInstance(6);
+  QTest::qWait(100);
+  const auto *explanation =
+      m_explorer->findChild<QTextBrowser *>("explorerExplanation");
+  const QString englishExplanation = explanation->toPlainText();
+  QVERIFY(englishExplanation.contains("squashed at cycle 7"));
+  QCOMPARE(bar->tabText(kExplorerTab), QString("Explorer"));
+  QCOMPARE(mapTitle->text(), QString("MISSION MAP"));
+  QVERIFY(banner->text().contains("<b>Engine:</b>"));
+  QVERIFY(badgeText().contains("Fidelity: educational-model"));
+  activateTab(kMissionsTab);
+  QVERIFY(stepChecks().contains("Selected processor:"));
+  screenshot("en-missions-map");
+
+  // Switch at run time: View → Language → 简体中文.
+  QVERIFY(triggerAction("简体中文"));
+  QCOMPARE(RipesSettings::value(RIPES_SETTING_OSX_LANGUAGE).toString(),
+           QString("zh_CN"));
+  QTRY_COMPARE(bar->tabText(kExplorerTab), QString("探索器"));
+  QCOMPARE(I18n::current(), I18n::Language::ChineseSimplified);
+  QCOMPARE(bar->tabText(kMissionsTab), QString("任务"));
+  QCOMPARE(bar->tabText(kProcessorTab), QString("处理器"));
+  QCOMPARE(mapTitle->text(), QString("任务地图"));
+  QCOMPARE(sideTabs->tabText(0), QString("指令"));
+  // Mission content in Chinese, criteria too; the progress is the same.
+  QVERIFY(stepChecks().contains("所选处理器："));
+  QVERIFY(m_missions->findChild<QListWidget *>("missionList")
+              ->item(2)
+              ->text()
+              .contains("分支与冲刷"));
+  QVERIFY(m_missions->findChild<QListWidget *>("missionList")
+              ->item(2)
+              ->text()
+              .startsWith("✓"));
+  click(m_missions, "检查挑战");
+  QVERIFY(m_missions->findChild<QLabel *>("missionResult")
+              ->text()
+              .contains("尚未解决"));
+  // Upstream texts: menus and the simulator tool bar.
+  bool clockFound = false;
+  for (auto *a : m_window->findChildren<QAction *>())
+    clockFound |= a->text() == "时钟 (F5)";
+  QVERIFY(clockFound);
+  bool viewMenu = false;
+  for (auto *m : m_window->findChildren<QMenu *>())
+    viewMenu |= m->title() == "视图";
+  QVERIFY(viewMenu);
+  screenshot("zh-missions-map");
+
+  // Explorer: banner, badges, explanation in Chinese; identifiers kept.
+  activateTab(kExplorerTab);
+  sideTabs->setCurrentIndex(0);
+  m_explorer->setCycle(7);
+  m_explorer->selectInstance(6);
+  QTRY_VERIFY(banner->text().contains("<b>引擎：</b>"));
+  QVERIFY(banner->text().contains("educational-model"));
+  QVERIFY(badgeText().contains("保真度: educational-model"));
+  QVERIFY(badgeText().contains("RV32_5S"));
+  const QString zhExplanation = explanation->toPlainText();
+  QVERIFY(zhExplanation.contains("在周期 7 被作废"));
+  QVERIFY(zhExplanation.contains("在模型中的经历"));
+  QVERIFY(zhExplanation.contains("src/processors/RISC-V/rv5s/rv5s.h"));
+  QVERIFY(!zhExplanation.contains("squashed at cycle"));
+  // The fidelity caveat keeps its meaning.
+  QVERIFY(zhExplanation.contains("不是任何特定商业或开源 RTL 核的模型"));
+  screenshot("zh-explorer-mission3-flush");
+
+  // A gem5 trace: every descriptive text the converter writes is known.
+  QTemporaryDir dir;
+  QString error;
+  const QString path = Gem5Sample::convert(dir, "loop_sum_o3_l1l2", &error);
+  if (!path.isEmpty()) {
+    QVERIFY2(m_explorer->openTraceFile(path, &error), qPrintable(error));
+    QTest::qWait(200);
+    m_explorer->setCycle(85);
+    m_explorer->selectInstance(3);
+    const auto trace = Trace::readJsonlFile(path, &error);
+    QVERIFY(trace.has_value());
+    QStringList untranslated;
+    auto check = [&](const QString &text) {
+      if (!text.isEmpty() && Explorer::localizedTraceText(text) == text)
+        untranslated << text;
+    };
+    check(trace->header.source.fidelityNote);
+    check(trace->header.clockDomainDescription);
+    for (const auto &c : trace->completeness.caveats)
+      check(c);
+    for (const auto &c : trace->header.system) {
+      check(c.description);
+      for (const auto &v : c.parameterInfo)
+        check(v.toString());
+    }
+    QVERIFY2(untranslated.isEmpty(), qPrintable(untranslated.join("\n")));
+    QVERIFY(m_explorer->findChild<HudBanner *>()->toolTip().contains(
+        "系统调用仿真"));
+    sideTabs->setCurrentIndex(4);
+    auto *systemView = m_explorer->findChild<SystemView *>();
+    systemView->selectComponent("board.cache_hierarchy.l1i-cache-0");
+    const QString details =
+        m_explorer->findChild<QTextBrowser *>("systemDetails")->toPlainText();
+    QVERIFY(details.contains("参数"));
+    QVERIFY(details.contains("容量（字节）"));
+    QVERIFY(details.contains("demandMisses::total")); // statistic names kept
+    auto *splitter = qobject_cast<QSplitter *>(sideTabs->parentWidget());
+    const auto sizes = splitter->sizes();
+    splitter->setSizes({sizes[0] + sizes[1] - 860, 860});
+    QTest::qWait(100);
+    screenshot("zh-explorer-gem5-system");
+    splitter->setSizes(sizes);
+    sideTabs->setCurrentIndex(0);
+  }
+  activateTab(kProcessorTab);
+  QTest::qWait(300);
+  screenshot("zh-processor");
+
+  // And back: English everywhere again, including upstream texts.
+  QVERIFY(triggerAction("English"));
+  QTRY_COMPARE(bar->tabText(kExplorerTab), QString("Explorer"));
+  QCOMPARE(I18n::current(), I18n::Language::English);
+  QCOMPARE(mapTitle->text(), QString("MISSION MAP"));
+  QCOMPARE(sideTabs->tabText(0), QString("Instruction"));
+  clockFound = false;
+  for (auto *a : m_window->findChildren<QAction *>())
+    clockFound |= a->text() == "Clock (F5)";
+  QVERIFY(clockFound);
+  viewMenu = false;
+  for (auto *m : m_window->findChildren<QMenu *>())
+    viewMenu |= m->title() == "View";
+  QVERIFY(viewMenu);
+  QVERIFY(triggerAction("Return to the live trace"));
+  activateTab(kExplorerTab);
+  m_explorer->setCycle(7);
+  m_explorer->selectInstance(6);
+  QTRY_VERIFY(banner->text().contains("<b>Engine:</b>"));
+  QCOMPARE(explanation->toPlainText(), englishExplanation);
+  activateTab(kMissionsTab);
+  QVERIFY(stepChecks().contains("Selected processor:"));
+  QVERIFY(m_missions->findChild<QListWidget *>("missionList")
+              ->item(2)
+              ->text()
+              .contains("Branch and Flush"));
+}
+
 // Opt-in: with OSX_DEMO_DIR set, records a demo of real usage as PNG frames
 // (see tools/demo/make_video.sh). Run it on its own, from fresh progress:
 //   OSX_DEMO_DIR=frames ./tst_explorergui tst_demoVideo
@@ -910,6 +1109,150 @@ void tst_explorergui::tst_demoVideo() {
   rec.caption("Open SoC Explorer · every value comes from a simulator");
   rec.hold(1500);
   splitter->setSizes(sizes);
+  qInfo("recorded %d frames", rec.frames());
+}
+
+// Opt-in: with OSX_LANGUAGE_DEMO_DIR set, records switching the language
+// between English and Simplified Chinese at run time as PNG frames (see
+// tools/demo/make_video.sh). Run it on its own:
+//   OSX_LANGUAGE_DEMO_DIR=frames ./tst_explorergui tst_languageDemoVideo
+void tst_explorergui::tst_languageDemoVideo() {
+  const QString dir = qEnvironmentVariable("OSX_LANGUAGE_DEMO_DIR");
+  if (dir.isEmpty())
+    QSKIP("set OSX_LANGUAGE_DEMO_DIR to record the language demo frames");
+  auto *bar = m_window->findChild<FancyTabBar *>();
+  auto *list = m_missions->findChild<QListWidget *>("missionList");
+  auto *sideTabs = m_explorer->findChild<QTabWidget *>("explorerSideTabs");
+  auto *menuBar = m_window->menuBar();
+  QMenu *viewMenu = nullptr;
+  for (auto *a : menuBar->actions())
+    if (a->menu() && a->text() == "View")
+      viewMenu = a->menu();
+  QVERIFY(viewMenu);
+  const int tabH = (bar->minimumHeight() - 12) / 7;
+  auto sidebarPos = [&](int index) {
+    return bar->mapTo(m_window,
+                      QPoint(bar->width() / 2, 6 + tabH * index + tabH / 2));
+  };
+
+  // Mission 3 at its first flush, so that every view has content.
+  RipesSettings::setValue(
+      RIPES_SETTING_OSX_MISSION_STEPS,
+      QStringList(
+          {"m1-first-program/1", "m1-first-program/2", "m1-first-program/3"}));
+  RipesSettings::setValue(RIPES_SETTING_OSX_MISSIONS_COMPLETED,
+                          QStringList({"m1-first-program"}));
+  loadMission(2);
+  runToEnd();
+  activateTab(kExplorerTab);
+  sideTabs->setCurrentIndex(0);
+  m_explorer->setCycle(7);
+  m_explorer->selectInstance(6);
+  activateTab(kMissionsTab);
+  list->setCurrentRow(0);
+
+  DemoRecorder rec(m_window, dir);
+  // Opens View → Language and chooses @p language, as a user would.
+  auto chooseLanguage = [&](const QString &language) {
+    const QRect viewRect = menuBar->actionGeometry(viewMenu->menuAction());
+    rec.moveTo(menuBar->mapTo(m_window, viewRect.center()));
+    rec.click();
+    viewMenu->popup(menuBar->mapToGlobal(viewRect.bottomLeft()));
+    QMenu *languageMenu = nullptr;
+    for (auto *a : viewMenu->actions())
+      if (a->menu() && (a->text() == "Language" || a->text() == "语言"))
+        languageMenu = a->menu();
+    QVERIFY(languageMenu);
+    rec.setOverlays({viewMenu, languageMenu});
+    rec.hold(500);
+    const QRect langRect = viewMenu->actionGeometry(languageMenu->menuAction());
+    rec.moveTo(
+        m_window->mapFromGlobal(viewMenu->mapToGlobal(langRect.center())), 420);
+    viewMenu->setActiveAction(languageMenu->menuAction());
+    languageMenu->popup(viewMenu->mapToGlobal(langRect.topRight()));
+    rec.hold(450);
+    QAction *target = nullptr;
+    for (auto *a : languageMenu->actions())
+      if (a->text() == language)
+        target = a;
+    QVERIFY(target);
+    const QRect targetRect = languageMenu->actionGeometry(target);
+    rec.moveTo(
+        m_window->mapFromGlobal(languageMenu->mapToGlobal(targetRect.center())),
+        420);
+    languageMenu->setActiveAction(target);
+    rec.hold(300);
+    rec.click();
+    languageMenu->hide();
+    viewMenu->hide();
+    rec.setOverlays({});
+    target->trigger();
+    QTest::qWait(100); // LanguageChange events
+  };
+
+  // 1. English.
+  rec.caption("Open SoC Explorer in English");
+  rec.hold(1600);
+  rec.caption("View → Language → 简体中文 · switches at run time, no restart");
+  chooseLanguage("简体中文");
+  QTRY_COMPARE(bar->tabText(kExplorerTab), QString("探索器"));
+  rec.hold(1800);
+
+  // 2. Chinese: missions, Explorer, System view, processor.
+  rec.caption("任务地图与任务内容（简体中文）");
+  rec.moveTo(list->viewport()->mapTo(
+      m_window, list->visualItemRect(list->item(2)).center()));
+  rec.click();
+  list->setCurrentRow(2);
+  rec.hold(2200);
+  rec.caption("探索器：所有数值都来自记录的轨迹");
+  rec.moveTo(sidebarPos(kExplorerTab));
+  rec.click();
+  bar->setActiveIndex(kExplorerTab);
+  rec.hold(2200);
+  QWidget *prev = nullptr, *next = nullptr;
+  for (auto *b : m_explorer->findChildren<QToolButton *>("explorerControl")) {
+    if (b->toolTip() == "上一个周期")
+      prev = b;
+    if (b->toolTip() == "下一个周期")
+      next = b;
+  }
+  QVERIFY(prev && next);
+  rec.moveTo(prev);
+  rec.click();
+  QTest::mouseClick(prev, Qt::LeftButton);
+  rec.hold(900);
+  rec.moveTo(next);
+  rec.click();
+  QTest::mouseClick(next, Qt::LeftButton);
+  rec.hold(1300);
+  rec.caption("系统视图：模拟了什么，没有模拟什么");
+  rec.moveTo(sideTabs->tabBar()->mapTo(
+      m_window, sideTabs->tabBar()->tabRect(4).center()));
+  rec.click();
+  sideTabs->setCurrentIndex(4);
+  rec.hold(2000);
+  rec.caption("Ripes 的界面：菜单、工具栏和处理器视图");
+  rec.moveTo(sidebarPos(kProcessorTab));
+  rec.click();
+  bar->setActiveIndex(kProcessorTab);
+  rec.hold(2000);
+
+  // 3. Back to English.
+  rec.caption("视图 → 语言 → English");
+  chooseLanguage("English");
+  QTRY_COMPARE(bar->tabText(kExplorerTab), QString("Explorer"));
+  rec.hold(1200);
+  rec.caption("Back to English: the same views and the same progress");
+  rec.moveTo(sidebarPos(kExplorerTab));
+  rec.click();
+  bar->setActiveIndex(kExplorerTab);
+  sideTabs->setCurrentIndex(0);
+  rec.hold(2000);
+  rec.moveTo(sidebarPos(kMissionsTab));
+  rec.click();
+  bar->setActiveIndex(kMissionsTab);
+  rec.hold(1800);
   qInfo("recorded %d frames", rec.frames());
 }
 
