@@ -37,7 +37,7 @@ Verified from the license files in this checkout / fetched dependencies:
 | `src/STLExtras.h` | repository | Apache-2.0 WITH LLVM-exception (file header) | Derived from LLVM; not MIT |
 | riscv-tests | `test/riscv-tests*` | BSD-3-Clause (`test/riscv-tests/LICENSE`) | © The Regents of the University of California; test data only |
 | Inconsolata font | `resources/fonts/Inconsolata` | SIL Open Font License 1.1 (`OFL.txt`) | © The Inconsolata Project Authors |
-| Icons | `resources/icons` | Flaticon licence (attribution required) | Authors credited in `resources/icons/Credits.txt` (Smashicons, Freepik, Vectors Market, Pixel Buddha via flaticon.com). Upstream does not record the licence per file. Open SoC Explorer adds **no** new icons; it reuses `trace.svg` and `compass.svg` from this set. |
+| Icons | `resources/icons` | Flaticon licence (attribution required) | Authors credited in `resources/icons/Credits.txt` (Smashicons, Freepik, Vectors Market, Pixel Buddha via flaticon.com). Upstream does not record the licence per file. Open SoC Explorer adds **no** new icons from this set; it reuses `trace.svg` and `compass.svg`. Its own pictograms are drawn with QPainter (`src/theme/painting.cpp`) and the four chevrons in `src/theme/resources/` are original SVGs, all MIT like the code. No third-party fonts or images were added. |
 | Qt 6 base modules (Core, Gui, Widgets, Svg, ...) | linked at build time | LGPL-3.0 (open-source option) or commercial | Dynamic linking satisfies the LGPL when users can replace the Qt libraries. |
 | **Qt Charts** | linked at build time | **GPL-3.0** (open-source option) or commercial | The conda-forge package used for development reports `GPL-3.0-only`. |
 

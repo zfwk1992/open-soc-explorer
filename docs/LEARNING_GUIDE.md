@@ -29,12 +29,20 @@ core.
 
 ## 2. Reading the Explorer
 
-* **Pipeline at the selected cycle**: one box per stage. Blue = instruction,
-  amber = held (stalled) instruction or stall bubble, red = flushed bubble or
-  an instruction that will be squashed (wrong path).
+* **Banner (HUD)**: badges for the engine, model, fidelity class, clock
+  domain (and time base for gem5) and the trace status; hover a badge for
+  details such as the full fidelity note.
+* **Pipeline at the selected cycle**: one tile per stage, its header in the
+  stage's color. Amber stripes = held (stalled) instruction, dashed amber =
+  stall bubble, red = flushed bubble or an instruction that will be squashed
+  (wrong path). When you step one recorded cycle, the cards move between
+  the stages the trace reports for the two cycles, fetched instructions
+  appear and retired (✓) or squashed (✕) ones leave. Nothing else moves:
+  the transition is built only from the recording.
 * **Instruction timeline**: one row per *dynamic* instruction (the same
   instruction executed in a loop appears once per iteration), one column per
-  cycle. `*` = held in that stage, `✓` = retired, `✕` = squashed.
+  cycle, cells in the stage colors. `*` and stripes = held in that stage,
+  `✓` = retired, `✕` = squashed; red rows were squashed.
 * **Events**: everything recorded in that cycle, with its *observability*
   (how it was obtained – see [TRACE_PROTOCOL.md](TRACE_PROTOCOL.md) §5).
 * **Instruction explanation**: what the instruction does, its encoding, the
@@ -82,6 +90,33 @@ Each mission has an objective, an explanation, an example program, guided
 steps (each step shows its conditions and turns ✓ when the simulator state
 satisfies them; completed steps stay completed), a challenge with a hint, and
 completion feedback. Progress is stored in the application settings.
+
+### 3.1 Mission map, stars and experience points
+
+The Missions tab shows a mission map and a player header. Only two facts
+are scored, and both come from the mission checks on the simulator: a
+guided step that was verified live, and a solved challenge
+(`src/explorer/missionprogress.cpp`, tested in `tst_missions`):
+
+* **XP**: 100 per verified step, 300 per solved challenge (each counted
+  once). **Level** = 1 + XP / 500, named after pipeline stages (Fetch,
+  Decode, Execute, Memory, Write-back, ...).
+* **Stars** (3 per mission): half of the guided steps verified (rounded up),
+  all guided steps verified, challenge solved.
+* **Map status**: solved, in progress (a step verified), available, or
+  locked until the previous mission's steps are verified or its challenge
+  solved. Locks only recommend an order; locked missions can still be
+  played.
+* *Reset progress* clears the verified steps and solved challenges.
+
+### 3.2 Themes
+
+*View → Theme* switches between **Game** (default: Open SoC Explorer's
+theme, dark or light following *Edit → Settings* color scheme; a platform
+without a color scheme gets the dark variant) and **Classic** (the
+original Ripes look). *View → Reduce motion* turns off the short (≤ 300 ms)
+transitions; they are also skipped while the processor runs and when
+cycles change faster than a transition.
 
 Numbers measured on the models for the examples (asserted by the tests):
 

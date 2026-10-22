@@ -76,7 +76,11 @@ ninja -C build
 ./build/Ripes            # the executable keeps its upstream name
 ```
 
-1. *Missions* tab → pick Mission 1 → *Load example* → *Select processor*.
+The default **game theme** (dark or light, following the color scheme)
+can be switched to the original Ripes look with *View → Theme → Classic*;
+*View → Reduce motion* turns its short transitions off.
+
+1. *Missions* tab → pick Mission 1 on the mission map → *Load example* → *Select processor*.
 2. Press *Clock* / *Run* in the toolbar; the guided steps tick off as the
    simulator reaches them.
 3. *Explorer* tab → click any instruction or cycle.
@@ -105,7 +109,7 @@ cd ../.. && OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools
 OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools/gem5
 ```
 
-9 QtTest suites (110 test functions: 56 upstream, 54 Open SoC Explorer) and
+9 QtTest suites (114 test functions: 56 upstream, 58 Open SoC Explorer, two of them opt-in) and
 27 Python tests (trace tool and gem5 converter, using recorded gem5 output).
 CI runs the QtTest suites on Ubuntu, macOS and Windows.
 

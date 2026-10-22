@@ -167,7 +167,11 @@ signals) and accelerator models, see [ROADMAP.md](ROADMAP.md).
 | `src/explorer/cachemodel.{h,cpp}` | Cache model for mission criteria (same rules as Ripes' `CacheSim`) |
 | `src/explorertab.{h,cpp}` | Explorer tab GUI |
 | `src/missionstab.{h,cpp}` | Missions tab GUI |
-| `src/systemview.{h,cpp}` | System view: simulated components, connections, parameters, statistics |
+| `src/systemview.{h,cpp}` | System view: simulated components as chips on a die, routed connections, parameters, statistics |
+| `src/explorerwidgets.{h,cpp}` | Explorer widgets: HUD banner, stage tiles and trace-driven transitions, legend, timeline and chip delegates |
+| `src/explorer/missionprogress.{h,cpp}` | Verified steps / solved challenges → stars, XP, levels, unlock status |
+| `src/theme/theme.{h,cpp}`, `painting.{h,cpp}`, `resources/` | Game/Classic theme: palettes, style sheet, semantic colors, QPainter helpers (installed by `MainWindow`) |
+| `tools/demo/make_video.sh` | Records the demo video (opt-in `tst_explorergui::tst_demoVideo`) and encodes it with ffmpeg |
 | `src/cli/clioptions.*`, `src/cli/clirunner.*` | `--trace-out`, `--trace-max-cycles` |
 | `tools/trace/osx_trace.py` | Python validate/summary/replay |
 | `tools/gem5/se_trace.py` | gem5 configuration (stdlib board, CPU model and cache options) |
@@ -176,6 +180,7 @@ signals) and accelerator models, see [ROADMAP.md](ROADMAP.md).
 | `test/tst_trace.cpp`, `test/tst_missions.cpp`, `test/tst_explorergui.cpp` | Tests |
 
 Upstream files touched (kept minimal to ease syncing with Ripes):
-`src/CMakeLists.txt`, `src/mainwindow.{h,cpp}`, `src/processortab.{h,cpp}`
-(`selectProcessor()` factored out), `src/ripessettings.{h,cpp}` (three
-settings), `src/cli/*` (trace options), `test/CMakeLists.txt`.
+`src/CMakeLists.txt`, `src/mainwindow.{h,cpp}` (tabs, one `Theme::install()`
+call), `src/processortab.{h,cpp}` (`selectProcessor()` factored out),
+`src/ripessettings.{h,cpp}` (six settings; `appInDarkMode()` follows the
+effective palette), `src/cli/*` (trace options), `test/CMakeLists.txt`.
