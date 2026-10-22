@@ -22,6 +22,7 @@
 #include <map>
 #include <tuple>
 
+#include "explorer/tracetext.h"
 #include "theme/painting.h"
 #include "theme/theme.h"
 
@@ -30,6 +31,11 @@ namespace Ripes {
 using namespace Theme;
 
 namespace {
+
+/// Translation context of the helpers below (that of SystemView).
+struct Text {
+  Q_DECLARE_TR_FUNCTIONS(Ripes::SystemView)
+};
 
 const QStringList &roleOrder() {
   static const QStringList order = {
@@ -40,13 +46,23 @@ const QStringList &roleOrder() {
 
 QString roleTitle(const QString &role) {
   if (role == "cpu")
-    return "CPU";
+    return Text::tr("CPU");
   if (role == "memory-controller")
-    return "Memory controller";
+    return Text::tr("Memory controller");
   if (role == "dma")
-    return "DMA engine";
+    return Text::tr("DMA engine");
   if (role == "accelerator")
-    return "AI accelerator";
+    return Text::tr("AI accelerator");
+  if (role == "cache")
+    return Text::tr("Cache");
+  if (role == "interconnect")
+    return Text::tr("Interconnect");
+  if (role == "memory")
+    return Text::tr("Memory");
+  if (role == "prefetcher")
+    return Text::tr("Prefetcher");
+  if (role == "peripheral")
+    return Text::tr("Peripheral");
   QString t = role;
   if (!t.isEmpty())
     t[0] = t[0].toUpper();
@@ -92,12 +108,12 @@ KeyStat keyStat(const Trace::SystemComponent &c) {
   const auto &s = c.statistics;
   auto num = [&](const QString &key) { return s.value(key).toDouble(); };
   if (s.contains("demandMissRate::total"))
-    return {QString("miss rate %1 %")
+    return {Text::tr("miss rate %1 %")
                 .arg(100 * num("demandMissRate::total"), 0, 'f', 1),
             num("demandMissRate::total"), t.warn};
   if (s.contains("readRowHitRate"))
     return {
-        QString("row-buffer hits %1 %").arg(num("readRowHitRate"), 0, 'f', 1),
+        Text::tr("row-buffer hits %1 %").arg(num("readRowHitRate"), 0, 'f', 1),
         num("readRowHitRate") / 100.0, t.ok};
   if (s.contains("ipc"))
     return {s.contains("cpi") ? QString("IPC %1 · CPI %2")
@@ -106,36 +122,36 @@ KeyStat keyStat(const Trace::SystemComponent &c) {
                               : QString("IPC %1").arg(num("ipc"), 0, 'f', 3),
             -1, t.text};
   if (s.contains("instructions_retired") && s.contains("cycles"))
-    return {QString("%1 retired · %2 cycles")
+    return {Text::tr("%1 retired · %2 cycles")
                 .arg(s.value("instructions_retired").toLongLong())
                 .arg(s.value("cycles").toLongLong()),
             -1, t.text};
   if (s.contains("pktCount::total"))
-    return {QString("%1 packets").arg(s.value("pktCount::total").toLongLong()),
+    return {Text::tr("%1 packets").arg(s.value("pktCount::total").toLongLong()),
             -1, t.text};
   if (s.contains("readReqs"))
-    return {QString("%1 reads · %2 writes")
+    return {Text::tr("%1 reads · %2 writes")
                 .arg(s.value("readReqs").toLongLong())
                 .arg(s.value("writeReqs").toLongLong()),
             -1, t.text};
   if (s.contains("pfIssued"))
     return {
-        QString("%1 prefetches issued").arg(s.value("pfIssued").toLongLong()),
+        Text::tr("%1 prefetches issued").arg(s.value("pfIssued").toLongLong()),
         -1, t.text};
   if (s.contains("bytesRead::total"))
     return {
-        QString("%1 bytes read").arg(s.value("bytesRead::total").toLongLong()),
+        Text::tr("%1 bytes read").arg(s.value("bytesRead::total").toLongLong()),
         -1, t.text};
   const auto &p = c.parameters;
   if (c.role == "cache" && p.contains("size"))
     return {p.contains("assoc")
-                ? QString("%1 · %2-way")
+                ? Text::tr("%1 · %2-way")
                       .arg(formatBytes(p.value("size").toLongLong()))
                       .arg(p.value("assoc").toLongLong())
                 : formatBytes(p.value("size").toLongLong()),
             -1, t.muted};
   if (p.contains("stages"))
-    return {QString("%1 stage(s) · %2 lane(s)")
+    return {Text::tr("%1 stage(s) · %2 lane(s)")
                 .arg(p.value("stages").toInt())
                 .arg(p.value("lanes").toInt()),
             -1, t.muted};
@@ -474,6 +490,12 @@ SystemView::SystemView(QWidget *parent) : QWidget(parent) {
   });
 }
 
+void SystemView::changeEvent(QEvent *event) {
+  QWidget::changeEvent(event);
+  if (event->type() == QEvent::LanguageChange && !m_scene->items().isEmpty())
+    rebuild();
+}
+
 bool SystemView::eventFilter(QObject *watched, QEvent *event) {
   if (watched == m_view->viewport() && event->type() == QEvent::Wheel) {
     auto *wheel = static_cast<QWheelEvent *>(event);
@@ -533,11 +555,11 @@ void SystemView::rebuild() {
   const QString engine = m_header.source.engine;
 
   m_note->setText(
-      QString("<b>Simulated by %1</b> (%2): the chips on the die. Arrows are "
-              "connections reported by the engine; components inside a chip "
-              "are its sub-components. <span style='color:%3'>Dashed: <b>not "
-              "simulated</b>, shown for orientation only.</span> Click a "
-              "component for details; Ctrl + wheel zooms.")
+      tr("<b>Simulated by %1</b> (%2): the chips on the die. Arrows are "
+         "connections reported by the engine; components inside a chip "
+         "are its sub-components. <span style='color:%3'>Dashed: <b>not "
+         "simulated</b>, shown for orientation only.</span> Click a "
+         "component for details; Ctrl + wheel zooms.")
           .arg(engine.toHtmlEscaped(), m_header.source.model.toHtmlEscaped(),
                t.muted.name()));
 
@@ -598,7 +620,8 @@ void SystemView::rebuild() {
       chip->setRect(0, 0, kChipW, h);
       chip->setHeaderHeight(kChipH);
       chip->setPos(x, y);
-      chip->setToolTip(c->path + "\n" + c->type + "\nsimulated by " + engine);
+      chip->setToolTip(c->path + "\n" + c->type + "\n" +
+                       tr("simulated by %1").arg(engine));
       m_scene->addItem(chip);
       placed[c->path] = {chip, QRectF(x, y, kChipW, h), rowIndex};
       qreal sy = kChipH - 4;
@@ -608,8 +631,8 @@ void SystemView::rebuild() {
         sub->setParentItem(chip);
         sub->setRect(0, 0, kChipW - 20, kSubH);
         sub->setPos(10, sy);
-        sub->setToolTip(kid->path + "\n" + kid->type + "\nsimulated by " +
-                        engine);
+        sub->setToolTip(kid->path + "\n" + kid->type + "\n" +
+                        tr("simulated by %1").arg(engine));
         placed[kid->path] = {sub, QRectF(x + 10, y + sy, kChipW - 20, kSubH),
                              rowIndex};
         sy += kSubH + kSubGap;
@@ -739,8 +762,7 @@ void SystemView::rebuild() {
              (rowBottom.empty() ? 0 : rowBottom.back()) + kDieTop + kDieMargin);
   if (!m_header.system.empty())
     m_scene->addItem(new DieItem(
-        die,
-        QString("Simulated by %1 · %2").arg(engine, m_header.source.model)));
+        die, tr("Simulated by %1 · %2").arg(engine, m_header.source.model)));
 
   // Typical SoC components that are not part of this simulation, outside
   // the die.
@@ -756,18 +778,19 @@ void SystemView::rebuild() {
   const bool below = nsRowWidth <= die.width();
   qreal nx = below ? die.center().x() - nsRowWidth / 2 : die.right() + 40;
   qreal ny = below ? die.bottom() + 46 : die.top() + 28;
-  auto *header = m_scene->addSimpleText(
-      "Not simulated by " + engine, overlineFont(QApplication::font(), 0.8));
+  auto *header =
+      m_scene->addSimpleText(tr("Not simulated by %1").arg(engine),
+                             overlineFont(QApplication::font(), 0.8));
   header->setBrush(t.muted);
   header->setPos(nx, ny - 24);
   for (const auto &role : missing) {
-    auto *chip =
-        new ChipItem("not-simulated:" + role, role, roleTitle(role),
-                     "not simulated by " + engine, false, KeyStat(), false);
+    auto *chip = new ChipItem("not-simulated:" + role, role, roleTitle(role),
+                              tr("not simulated by %1").arg(engine), false,
+                              KeyStat(), false);
     chip->setRect(0, 0, kNsW, kNsH);
     chip->setPos(nx, ny);
-    chip->setToolTip(roleTitle(role) + ": not simulated by " + engine +
-                     ". Shown for orientation only.");
+    chip->setToolTip(tr("%1: not simulated by %2. Shown for orientation only.")
+                         .arg(roleTitle(role), engine));
     m_scene->addItem(chip);
     if (below)
       nx += kNsW + 16;
@@ -795,14 +818,19 @@ void SystemView::showDetails() {
       comp = &c;
 
   if (!comp) {
-    QString html = QString("<h3>System simulated by %1</h3><p>%2 component(s) "
-                           "reported. Select a component to see its "
-                           "parameters and statistics.</p>")
-                       .arg(m_header.source.engine.toHtmlEscaped())
-                       .arg(m_header.system.size());
+    QString html = "<h3>" +
+                   tr("System simulated by %1")
+                       .arg(m_header.source.engine.toHtmlEscaped()) +
+                   "</h3><p>" +
+                   tr("%1 component(s) reported. Select a component to see "
+                      "its parameters and statistics.")
+                       .arg(m_header.system.size()) +
+                   "</p>";
     if (m_header.system.empty())
-      html += "<p>This trace does not describe the simulated system (traces "
-              "with schema &lt; 0.2.0 or engines that do not report it).</p>";
+      html += "<p>" +
+              tr("This trace does not describe the simulated system (traces "
+                 "with schema &lt; 0.2.0 or engines that do not report it).") +
+              "</p>";
     m_details->setHtml(html);
     return;
   }
@@ -816,7 +844,8 @@ void SystemView::showDetails() {
               "</code></td><td align='right'><b>" +
               it.value().toString().toHtmlEscaped() +
               "</b></td><td><small style='color:" + t.muted.name() + "'>" +
-              info.value(it.key()).toString().toHtmlEscaped() +
+              Explorer::localizedTraceText(info.value(it.key()).toString())
+                  .toHtmlEscaped() +
               "</small></td></tr>";
     return html + "</table>";
   };
@@ -826,10 +855,13 @@ void SystemView::showDetails() {
                  " <span style='font-weight:normal; color:" + rc.name() +
                  "'>(" + roleTitle(comp->role).toHtmlEscaped() +
                  ")</span></h3>";
-  html += "<p><b>Path:</b> <code>" + comp->path.toHtmlEscaped() +
-          "</code><br><b>Type:</b> " + comp->type.toHtmlEscaped() + "</p>";
+  html += "<p><b>" + tr("Path:") + "</b> <code>" + comp->path.toHtmlEscaped() +
+          "</code><br><b>" + tr("Type:") + "</b> " +
+          comp->type.toHtmlEscaped() + "</p>";
   if (!comp->description.isEmpty())
-    html += "<p>" + comp->description.toHtmlEscaped() + "</p>";
+    html += "<p>" +
+            Explorer::localizedTraceText(comp->description).toHtmlEscaped() +
+            "</p>";
 
   // Rates the engine reported, as meters (values verbatim from the trace).
   QString rates;
@@ -863,21 +895,23 @@ void SystemView::showDetails() {
                  .arg(fraction * 100, 0, 'f', 1);
   }
   if (!rates.isEmpty())
-    html += QString("<h4>Rates <span style='font-weight:normal'>(reported by "
-                    "%1)</span></h4><table width='100%' cellspacing='0' "
-                    "cellpadding='3'>")
-                .arg(m_header.source.engine.toHtmlEscaped()) +
+    html += QString("<h4>%1 <span style='font-weight:normal'>(%2)</span></h4>"
+                    "<table width='100%' cellspacing='0' cellpadding='3'>")
+                .arg(tr("Rates"),
+                     tr("reported by %1")
+                         .arg(m_header.source.engine.toHtmlEscaped())) +
             rates + "</table>";
   if (!comp->parameters.isEmpty())
-    html +=
-        "<h4>Parameters</h4>" + table(comp->parameters, comp->parameterInfo);
+    html += "<h4>" + tr("Parameters") + "</h4>" +
+            table(comp->parameters, comp->parameterInfo);
   if (!comp->statistics.isEmpty())
-    html += QString("<h4>Statistics <span style='font-weight:normal'>(end of "
-                    "simulation, reported by %1)</span></h4>")
-                .arg(m_header.source.engine.toHtmlEscaped()) +
+    html += QString("<h4>%1 <span style='font-weight:normal'>(%2)</span></h4>")
+                .arg(tr("Statistics"),
+                     tr("end of simulation, reported by %1")
+                         .arg(m_header.source.engine.toHtmlEscaped())) +
             table(comp->statistics, comp->statisticInfo);
   if (!comp->connections.isEmpty())
-    html += "<h4>Connected to</h4><p><code>" +
+    html += "<h4>" + tr("Connected to") + "</h4><p><code>" +
             comp->connections.join("</code>, <code>") + "</code></p>";
   m_details->setHtml(html);
 }

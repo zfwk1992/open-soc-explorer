@@ -2,10 +2,20 @@
 // Part of Open SoC Explorer.
 #include "missionprogress.h"
 
+#include <QCoreApplication>
+
 #include <algorithm>
+#include <iterator>
 
 namespace Ripes {
 namespace Explorer {
+
+namespace {
+/// Translation context of level titles and mission states.
+struct Text {
+  Q_DECLARE_TR_FUNCTIONS(Ripes::Explorer::MissionProgress)
+};
+} // namespace
 
 int missionStars(const MissionRecord &r) {
   int stars = 0;
@@ -27,12 +37,18 @@ int missionXp(const MissionRecord &r) {
 }
 
 QString levelTitle(int level) {
-  static const QStringList titles = {"Fetch",       "Decode",     "Execute",
-                                     "Memory",      "Write-back", "Superscalar",
-                                     "Out-of-order"};
-  if (level >= 1 && level <= titles.size())
-    return titles[level - 1];
-  return "SoC Architect";
+  // Named after pipeline stages and techniques.
+  static const char *const titles[] = {
+      QT_TRANSLATE_NOOP("Ripes::Explorer::MissionProgress", "Fetch"),
+      QT_TRANSLATE_NOOP("Ripes::Explorer::MissionProgress", "Decode"),
+      QT_TRANSLATE_NOOP("Ripes::Explorer::MissionProgress", "Execute"),
+      QT_TRANSLATE_NOOP("Ripes::Explorer::MissionProgress", "Memory"),
+      QT_TRANSLATE_NOOP("Ripes::Explorer::MissionProgress", "Write-back"),
+      QT_TRANSLATE_NOOP("Ripes::Explorer::MissionProgress", "Superscalar"),
+      QT_TRANSLATE_NOOP("Ripes::Explorer::MissionProgress", "Out-of-order")};
+  if (level >= 1 && level <= int(std::size(titles)))
+    return Text::tr(titles[level - 1]);
+  return Text::tr("SoC Architect");
 }
 
 PlayerLevel playerLevel(int xp) {
@@ -64,13 +80,13 @@ MissionStatus missionStatus(const std::vector<MissionRecord> &records,
 QString missionStatusName(MissionStatus status) {
   switch (status) {
   case MissionStatus::Locked:
-    return "Locked";
+    return Text::tr("Locked");
   case MissionStatus::Available:
-    return "Available";
+    return Text::tr("Available");
   case MissionStatus::InProgress:
-    return "In progress";
+    return Text::tr("In progress");
   case MissionStatus::Solved:
-    return "Solved";
+    return Text::tr("Solved");
   }
   return QString();
 }

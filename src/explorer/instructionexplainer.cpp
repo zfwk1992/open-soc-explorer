@@ -2,11 +2,13 @@
 // Part of Open SoC Explorer.
 #include "instructionexplainer.h"
 
+#include <QCoreApplication>
 #include <QMetaEnum>
 
 #include <algorithm>
 
 #include "modelprofile.h"
+#include "tracetext.h"
 
 namespace Ripes {
 namespace Explorer {
@@ -14,6 +16,11 @@ namespace Explorer {
 using Trace::EventType;
 
 namespace {
+
+/// Translation context of the explanations.
+struct Text {
+  Q_DECLARE_TR_FUNCTIONS(Ripes::Explorer::InstructionExplainer)
+};
 
 std::optional<ProcessorID> processorFromName(const QString &name) {
   bool ok = false;
@@ -113,47 +120,52 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
     QString what;
     switch (ev.type) {
     case EventType::InstructionFetch:
-      what = "fetched from " + hex(inst->pc, h.xlen);
+      what = Text::tr("fetched from %1").arg(hex(inst->pc, h.xlen));
       break;
     case EventType::StageEnter:
       if (fetchCycles.count(ev.cycle))
         continue;
-      what = p.contains("note") ? "observed (" + p["note"].toString() + ")"
-                                : "entered stage";
+      what = p.contains("note")
+                 ? Text::tr("observed (%1)")
+                       .arg(localizedTraceText(p["note"].toString()))
+                 : Text::tr("entered stage");
       break;
     case EventType::InstructionDecode:
-      what = "decoded";
+      what = Text::tr("decoded");
       break;
     case EventType::PipelineStall:
-      what = "held in this stage (stall)";
+      what = Text::tr("held in this stage (stall)");
       break;
     case EventType::PipelineFlush:
-      what = "squashed";
-      if (p.contains("cause_instance"))
-        what += " by " + p["cause_instance"].toString() + " (" +
-                p.value("cause").toString() + ")";
+      what = p.contains("cause_instance")
+                 ? Text::tr("squashed by %1 (%2)")
+                       .arg(p["cause_instance"].toString(),
+                            p.value("cause").toString())
+                 : Text::tr("squashed");
       break;
     case EventType::InstructionRetire:
-      what = p.contains("retire_index")
-                 ? QString("retired (#%1)").arg(p["retire_index"].toLongLong())
-                 : "retired (inferred: the model's counter did not count it)";
+      what =
+          p.contains("retire_index")
+              ? Text::tr("retired (#%1)").arg(p["retire_index"].toLongLong())
+              : Text::tr("retired (inferred: the model's counter did not count "
+                         "it)");
       break;
     case EventType::RegisterWrite:
-      what = QString("wrote %1 = %2")
+      what = Text::tr("wrote %1 = %2")
                  .arg(registerName(h, p["regfile"].toString(),
                                    p["index"].toUInt()),
                       p["value"].toString());
       break;
     case EventType::MemoryRequest:
-      what = QString("data memory %1 request @ %2")
+      what = Text::tr("data memory %1 request @ %2")
                  .arg(p["access"].toString(), p["address"].toString());
       if (p.contains("bytes"))
-        what += QString(" (%1 bytes)").arg(p["bytes"].toUInt());
+        what += " " + Text::tr("(%1 bytes)").arg(p["bytes"].toUInt());
       break;
     case EventType::MemoryResponse:
-      what = QString("data memory %1 value %2")
+      what = Text::tr("data memory %1 value %2")
                  .arg(p["access"].toString(), p["value"].isNull()
-                                                  ? QString("(not sampled)")
+                                                  ? Text::tr("(not sampled)")
                                                   : p["value"].toString());
       break;
     default:
@@ -240,47 +252,50 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
   if (e.expected.has_value()) {
     if (e.result.has_value()) {
       if (e.result->value == *e.expected)
-        e.findings << QString("✓ The value written to %1 (%2) matches the ISA "
-                              "semantics applied to the architectural "
-                              "operands.")
+        e.findings << Text::tr("✓ The value written to %1 (%2) matches the "
+                               "ISA semantics applied to the architectural "
+                               "operands.")
                           .arg(e.result->name, hex(*e.expected, bits));
       else
-        e.findings
-            << QString("✗ The model wrote %1 = %2, but the ISA semantics give "
-                       "%3 for the architectural operands. The instruction "
-                       "used a stale operand: a data hazard that this model "
-                       "does not resolve.")
-                   .arg(e.result->name, hex(e.result->value, bits),
-                        hex(*e.expected, bits));
+        e.findings << Text::tr(
+                          "✗ The model wrote %1 = %2, but the ISA semantics "
+                          "give %3 for the architectural operands. The "
+                          "instruction used a stale operand: a data hazard "
+                          "that this model does not resolve.")
+                          .arg(e.result->name, hex(e.result->value, bits),
+                               hex(*e.expected, bits));
     } else if (inst->outcome == TraceReplay::Outcome::Retired) {
       const auto previous = valueOf(RegClass::GPR, d.rd);
       if (previous.has_value() && *previous == *e.expected)
-        e.findings << QString("✓ No register change was observed: the ISA "
-                              "result %1 equals the previous value of the "
-                              "destination register (writes of an unchanged "
-                              "value are not observable).")
+        e.findings << Text::tr("✓ No register change was observed: the ISA "
+                               "result %1 equals the previous value of the "
+                               "destination register (writes of an unchanged "
+                               "value are not observable).")
                           .arg(hex(*e.expected, bits));
       else
-        e.findings << QString("✗ The ISA semantics give %1, but no write to "
-                              "the destination register was observed.")
+        e.findings << Text::tr("✗ The ISA semantics give %1, but no write to "
+                               "the destination register was observed.")
                           .arg(hex(*e.expected, bits));
     }
   }
   if (e.branchCondition.has_value() && e.branchTaken.has_value()) {
-    const QString outcome = *e.branchTaken ? "taken" : "not taken";
+    const QString outcome =
+        *e.branchTaken ? Text::tr("taken") : Text::tr("not taken");
     if (*e.branchCondition == *e.branchTaken)
-      e.findings << "✓ The branch was " + outcome +
-                        ", consistent with the condition evaluated on the "
-                        "architectural operands.";
+      e.findings << Text::tr("✓ The branch was %1, consistent with the "
+                             "condition evaluated on the architectural "
+                             "operands.")
+                        .arg(outcome);
     else
-      e.findings << "✗ The branch was " + outcome +
-                        ", but the condition evaluated on the architectural "
-                        "operands says otherwise (stale operand).";
+      e.findings << Text::tr("✗ The branch was %1, but the condition "
+                             "evaluated on the architectural operands says "
+                             "otherwise (stale operand).")
+                        .arg(outcome);
   }
   if (inst->outcome == TraceReplay::Outcome::Squashed)
-    e.findings << QString("This instruction was fetched but squashed at cycle "
-                          "%1. It never became architectural, so it has no "
-                          "effect on registers or memory.")
+    e.findings << Text::tr("This instruction was fetched but squashed at "
+                           "cycle %1. It never became architectural, so it "
+                           "has no effect on registers or memory.")
                       .arg(inst->endCycle);
 
   // ---- Hazards ------------------------------------------------------------
@@ -299,8 +314,8 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
       }
   }
   const QString since = decodeCycle >= 0
-                            ? QString("was decoded at cycle %1")
-                            : QString("entered the pipeline at cycle %1");
+                            ? Text::tr("was decoded at cycle %1")
+                            : Text::tr("entered the pipeline at cycle %1");
   if (decodeCycle < 0)
     decodeCycle = inst->firstCycle;
   if (d.valid && !d.compressed) {
@@ -328,21 +343,22 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
       if (!producer || producer->endCycle <= decodeCycle)
         continue;
       QString text =
-          QString("RAW dependency on %1: produced by %2 (%3), which retired at "
-                  "cycle %4, after this instruction %5.")
+          Text::tr("RAW dependency on %1: produced by %2 (%3), which retired "
+                   "at cycle %4, after this instruction %5.")
               .arg(op.name, Trace::instanceName(producer->id),
                    escape(producer->assembly))
               .arg(producer->endCycle)
               .arg(since.arg(decodeCycle));
       if (!inst->heldCycles.empty())
-        text += QString(" It was resolved by stalling for %1 cycle(s).")
-                    .arg(inst->heldCycles.size());
+        text += " " + Text::tr("It was resolved by stalling for %1 cycle(s).")
+                          .arg(inst->heldCycles.size());
       else if (profile.has_value() && profile->hasForwarding)
-        text += " No stall occurred: consistent with this model's forwarding "
-                "unit supplying the value.";
+        text += " " + Text::tr("No stall occurred: consistent with this "
+                               "model's forwarding unit supplying the value.");
       else if (profile.has_value() && profile->pipelined)
-        text += " No stall occurred and this model has no forwarding unit, so "
-                "the operand may have been read before it was written.";
+        text += " " + Text::tr("No stall occurred and this model has no "
+                               "forwarding unit, so the operand may have "
+                               "been read before it was written.");
       e.hazards << text;
     }
   }
@@ -350,17 +366,17 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
     QStringList cycles;
     for (auto c : inst->heldCycles)
       cycles << QString::number(c);
-    e.hazards << QString("Held (stalled) in its stage during cycle(s) %1.")
+    e.hazards << Text::tr("Held (stalled) in its stage during cycle(s) %1.")
                      .arg(cycles.join(", "));
   }
 
   // ---- Notes and source references ----------------------------------------
   if (!h.source.fidelityNote.isEmpty())
-    e.notes << h.source.fidelityNote;
-  e.notes << "Operand values are the architectural register values "
-             "immediately before this instruction retired, i.e. the values "
-             "the ISA says it reads. They are reconstructed from the trace, "
-             "not read from the model's datapath.";
+    e.notes << localizedTraceText(h.source.fidelityNote);
+  e.notes << Text::tr("Operand values are the architectural register values "
+                      "immediately before this instruction retired, i.e. the "
+                      "values the ISA says it reads. They are reconstructed "
+                      "from the trace, not read from the model's datapath.");
 
   if (profile.has_value()) {
     e.sourceRefs << profile->sourceFile;
@@ -391,9 +407,9 @@ QString explanationToHtml(const InstructionExplanation &e, bool dark) {
   const QString bad = dark ? "#ff8a80" : "#b3261e";
   const QString muted = dark ? "#a0a7b4" : "#5f6368";
   if (e.instance < 0)
-    return QString("<p style='color:%1'>Select an instruction in the timeline "
-                   "to see its explanation.</p>")
-        .arg(muted);
+    return QString("<p style='color:%1'>%2</p>")
+        .arg(muted, Text::tr("Select an instruction in the timeline to see "
+                             "its explanation."));
 
   const unsigned bits = e.xlen;
   const auto &d = e.decoded;
@@ -403,36 +419,37 @@ QString explanationToHtml(const InstructionExplanation &e, bool dark) {
   QString outcome;
   switch (e.outcome) {
   case TraceReplay::Outcome::Retired:
-    outcome = QString("retired at cycle %1").arg(e.endCycle);
+    outcome = Text::tr("retired at cycle %1").arg(e.endCycle);
     break;
   case TraceReplay::Outcome::Squashed:
-    outcome = QString("<span style='color:%1'>squashed at cycle %2</span>")
-                  .arg(bad)
-                  .arg(e.endCycle);
+    outcome = QString("<span style='color:%1'>%2</span>")
+                  .arg(bad, Text::tr("squashed at cycle %1").arg(e.endCycle));
     break;
   case TraceReplay::Outcome::InFlight:
-    outcome = "still in flight at the end of the trace";
+    outcome = Text::tr("still in flight at the end of the trace");
     break;
   }
-  html += QString("<p style='color:%1;margin-top:0'>%2 · PC %3 · first seen at "
-                  "cycle %4 · %5</p>")
-              .arg(muted, Trace::instanceName(e.instance), hex(e.pc, bits))
-              .arg(e.firstCycle)
-              .arg(outcome);
+  html +=
+      QString("<p style='color:%1;margin-top:0'>%2</p>")
+          .arg(muted, Text::tr("%1 · PC %2 · first seen at cycle %3 · %4")
+                          .arg(Trace::instanceName(e.instance), hex(e.pc, bits))
+                          .arg(e.firstCycle)
+                          .arg(outcome));
 
   if (e.semantics.has_value()) {
-    html += "<h4>What it does</h4>";
+    html += "<h4>" + Text::tr("What it does") + "</h4>";
     html += "<p><code>" + escape(e.semantics->expression) + "</code><br>" +
             escape(e.semantics->description) + " <i style='color:" + muted +
             "'>(" + escape(e.semantics->category) + ")</i></p>";
   }
 
-  html += "<h4>Encoding</h4>";
+  html += "<h4>" + Text::tr("Encoding") + "</h4>";
   if (d.compressed) {
-    html += QString("<p>16-bit compressed instruction <code>%1</code>. The "
-                    "processor expands it to its 32-bit equivalent before "
-                    "decoding.</p>")
-                .arg(hex(d.word, 16));
+    html += "<p>" +
+            Text::tr("16-bit compressed instruction %1. The processor "
+                     "expands it to its 32-bit equivalent before decoding.")
+                .arg("<code>" + hex(d.word, 16) + "</code>") +
+            "</p>";
   } else if (d.valid) {
     html += QString("<p><code>%1</code> · %2</p>")
                 .arg(hex(d.word, 32), formatName(d.format));
@@ -474,20 +491,26 @@ QString explanationToHtml(const InstructionExplanation &e, bool dark) {
       html += "<td align='center'>" + v + "</td>";
     html += "</tr></table>";
   } else {
-    html += "<p>Not decodable by the Open SoC Explorer RISC-V decoder.</p>";
+    html += "<p>" +
+            Text::tr("Not decodable by the Open SoC Explorer RISC-V decoder.") +
+            "</p>";
   }
 
   if (!e.operands.empty()) {
-    html += "<h4>Operands <span style='font-weight:normal;color:" + muted +
-            "'>(architectural values before retirement)</span></h4><ul>";
+    html += "<h4>" + Text::tr("Operands") +
+            " <span style='font-weight:normal;color:" + muted + "'>(" +
+            Text::tr("architectural values before retirement") +
+            ")</span></h4><ul>";
     for (const auto &op : e.operands) {
       html += "<li><b>" + op.role + "</b> = " + escape(op.name) + " = ";
       html += op.value.has_value()
                   ? QString("<code>%1</code> (%2)")
                         .arg(hex(*op.value, bits), signedValue(*op.value, bits))
-                  : QString("<i>not available (the instruction did not retire, "
-                            "or the trace does not contain this register's "
-                            "value)</i>");
+                  : "<i>" +
+                        Text::tr("not available (the instruction did not "
+                                 "retire, or the trace does not contain this "
+                                 "register's value)") +
+                        "</i>";
       html += "</li>";
     }
     if (d.hasImm)
@@ -496,36 +519,43 @@ QString explanationToHtml(const InstructionExplanation &e, bool dark) {
   }
 
   if (e.result.has_value() || !e.memory.empty() || e.branchTaken.has_value()) {
-    html +=
-        "<h4>Observed effect <span style='font-weight:normal;color:" + muted +
-        "'>(simulator output)</span></h4><ul>";
+    html += "<h4>" + Text::tr("Observed effect") +
+            " <span style='font-weight:normal;color:" + muted + "'>(" +
+            Text::tr("simulator output") + ")</span></h4><ul>";
     if (e.result.has_value())
-      html += QString("<li>%1: <code>%2</code> → <code>%3</code> (%4) at cycle "
-                      "%5</li>")
+      html += "<li>" +
+              Text::tr("%1: <code>%2</code> → <code>%3</code> (%4) at cycle "
+                       "%5")
                   .arg(escape(e.result->name), hex(e.result->previous, bits),
                        hex(e.result->value, bits),
                        signedValue(e.result->value, bits))
-                  .arg(e.result->cycle);
+                  .arg(e.result->cycle) +
+              "</li>";
     for (const auto &m : e.memory)
-      html += QString("<li>Memory %1 of %2 bytes at <code>%3</code>: %4 (cycle "
-                      "%5)</li>")
+      html += "<li>" +
+              Text::tr("Memory %1 of %2 bytes at <code>%3</code>: %4 (cycle "
+                       "%5)")
                   .arg(m.access)
                   .arg(m.bytes)
                   .arg(hex(m.address, bits),
                        m.value.has_value()
                            ? "<code>" + hex(*m.value, m.bytes * 8) + "</code>"
-                           : QString("value not sampled"))
-                  .arg(m.cycle);
+                           : Text::tr("value not sampled"))
+                  .arg(m.cycle) +
+              "</li>";
     if (e.branchTaken.has_value())
-      html += QString("<li>Control flow: %1 — the next retired instruction is "
-                      "at <code>%2</code></li>")
-                  .arg(*e.branchTaken ? "taken" : "not taken",
-                       hex(e.nextRetiredPc.value_or(0), bits));
+      html +=
+          "<li>" +
+          Text::tr("Control flow: %1 — the next retired instruction is "
+                   "at <code>%2</code>")
+              .arg(*e.branchTaken ? Text::tr("taken") : Text::tr("not taken"),
+                   hex(e.nextRetiredPc.value_or(0), bits)) +
+          "</li>";
     html += "</ul>";
   }
 
   if (!e.findings.isEmpty()) {
-    html += "<h4>Checks against the ISA</h4><ul>";
+    html += "<h4>" + Text::tr("Checks against the ISA") + "</h4><ul>";
     for (const auto &f : e.findings) {
       const QString color =
           f.startsWith("✓") ? ok : (f.startsWith("✗") ? bad : muted);
@@ -535,27 +565,28 @@ QString explanationToHtml(const InstructionExplanation &e, bool dark) {
   }
 
   if (!e.hazards.isEmpty()) {
-    html += "<h4>Hazards and stalls</h4><ul>";
+    html += "<h4>" + Text::tr("Hazards and stalls") + "</h4><ul>";
     for (const auto &hz : e.hazards)
       html += "<li>" + hz + "</li>";
     html += "</ul>";
   }
 
-  html += "<h4>Journey through the model</h4><table cellspacing='0' "
-          "cellpadding='2'><tr><th align='left'>Cycle</th><th "
-          "align='left'>Where</th><th align='left'>What</th></tr>";
+  html += "<h4>" + Text::tr("Journey through the model") +
+          "</h4><table cellspacing='0' cellpadding='2'><tr><th align='left'>" +
+          Text::tr("Cycle") + "</th><th align='left'>" + Text::tr("Where") +
+          "</th><th align='left'>" + Text::tr("What") + "</th></tr>";
   for (const auto &s : e.journey)
     html += QString("<tr><td>%1</td><td>%2</td><td>%3</td></tr>")
                 .arg(s.cycle)
                 .arg(escape(s.where), escape(s.what));
   html += "</table>";
 
-  html += "<h4>Implemented in</h4><ul>";
+  html += "<h4>" + Text::tr("Implemented in") + "</h4><ul>";
   for (const auto &ref : e.sourceRefs)
     html += "<li><code>" + escape(ref) + "</code></li>";
   html += "</ul>";
 
-  html += "<h4>Fidelity</h4>";
+  html += "<h4>" + Text::tr("Fidelity") + "</h4>";
   for (const auto &n : e.notes)
     html += "<p style='color:" + muted + "'>" + escape(n) + "</p>";
   return html;

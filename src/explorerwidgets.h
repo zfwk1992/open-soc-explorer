@@ -174,6 +174,7 @@ private:
 /// Legend of the strip and timeline colors: one chip per stage name of the
 /// trace, then held, stall bubble, wrong path / flush, retired, squashed.
 class StripLegend : public QWidget {
+  Q_OBJECT
 public:
   explicit StripLegend(QWidget *parent = nullptr);
   void setStages(const std::vector<std::pair<int, QString>> &colorAndName);

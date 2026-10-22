@@ -2,19 +2,28 @@
 // Part of Open SoC Explorer.
 #include "cachemodel.h"
 
+#include <QCoreApplication>
+
 #include <map>
 
 namespace Ripes {
 namespace Explorer {
+
+namespace {
+/// Translation context of the cache description.
+struct Text {
+  Q_DECLARE_TR_FUNCTIONS(Ripes::Explorer::CacheModel)
+};
+} // namespace
 
 QString CacheGeometry::describe(unsigned wordBytes) const {
   const quint64 lineBytes = quint64(wordBytes) << blocks;
   const int setCount = 1 << lines;
   const int wayCount = 1 << ways;
   const QString organisation =
-      wayCount == 1 ? QString("direct-mapped")
-                    : QString("%1-way set-associative").arg(wayCount);
-  return QString("%1-byte %2 cache, %3 line(s) of %4 bytes in %5 set(s)")
+      wayCount == 1 ? Text::tr("direct-mapped")
+                    : Text::tr("%1-way set-associative").arg(wayCount);
+  return Text::tr("%1-byte %2 cache, %3 line(s) of %4 bytes in %5 set(s)")
       .arg(sizeBytes(wordBytes))
       .arg(organisation)
       .arg(setCount * wayCount)

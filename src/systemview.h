@@ -36,6 +36,7 @@ public:
 
 protected:
   bool eventFilter(QObject *watched, QEvent *event) override;
+  void changeEvent(QEvent *event) override;
 
 private:
   void rebuild();

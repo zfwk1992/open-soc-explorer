@@ -2,6 +2,7 @@
 // Part of Open SoC Explorer.
 #include "tracerecorder.h"
 
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QUuid>
@@ -168,10 +169,13 @@ std::vector<Trace::SystemComponent> TraceRecorder::describeSystem() const {
   mem.path = "soc.mem";
   mem.type = "vsrtl::core::AddressSpaceMM";
   mem.role = "memory";
-  mem.description =
+  // Descriptive texts of the trace stay English; they are translated when
+  // shown (tracetext.h).
+  mem.description = QT_TRANSLATE_NOOP(
+      "Ripes::Explorer::TraceText",
       "Ideal memory shared by instruction fetch and data accesses: every "
       "access completes in the cycle it is presented. There is no bus, no "
-      "latency and no contention.";
+      "latency and no contention.");
   QStringList sections;
   if (auto program = ProcessorHandler::getProgram())
     for (const auto &[name, section] : program->sections)
@@ -223,11 +227,15 @@ void TraceRecorder::fillCompleteness(Trace::Trace &t) const {
   c.instructionsRetired =
       static_cast<quint64>(std::max<long long>(0, m_last.retired));
   c.caveats.clear();
-  c.caveats << "Instruction instance identity and squash causes are inferred "
-               "from per-stage program counters (observability 'inferred').";
-  c.caveats << "Register writes are detected by comparing register files "
-               "between cycles; writes that do not change a value are not "
-               "observable.";
+  c.caveats << QT_TRANSLATE_NOOP(
+      "Ripes::Explorer::TraceText",
+      "Instruction instance identity and squash causes are inferred "
+      "from per-stage program counters (observability 'inferred').");
+  c.caveats << QT_TRANSLATE_NOOP(
+      "Ripes::Explorer::TraceText",
+      "Register writes are detected by comparing register files "
+      "between cycles; writes that do not change a value are not "
+      "observable.");
   if (m_unattributedWrites > 0)
     c.caveats << QString("%1 register write(s) could not be attributed to a "
                          "retiring instruction (e.g. system call side "
@@ -239,8 +247,10 @@ void TraceRecorder::fillCompleteness(Trace::Trace &t) const {
                          "not count them (see docs/SIMULATION_FIDELITY.md).")
                      .arg(m_inferredRetirements);
   if (m_sawMmio)
-    c.caveats << "Values of memory-mapped I/O accesses are not sampled, since "
-                 "reading peripheral registers may have side effects.";
+    c.caveats << QT_TRANSLATE_NOOP(
+        "Ripes::Explorer::TraceText",
+        "Values of memory-mapped I/O accesses are not sampled, since "
+        "reading peripheral registers may have side effects.");
 }
 
 void TraceRecorder::beginRunLocked() {
@@ -374,7 +384,9 @@ void TraceRecorder::beginRunLocked() {
       ev.payload.remove("word");
     } else {
       ev.observability = Observability::Inferred;
-      ev.payload["note"] = "already in this stage when recording started";
+      ev.payload["note"] =
+          QT_TRANSLATE_NOOP("Ripes::Explorer::TraceText",
+                            "already in this stage when recording started");
     }
     ev.type = EventType::StageEnter;
     emitLocked(ev);
@@ -806,7 +818,9 @@ void TraceRecorder::recordTransitionLocked(CycleState &cur) {
         } else {
           auto ev = baseEvent(EventType::StageEnter, i, inst);
           ev.observability = Observability::Inferred;
-          ev.payload["note"] = "instruction first observed in this stage";
+          ev.payload["note"] =
+              QT_TRANSLATE_NOOP("Ripes::Explorer::TraceText",
+                                "instruction first observed in this stage");
           emitLocked(ev);
         }
         break;

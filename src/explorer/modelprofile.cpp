@@ -2,20 +2,25 @@
 // Part of Open SoC Explorer.
 #include "modelprofile.h"
 
+#include <QCoreApplication>
+
 namespace Ripes {
 namespace Explorer {
 
 namespace {
-const char *kVsrtlNote =
+// Stored in traces in English; translated when shown (tracetext.h).
+const char *kVsrtlNote = QT_TRANSLATE_NOOP(
+    "Ripes::Explorer::TraceText",
     "Cycle-level educational datapath model built with VSRTL. It models the "
     "textbook datapath of this processor with ideal single-cycle memories. It "
     "is not a model of any specific commercial or open-source RTL core; cycle "
-    "counts are properties of this model only.";
+    "counts are properties of this model only.");
 
-const char *kIssNote =
+const char *kIssNote = QT_TRANSLATE_NOOP(
+    "Ripes::Explorer::TraceText",
     "Functional instruction set simulator: one instruction is executed per "
     "clock() call. Architectural results are meaningful; there is no "
-    "datapath, pipeline or timing model.";
+    "datapath, pipeline or timing model.");
 } // namespace
 
 ModelProfile modelProfile(ProcessorID id) {

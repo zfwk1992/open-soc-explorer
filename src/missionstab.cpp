@@ -23,6 +23,7 @@
 #include <cmath>
 
 #include "explorer/tracerecorder.h"
+#include "i18n/language.h"
 #include "processorhandler.h"
 #include "ripessettings.h"
 #include "theme/painting.h"
@@ -144,6 +145,8 @@ constexpr int kCardRole = Qt::UserRole + 1;
 
 /// Paints a mission of the map: a node on the path and its card.
 class MissionCardDelegate : public QStyledItemDelegate {
+  Q_DECLARE_TR_FUNCTIONS(Ripes::MissionCard)
+
 public:
   using QStyledItemDelegate::QStyledItemDelegate;
 
@@ -206,10 +209,10 @@ public:
     p->setPen(statusColor(status));
     p->drawText(QRectF(x, card.top() + 8, w, 14),
                 Qt::AlignLeft | Qt::AlignVCenter,
-                QString("Mission %1").arg(m.value("number").toInt()));
+                tr("Mission %1").arg(m.value("number").toInt()));
     QString statusText = missionStatusName(status);
     if (m.value("next").toBool() && status != MissionStatus::InProgress)
-      statusText = "Next";
+      statusText = tr("Next");
     const QSizeF ps = pillSize(statusText, over);
     drawPill(*p, QPointF(card.right() - 10 - ps.width(), card.top() + 6),
              statusText, statusColor(status), over,
@@ -246,7 +249,7 @@ public:
     const QFont small = scaledFont(option.font, 0.82, false);
     p->setFont(small);
     p->setPen(t.muted);
-    const QString stepText = QString("%1/%2 steps").arg(verified).arg(steps);
+    const QString stepText = tr("%1/%2 steps").arg(verified).arg(steps);
     const qreal stw = QFontMetricsF(small).horizontalAdvance(stepText);
     const qreal starsW = 3 * 15 + 2 * 3;
     const qreal barW = std::max(30.0, w - stw - starsW - 24);
@@ -271,12 +274,14 @@ public:
 /// Player progress header: level, experience points, stars, solved missions
 /// and verified steps, all from MissionProgress::totals().
 class MissionHud : public QWidget {
+  Q_DECLARE_TR_FUNCTIONS(Ripes::MissionHud)
+
 public:
   explicit MissionHud(QWidget *parent) : QWidget(parent) {
     setObjectName("missionHud");
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    m_reset = new QPushButton("Reset progress", this);
-    m_reset->setToolTip("Forget all verified steps and solved challenges");
+    m_reset = new QPushButton(this);
+    retranslate();
     m_anim = new QVariantAnimation(this);
     m_anim->setDuration(300);
     m_anim->setEasingCurve(QEasingCurve::OutCubic);
@@ -287,6 +292,13 @@ public:
             });
   }
   QPushButton *resetButton() const { return m_reset; }
+
+  void retranslate() {
+    m_reset->setText(tr("Reset progress"));
+    m_reset->setToolTip(tr("Forget all verified steps and solved challenges"));
+    resizeEvent(nullptr);
+    update();
+  }
 
   void setTotals(const MissionProgress::Totals &totals, bool animate) {
     if (m_initialized && totals.xp == m_totals.xp &&
@@ -356,7 +368,7 @@ protected:
     p.setPen(t.accent2);
     p.drawText(QRectF(x, panel.top() + 10, 300, 14),
                Qt::AlignLeft | Qt::AlignVCenter,
-               QString("Level %1").arg(level.level));
+               tr("Level %1").arg(level.level));
     p.setFont(scaledFont(font(), 1.35, true));
     p.setPen(t.text);
     p.drawText(QRectF(x, panel.top() + 24, 300, 24),
@@ -368,7 +380,7 @@ protected:
     p.setPen(t.muted);
     p.drawText(QRectF(bar.right() + 10, bar.top() - 4, 200, 18),
                Qt::AlignLeft | Qt::AlignVCenter,
-               QString("%1 / %2 XP → %3")
+               tr("%1 / %2 XP → %3")
                    .arg(level.xpIntoLevel)
                    .arg(kXpPerLevel)
                    .arg(levelTitle(level.level + 1)));
@@ -395,14 +407,14 @@ protected:
     const std::vector<Block> blocks = {
         {Glyph::Star, t.gold,
          QString("%1 / %2").arg(m_totals.stars).arg(m_totals.maxStars),
-         "Stars"},
+         tr("Stars")},
         {Glyph::Trophy, t.gold,
          QString("%1 / %2").arg(m_totals.solved).arg(m_totals.missions),
-         "Challenges solved"},
+         tr("Challenges solved")},
         {Glyph::Check, t.ok,
          QString("%1 / %2").arg(m_totals.verifiedSteps).arg(m_totals.steps),
-         "Steps verified"},
-        {Glyph::Bolt, t.accent, QString::number(m_totals.xp), "Total XP"}};
+         tr("Steps verified")},
+        {Glyph::Bolt, t.accent, QString::number(m_totals.xp), tr("Total XP")}};
     qreal bx = x + barW + 180;
     const qreal limit = m_reset->geometry().left() - 12;
     for (const auto &b : blocks) {
@@ -440,6 +452,8 @@ private:
 
 /// Title card of the selected mission.
 class MissionBanner : public QWidget {
+  Q_DECLARE_TR_FUNCTIONS(Ripes::MissionBanner)
+
 public:
   struct Info {
     int number = 0;
@@ -506,7 +520,7 @@ protected:
     p.setPen(t.dark ? sc.lighter(110) : sc.darker(120));
     p.drawText(QRectF(x, r.top() + 12, right - x, 16),
                Qt::AlignLeft | Qt::AlignVCenter,
-               QString("Mission %1 · %2")
+               tr("Mission %1 · %2")
                    .arg(m_info.number)
                    .arg(missionStatusName(m_info.status)));
     const QFont tf = scaledFont(font(), 1.65, true);
@@ -536,10 +550,11 @@ protected:
     p.setPen(t.muted);
     p.drawText(QRectF(x, r.bottom() - 26, right - x, 18),
                Qt::AlignLeft | Qt::AlignVCenter,
-               QString("%1 of %2 guided steps verified · challenge %3")
+               (m_info.record.solved
+                    ? tr("%1 of %2 guided steps verified · challenge solved")
+                    : tr("%1 of %2 guided steps verified · challenge open"))
                    .arg(m_info.record.verifiedSteps)
-                   .arg(m_info.record.steps)
-                   .arg(m_info.record.solved ? "solved" : "open"));
+                   .arg(m_info.record.steps));
 
     // Stars and experience points of this mission.
     const qreal starSize = 26;
@@ -569,8 +584,10 @@ MissionsTab::MissionsTab(QToolBar *toolbar, TraceRecorder *recorder,
                          QWidget *parent)
     : RipesTab(toolbar, parent), m_recorder(recorder),
       m_sourceProvider(std::move(sourceProvider)) {
+  // This view translates itself (missions in the active language).
+  setProperty("osxOwnTranslation", true);
   QString error;
-  m_missions = loadBuiltinMissions(&error);
+  m_missions = loadBuiltinMissions(&error, I18n::missionLanguage());
   loadProgress();
 
   auto *root = new QVBoxLayout(this);
@@ -587,7 +604,7 @@ MissionsTab::MissionsTab(QToolBar *toolbar, TraceRecorder *recorder,
   auto *mapPane = new QWidget(splitter);
   auto *mapLayout = new QVBoxLayout(mapPane);
   mapLayout->setContentsMargins(0, 4, 4, 0);
-  auto *mapTitle = new QLabel("MISSION MAP", mapPane);
+  auto *mapTitle = m_mapTitle = new QLabel(mapPane);
   mapTitle->setObjectName("missionOverline");
   mapTitle->setFont(overlineFont(font(), 0.86));
   mapLayout->addWidget(mapTitle);
@@ -627,24 +644,20 @@ MissionsTab::MissionsTab(QToolBar *toolbar, TraceRecorder *recorder,
   objectiveLayout->addWidget(m_objective);
   layout->addWidget(objectiveCard);
 
-  auto *conceptGroup = new QGroupBox("Briefing: concepts", page);
+  auto *conceptGroup = m_conceptGroup = new QGroupBox(page);
   auto *conceptLayout = new QVBoxLayout(conceptGroup);
   m_explanation = richLabel(conceptGroup);
   conceptLayout->addWidget(m_explanation);
   layout->addWidget(conceptGroup);
 
   auto *buttons = new QHBoxLayout();
-  auto *loadButton = new QPushButton("Load example", page);
+  auto *loadButton = m_loadButton = new QPushButton(page);
   loadButton->setProperty("osxRole", "primary");
-  loadButton->setToolTip(
-      "Replace the editor contents with the example program");
   connect(loadButton, &QPushButton::clicked, this, [this] {
     if (m_current >= 0)
       emit loadProgramRequested(m_missions[m_current].example);
   });
-  auto *procButton = new QPushButton("Select processor", page);
-  procButton->setToolTip("Select the processor model this mission is "
-                         "designed for");
+  auto *procButton = m_processorButton = new QPushButton(page);
   connect(procButton, &QPushButton::clicked, this, [this] {
     if (m_current < 0)
       return;
@@ -654,7 +667,7 @@ MissionsTab::MissionsTab(QToolBar *toolbar, TraceRecorder *recorder,
     if (ok)
       emit selectProcessorRequested(static_cast<ProcessorID>(v));
   });
-  auto *explorerButton = new QPushButton("Open Explorer", page);
+  auto *explorerButton = m_explorerButton = new QPushButton(page);
   connect(explorerButton, &QPushButton::clicked, this,
           &MissionsTab::showExplorerRequested);
   buttons->addWidget(loadButton);
@@ -668,24 +681,22 @@ MissionsTab::MissionsTab(QToolBar *toolbar, TraceRecorder *recorder,
   m_processorLabel = richLabel(page);
   layout->addWidget(m_processorLabel);
 
-  m_stepsGroup = new QGroupBox("Guided steps (verified live)", page);
+  m_stepsGroup = new QGroupBox(page);
   m_stepsLayout = new QVBoxLayout(m_stepsGroup);
   m_stepsLayout->setSpacing(6);
   layout->addWidget(m_stepsGroup);
 
-  auto *challengeGroup = new QGroupBox("Challenge", page);
+  auto *challengeGroup = m_challengeGroup = new QGroupBox(page);
   auto *challengeLayout = new QVBoxLayout(challengeGroup);
   m_challenge = richLabel(challengeGroup);
   challengeLayout->addWidget(m_challenge);
   auto *challengeButtons = new QHBoxLayout();
-  m_hintButton = new QPushButton("Show hint", challengeGroup);
+  m_hintButton = new QPushButton(challengeGroup);
   m_hintButton->setCheckable(true);
   connect(m_hintButton, &QPushButton::toggled, this,
           [this](bool on) { m_hint->setVisible(on); });
-  auto *checkButton = new QPushButton("Check challenge", challengeGroup);
+  auto *checkButton = m_checkButton = new QPushButton(challengeGroup);
   checkButton->setProperty("osxRole", "gold");
-  checkButton->setToolTip("Verify your solution against the simulator state "
-                          "and the recorded trace");
   connect(checkButton, &QPushButton::clicked, this,
           &MissionsTab::checkChallenge);
   m_iconButtons.push_back({m_hintButton, int(Glyph::Hint)});
@@ -729,12 +740,49 @@ MissionsTab::MissionsTab(QToolBar *toolbar, TraceRecorder *recorder,
             });
   connect(Notifier::get(), &Notifier::changed, this, &MissionsTab::applyTheme);
 
+  retranslateUi();
   refreshMissionList();
   if (!m_missions.empty())
     m_list->setCurrentRow(0);
   else
-    m_objective->setText("No missions available: " + error.toHtmlEscaped());
+    m_objective->setText(
+        tr("No missions available: %1").arg(error.toHtmlEscaped()));
   applyTheme();
+}
+
+void MissionsTab::retranslateUi() {
+  m_mapTitle->setText(tr("MISSION MAP"));
+  m_conceptGroup->setTitle(tr("Briefing: concepts"));
+  m_loadButton->setText(tr("Load example"));
+  m_loadButton->setToolTip(
+      tr("Replace the editor contents with the example program"));
+  m_processorButton->setText(tr("Select processor"));
+  m_processorButton->setToolTip(
+      tr("Select the processor model this mission is designed for"));
+  m_explorerButton->setText(tr("Open Explorer"));
+  m_stepsGroup->setTitle(tr("Guided steps (verified live)"));
+  m_challengeGroup->setTitle(tr("Challenge"));
+  m_hintButton->setText(tr("Show hint"));
+  m_checkButton->setText(tr("Check challenge"));
+  m_checkButton->setToolTip(tr("Verify your solution against the simulator "
+                               "state and the recorded trace"));
+  m_hud->retranslate();
+}
+
+void MissionsTab::changeEvent(QEvent *event) {
+  RipesTab::changeEvent(event);
+  if (event->type() != QEvent::LanguageChange)
+    return;
+  // Mission texts of the new language (same ids, steps and checks).
+  QString error;
+  auto missions = loadBuiltinMissions(&error, I18n::missionLanguage());
+  if (missions.size() == m_missions.size())
+    m_missions = std::move(missions);
+  retranslateUi();
+  refreshMissionList();
+  if (m_current >= 0)
+    showMission(m_current);
+  m_banner->update();
 }
 
 void MissionsTab::applyTheme() {
@@ -782,9 +830,9 @@ void MissionsTab::saveProgress() {
 
 void MissionsTab::resetProgress() {
   if (QMessageBox::question(
-          this, "Reset mission progress",
-          "Forget all verified steps and solved challenges? Your stars, "
-          "experience points and level start again from zero.") !=
+          this, tr("Reset mission progress"),
+          tr("Forget all verified steps and solved challenges? Your stars, "
+             "experience points and level start again from zero.")) !=
       QMessageBox::Yes)
     return;
   m_progress = MissionProgress();
@@ -826,7 +874,7 @@ void MissionsTab::refreshMissionList() {
   for (size_t i = 0; i < m_missions.size(); ++i) {
     const auto &m = m_missions[i];
     const auto status = missionStatus(records, i);
-    auto *item = new QListWidgetItem(QString("%1 Mission %2: %3")
+    auto *item = new QListWidgetItem(tr("%1 Mission %2: %3")
                                          .arg(records[i].solved ? "✓" : "○")
                                          .arg(m.number)
                                          .arg(m.title));
@@ -847,13 +895,12 @@ void MissionsTab::refreshMissionList() {
       card["nextLocked"] = ns == MissionStatus::Locked;
     }
     item->setData(kCardRole, card);
-    item->setToolTip(
-        QString("%1 · %2 of %3 steps verified · %4 star(s) · %5 XP")
-            .arg(missionStatusName(status))
-            .arg(records[i].verifiedSteps)
-            .arg(records[i].steps)
-            .arg(missionStars(records[i]))
-            .arg(missionXp(records[i])));
+    item->setToolTip(tr("%1 · %2 of %3 steps verified · %4 star(s) · %5 XP")
+                         .arg(missionStatusName(status))
+                         .arg(records[i].verifiedSteps)
+                         .arg(records[i].steps)
+                         .arg(missionStars(records[i]))
+                         .arg(missionXp(records[i])));
     m_list->addItem(item);
   }
   m_list->setCurrentRow(row);
@@ -880,9 +927,9 @@ void MissionsTab::showMission(int index) {
 
   if (status == MissionStatus::Locked && index > 0) {
     m_lockNote->setText(
-        QString("<b>Locked</b> – recommended after Mission %1: verify its "
-                "guided steps (or solve its challenge) to unlock this "
-                "mission on the map. You can still read and play it now.")
+        tr("<b>Locked</b> – recommended after Mission %1: verify its "
+           "guided steps (or solve its challenge) to unlock this "
+           "mission on the map. You can still read and play it now.")
             .arg(m_missions[index - 1].number));
     m_lockNote->setVisible(true);
   } else {
@@ -890,13 +937,15 @@ void MissionsTab::showMission(int index) {
   }
 
   m_objective->setText(
-      QString("<span style='color:%1; font-weight:700'>OBJECTIVE</span><br>"
-              "%2<br><span style='color:%3'>You will learn: %4</span>")
-          .arg(tokens().accent.name(), m.objective.toHtmlEscaped(),
-               tokens().muted.name(), m.learn.join(" · ").toHtmlEscaped()));
+      QString("<span style='color:%1; font-weight:700'>%2</span><br>"
+              "%3<br><span style='color:%4'>%5</span>")
+          .arg(tokens().accent.name(), tr("OBJECTIVE"),
+               m.objective.toHtmlEscaped(), tokens().muted.name(),
+               tr("You will learn: %1")
+                   .arg(m.learn.join(" · ").toHtmlEscaped())));
   m_explanation->setText(m.explanation);
   m_processorLabel->setText(
-      QString("<b>Processor:</b> %1 (%2). <b>Example program:</b><pre>%3</pre>")
+      tr("<b>Processor:</b> %1 (%2). <b>Example program:</b><pre>%3</pre>")
           .arg(processorName(m.processor).toHtmlEscaped(),
                m.processor.toHtmlEscaped(), m.example.toHtmlEscaped()));
 
@@ -924,7 +973,7 @@ void MissionsTab::showMission(int index) {
     status->setFont(f);
     auto *col = new QVBoxLayout();
     auto *text = richLabel(box);
-    text->setText(QString("<b>Step %1: %2</b><br>%3")
+    text->setText(tr("<b>Step %1: %2</b><br>%3")
                       .arg(n++)
                       .arg(step.title.toHtmlEscaped(), step.instruction));
     auto *checks = richLabel(box);
@@ -937,13 +986,13 @@ void MissionsTab::showMission(int index) {
   }
 
   m_challenge->setText(m.challenge);
-  m_hint->setText("<i>Hint:</i> " + m.hint.toHtmlEscaped());
+  m_hint->setText("<i>" + tr("Hint:") + "</i> " + m.hint.toHtmlEscaped());
   m_hintButton->setChecked(false);
   m_result->clear();
   m_completion->setText(
       m_progress.isSolved(m.id)
-          ? QString("<span style='color:%1'>✓ Completed.</span> %2")
-                .arg(okColor(), m.completion.toHtmlEscaped())
+          ? QString("<span style='color:%1'>✓ %2</span> %3")
+                .arg(okColor(), tr("Completed."), m.completion.toHtmlEscaped())
           : QString());
   m_hud->setTotals(m_progress.totals(m_missions), false);
   evaluateSteps();
@@ -994,7 +1043,8 @@ void MissionsTab::evaluateSteps() {
     repolish(w.box);
     QString html = criteriaHtml(report);
     if (completed && !report.passed)
-      html = "<i>Completed earlier. Live state now:</i><br>" + html;
+      html =
+          "<i>" + tr("Completed earlier. Live state now:") + "</i><br>" + html;
     w.checks->setText(html);
     previousDone = completed;
   }
@@ -1013,25 +1063,26 @@ void MissionsTab::checkChallenge() {
   if (report.passed) {
     const bool first = m_progress.recordSolved(m.id);
     html =
-        QString("<p style='color:%1'><b>Challenge solved!</b> Verified "
-                "against the simulator state and the recorded trace.%2</p>")
-            .arg(okColor(), first ? QString(" <b style='color:%1'>+%2 XP · ★ "
-                                            "challenge star</b>")
-                                        .arg(goldColor())
-                                        .arg(kXpPerChallenge)
-                                  : QString(" (already counted)")) +
+        QString("<p style='color:%1'><b>%2</b> %3%4</p>")
+            .arg(okColor(), tr("Challenge solved!"),
+                 tr("Verified against the simulator state and the recorded "
+                    "trace."),
+                 first ? QString(" <b style='color:%1'>%2</b>")
+                             .arg(goldColor(), tr("+%1 XP · ★ challenge star")
+                                                   .arg(kXpPerChallenge))
+                       : " " + tr("(already counted)")) +
         html;
-    m_completion->setText(QString("<span style='color:%1'>✓ Completed.</span> "
-                                  "%2")
-                              .arg(okColor(), m.completion.toHtmlEscaped()));
+    m_completion->setText(
+        QString("<span style='color:%1'>✓ %2</span> %3")
+            .arg(okColor(), tr("Completed."), m.completion.toHtmlEscaped()));
     if (first) {
       saveProgress();
       refreshProgressViews();
     }
   } else {
-    html = QString("<p style='color:%1'><b>Not solved yet.</b> The failing "
-                   "conditions are marked below.</p>")
-               .arg(badColor()) +
+    html = QString("<p style='color:%1'><b>%2</b> %3</p>")
+               .arg(badColor(), tr("Not solved yet."),
+                    tr("The failing conditions are marked below.")) +
            html;
   }
   m_result->setText(html);

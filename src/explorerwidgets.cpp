@@ -287,14 +287,16 @@ void StageTile::paintBody(QPainter &p, const QRectF &r, const SlotVisual &v,
     qreal x = r.left() + 6;
     const qreal y = r.bottom() - pillH - 4;
     if (v.held)
-      x = drawPill(p, QPointF(x, y), "held", t.warn, pillFont, true).right() +
+      x = drawPill(p, QPointF(x, y), tr("held"), t.warn, pillFont, true)
+              .right() +
           4;
     if (v.wrongPath)
-      x = drawPill(p, QPointF(x, y), "✕ wrong path", t.bad, pillFont, true)
+      x = drawPill(p, QPointF(x, y), "✕ " + tr("wrong path"), t.bad, pillFont,
+                   true)
               .right() +
           4;
     if (v.occupants > 1) {
-      const QString more = QString("+%1 more").arg(v.occupants - 1);
+      const QString more = tr("+%1 more").arg(v.occupants - 1);
       const qreal w = pillSize(more, pillFont).width();
       drawPill(p, QPointF(r.right() - 6 - w, y), more, t.accent2, pillFont);
     }
@@ -320,7 +322,7 @@ void StageTile::paintBody(QPainter &p, const QRectF &r, const SlotVisual &v,
     p.setFont(scaled(font, 1.0, true));
     p.setPen(t.dark ? col.lighter(110) : col.darker(110));
     p.drawText(r.adjusted(32, 0, -6, 0), Qt::AlignLeft | Qt::AlignVCenter,
-               stall ? "stall bubble" : "flushed (bubble)");
+               stall ? tr("stall bubble") : tr("flushed (bubble)"));
     break;
   }
   case TraceReplay::SlotKind::Empty: {
@@ -329,7 +331,7 @@ void StageTile::paintBody(QPainter &p, const QRectF &r, const SlotVisual &v,
     p.drawRoundedRect(r.adjusted(1, 1, -1, -1), 8, 8);
     p.setFont(font);
     p.setPen(withAlpha(t.muted, 200));
-    p.drawText(r, Qt::AlignCenter, "— empty —");
+    p.drawText(r, Qt::AlignCenter, "— " + tr("empty") + " —");
     break;
   }
   }
@@ -554,11 +556,11 @@ std::vector<StripLegend::Entry> StripLegend::entries() const {
   std::vector<Entry> e;
   for (const auto &[ci, name] : m_stages)
     e.push_back({name, stageColor(ci), 0});
-  e.push_back({"held (stall)", t.warn, 1});
-  e.push_back({"stall bubble", t.warn, 2});
-  e.push_back({"flushed / wrong path", t.bad, 3});
-  e.push_back({"retired", t.ok, 4});
-  e.push_back({"squashed", t.bad, 5});
+  e.push_back({tr("held (stall)"), t.warn, 1});
+  e.push_back({tr("stall bubble"), t.warn, 2});
+  e.push_back({tr("flushed / wrong path"), t.bad, 3});
+  e.push_back({tr("retired"), t.ok, 4});
+  e.push_back({tr("squashed"), t.bad, 5});
   return e;
 }
 

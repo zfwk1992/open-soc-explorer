@@ -13,6 +13,7 @@
 
 class QAction;
 class QComboBox;
+class QGroupBox;
 class QLabel;
 class QSlider;
 class QSpinBox;
@@ -52,6 +53,8 @@ public:
   qint64 cycleForColumn(int column) const;
   int columnForCycle(qint64 cycle) const;
   void setCurrentCycle(qint64 cycle);
+  /// Re-reads the texts (tool tips) after a language change.
+  void refreshTexts();
 
   int rowCount(const QModelIndex &parent = QModelIndex()) const override;
   int columnCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -85,6 +88,7 @@ public:
 
 protected:
   bool eventFilter(QObject *watched, QEvent *event) override;
+  void changeEvent(QEvent *event) override;
 
 public:
   /// Loads a trace file (e.g. converted from gem5) for offline replay.
@@ -106,6 +110,9 @@ private slots:
 private:
   void setupToolbar();
   void setupUi();
+  /// Sets the static texts in the current language.
+  void retranslateUi();
+  void updateCycleLabel();
   void loadReplay(Trace::Trace trace);
   void updateBanner();
   void updateCycleViews();
@@ -135,6 +142,13 @@ private:
 
   HudBanner *m_banner = nullptr;
   QLabel *m_cycleLabel = nullptr;
+  QToolButton *m_firstButton = nullptr;
+  QToolButton *m_previousButton = nullptr;
+  QToolButton *m_nextButton = nullptr;
+  QToolButton *m_lastButton = nullptr;
+  QGroupBox *m_stripGroup = nullptr;
+  QGroupBox *m_timelineGroup = nullptr;
+  QGroupBox *m_eventsGroup = nullptr;
   QSlider *m_slider = nullptr;
   std::vector<std::pair<QToolButton *, int>> m_controlButtons;
   QToolButton *m_playButton = nullptr;
@@ -159,7 +173,10 @@ private:
   const void *m_componentDesign = nullptr;
 
   QAction *m_recordAction = nullptr;
+  QLabel *m_maxCyclesLabel = nullptr;
   QSpinBox *m_maxCycles = nullptr;
+  QAction *m_exportAction = nullptr;
+  QAction *m_openAction = nullptr;
   QAction *m_liveAction = nullptr;
 };
 

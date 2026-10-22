@@ -48,6 +48,9 @@ public:
 
   void tabVisibilityChanged(bool visible) override;
 
+protected:
+  void changeEvent(QEvent *event) override;
+
 signals:
   void loadProgramRequested(const QString &program);
   void selectProcessorRequested(Ripes::ProcessorID id);
@@ -72,6 +75,8 @@ private:
   void refreshProgressViews();
   QString criteriaHtml(const Explorer::CheckReport &report) const;
   void applyTheme();
+  /// Sets the static texts in the current language.
+  void retranslateUi();
 
   Explorer::TraceRecorder *m_recorder = nullptr;
   std::function<QString()> m_sourceProvider;
@@ -99,6 +104,13 @@ private:
   QPushButton *m_hintButton = nullptr;
   QLabel *m_result = nullptr;
   QLabel *m_completion = nullptr;
+  QLabel *m_mapTitle = nullptr;
+  QGroupBox *m_conceptGroup = nullptr;
+  QGroupBox *m_challengeGroup = nullptr;
+  QPushButton *m_loadButton = nullptr;
+  QPushButton *m_processorButton = nullptr;
+  QPushButton *m_explorerButton = nullptr;
+  QPushButton *m_checkButton = nullptr;
   std::vector<std::pair<QPushButton *, int>> m_iconButtons;
 };
 
