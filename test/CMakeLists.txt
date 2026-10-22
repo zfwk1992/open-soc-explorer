@@ -26,3 +26,6 @@ create_qtest(tst_expreval)
 create_qtest(tst_cosimulate)
 create_qtest(tst_reverse)
 create_qtest(tst_stall)
+
+# Open SoC Explorer tests
+create_qtest(tst_trace)
