@@ -3,9 +3,12 @@
 
 #include "cachetab.h"
 #include "edittab.h"
+#include "explorer/tracerecorder.h"
+#include "explorertab.h"
 #include "iotab.h"
 #include "loaddialog.h"
 #include "memorytab.h"
+#include "missionstab.h"
 #include "processorhandler.h"
 #include "processortab.h"
 #include "registerwidget.h"
@@ -47,12 +50,19 @@ static void clearSaveFile() {
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_ui(new Ui::MainWindow) {
   m_ui->setupUi(this);
-  setWindowTitle("Ripes");
+  setWindowTitle("Open SoC Explorer (based on Ripes)");
   setWindowIcon(QIcon(":/icons/logo.svg"));
   m_ui->actionOpen_wiki->setIcon(QIcon(":/icons/info.svg"));
 
   // Initialize processor handler
   ProcessorHandler::get();
+
+  // Open SoC Explorer trace recorder
+  m_traceRecorder = new Explorer::TraceRecorder(this);
+  m_traceRecorder->setMaxCycles(
+      RipesSettings::value(RIPES_SETTING_OSX_TRACE_MAXCYCLES).toLongLong());
+  m_traceRecorder->setEnabled(
+      RipesSettings::value(RIPES_SETTING_OSX_TRACE_ENABLED).toBool());
 
   // Initialize fonts
   QFontDatabase::addApplicationFont(
@@ -96,6 +106,20 @@ MainWindow::MainWindow(QWidget *parent)
   m_stackedTabs->insertWidget(IOTabID, IOTab);
   m_tabWidgets[IOTabID] = {IOTab, IOToolbar};
 
+  auto *explorerToolbar = addToolBar("Explorer");
+  explorerToolbar->setVisible(false);
+  auto *explorerTab = new ExplorerTab(explorerToolbar, m_traceRecorder, this);
+  m_stackedTabs->insertWidget(ExplorerTabID, explorerTab);
+  m_tabWidgets[ExplorerTabID] = {explorerTab, explorerToolbar};
+
+  auto *missionsToolbar = addToolBar("Missions");
+  missionsToolbar->setVisible(false);
+  auto *missionsTab = new MissionsTab(
+      missionsToolbar, m_traceRecorder,
+      [editTab] { return editTab->getAssemblyText(); }, this);
+  m_stackedTabs->insertWidget(MissionsTabID, missionsTab);
+  m_tabWidgets[MissionsTabID] = {missionsTab, missionsToolbar};
+
   // Setup tab bar.
   m_ui->tabbar->addFancyTab(style()->standardIcon(QStyle::SP_FileIcon),
                             "Editor");
@@ -103,6 +127,8 @@ MainWindow::MainWindow(QWidget *parent)
   m_ui->tabbar->addFancyTab(QIcon(":/icons/server.svg"), "Cache");
   m_ui->tabbar->addFancyTab(QIcon(":/icons/ram-memory.svg"), "Memory");
   m_ui->tabbar->addFancyTab(QIcon(":/icons/led.svg"), "I/O");
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/trace.svg"), "Explorer");
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/compass.svg"), "Missions");
   connect(m_ui->tabbar, &FancyTabBar::activeIndexChanged, this,
           &MainWindow::tabChanged);
   connect(m_ui->tabbar, &FancyTabBar::activeIndexChanged, m_stackedTabs,
@@ -134,6 +160,22 @@ MainWindow::MainWindow(QWidget *parent)
           &MemoryTab::setCentralAddress);
 
   connect(this, &MainWindow::prepareSave, editTab, &EditTab::onSave);
+
+  // Missions drive the editor, the processor selection and the explorer.
+  connect(missionsTab, &MissionsTab::loadProgramRequested, this,
+          [this, editTab](const QString &program) {
+            editTab->loadSourceText(program);
+            m_ui->tabbar->setActiveIndex(EditTabID);
+          });
+  connect(missionsTab, &MissionsTab::selectProcessorRequested, this,
+          [processorTab](ProcessorID id) {
+            const auto &desc = ProcessorRegistry::getDescription(id);
+            processorTab->selectProcessor(
+                id, desc.isaInfo().defaultExtensions, desc.defaultRegisterVals,
+                desc.layouts.empty() ? nullptr : &desc.layouts.front());
+          });
+  connect(missionsTab, &MissionsTab::showExplorerRequested, this,
+          [this] { m_ui->tabbar->setActiveIndex(ExplorerTabID); });
 
   // Keep the processor diagram's dark mode in sync with the application theme
   // (system theme changes or the user's Light/Dark/System choice). ThemeManager

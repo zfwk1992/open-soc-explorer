@@ -9,6 +9,7 @@
 #include <chrono>
 
 #include "isa/isa_types.h"
+#include "processorregistry.h"
 #include "processors/interface/ripesprocessor.h"
 #include "ripestab.h"
 
@@ -56,6 +57,13 @@ public slots:
   void setDarkmode(bool enabled);
 
   void processorSelection();
+
+  /// Selects processor @p id as if it was chosen in the processor selection
+  /// dialog, and loads it into the processor view using @p layout (may be
+  /// null for models without a layout).
+  void selectProcessor(ProcessorID id, const QStringList &extensions,
+                       const RegisterInitialization &regInit,
+                       const Layout *layout);
 
 private slots:
   void run(bool state);

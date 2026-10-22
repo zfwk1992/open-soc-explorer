@@ -36,6 +36,11 @@ namespace Ripes {
 #define RIPES_SETTING_VCD_TRACE ("enable_vcd_trace")
 #define RIPES_SETTING_VCD_TRACE_FILE ("vcd_trace_file")
 
+// Open SoC Explorer settings
+#define RIPES_SETTING_OSX_TRACE_ENABLED ("osx_trace_enabled")
+#define RIPES_SETTING_OSX_TRACE_MAXCYCLES ("osx_trace_maxcycles")
+#define RIPES_SETTING_OSX_MISSIONS_COMPLETED ("osx_missions_completed")
+
 // This is not really a setting, but instead a method to leverage the static
 // observer objects that are generated for a setting. Used for other objects to
 // hook into a signal emitted just before the application closes.

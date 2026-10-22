@@ -21,6 +21,9 @@ class CacheTab;
 class IOTab;
 class ProcessorHandler;
 class RipesTab;
+namespace Explorer {
+class TraceRecorder;
+}
 struct LoadFileParams;
 
 struct TabWidgets {
@@ -37,6 +40,8 @@ class MainWindow : public QMainWindow {
     CacheTabID,
     MemoryTabID,
     IOTabID,
+    ExplorerTabID,
+    MissionsTabID,
     NTabsID
   };
 
@@ -89,5 +94,9 @@ private:
   std::map<TabIndex, TabWidgets> m_tabWidgets;
   TabIndex m_currentTabID = ProcessorTabID;
   bool m_hasPerformedInitialFit = false;
+
+  // Open SoC Explorer: records the execution trace shown in the Explorer and
+  // used to verify missions.
+  Explorer::TraceRecorder *m_traceRecorder = nullptr;
 };
 } // namespace Ripes

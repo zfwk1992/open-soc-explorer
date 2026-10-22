@@ -78,6 +78,7 @@ add_subdirectory(utilities)
 add_subdirectory(processors)
 add_subdirectory(version)
 add_subdirectory(cli)
+add_subdirectory(explorer)
 
 # Also link Qt and VSRTL libraries.
 target_link_libraries(${RIPES_LIB} PUBLIC

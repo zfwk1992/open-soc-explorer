@@ -1,0 +1,89 @@
+{
+  "id": "m1-first-program",
+  "number": 1,
+  "title": "Execute Your First RISC-V Program",
+  "learn": [
+    "Program counter (PC)",
+    "Register file",
+    "ADDI",
+    "ADD",
+    "Write-back"
+  ],
+  "processor": "RV32_SS",
+  "objective": "Run three instructions on the single-cycle processor and watch the program counter and the register file change, one instruction per clock cycle.",
+  "explanation": "<p>A RISC-V program is a sequence of 32-bit instructions in memory. The <b>program counter (PC)</b> holds the address of the instruction to execute. Every cycle the processor <b>fetches</b> the instruction at the PC, <b>decodes</b> it, <b>executes</b> it and <b>writes back</b> the result to the <b>register file</b> (registers <code>x0</code>&ndash;<code>x31</code>; <code>x0</code> is always zero). Then the PC advances by 4 bytes.</p><p><code>addi rd, rs1, imm</code> computes <code>rs1 + imm</code>. With <code>rs1 = x0</code> it simply loads a small constant. <code>add rd, rs1, rs2</code> adds two registers.</p><p>This mission uses Ripes' <b>single-cycle processor</b>: one clock cycle executes exactly one instruction, so you can follow the PC and the registers step by step. It is an educational datapath model, not a model of a specific commercial core.</p>",
+  "example": "# Mission 1: your first RISC-V program\naddi x1, x0, 10   # x1 = 10\naddi x2, x0, 20   # x2 = 20\nadd  x3, x1, x2   # x3 = x1 + x2\n",
+  "steps": [
+    {
+      "title": "Load the program",
+      "instruction": "Click <b>Load example</b> and <b>Select processor</b>. The editor now contains the program and the single-cycle processor is active.",
+      "checks": [
+        {
+          "kind": "processor_is"
+        },
+        {
+          "kind": "program_matches_example"
+        }
+      ]
+    },
+    {
+      "title": "Execute one instruction",
+      "instruction": "In the toolbar, press <b>Clock</b> once (or step forward in the Explorer tab timeline after clocking). In the single-cycle processor the first instruction completes in cycle 1: the PC moves from 0x0 to 0x4 and <code>x1</code> becomes 10.",
+      "checks": [
+        {
+          "kind": "cycle_at_least",
+          "cycles": 1
+        },
+        {
+          "kind": "register_equals",
+          "register": "x1",
+          "value": 10
+        }
+      ]
+    },
+    {
+      "title": "Run to the end",
+      "instruction": "Press <b>Run</b> (or keep clocking). Open the <b>Explorer</b> tab and click the <code>add</code> instruction in the timeline: the explanation shows the operand values 10 and 20 and checks the result against the ISA.",
+      "checks": [
+        {
+          "kind": "finished"
+        },
+        {
+          "kind": "trace_complete"
+        },
+        {
+          "kind": "register_equals",
+          "register": "x3",
+          "value": 30
+        }
+      ]
+    }
+  ],
+  "challenge": {
+    "text": "Write your own program that leaves <b>100</b> in register <code>x5</code> (<code>t0</code>), where the final value of <code>x5</code> must be produced by an <code>add</code> instruction. Run it to completion, then press <b>Check challenge</b>.",
+    "hint": "Load two constants with addi into two other registers, then add them into x5.",
+    "checks": [
+      {
+        "kind": "source_differs_from_example"
+      },
+      {
+        "kind": "finished"
+      },
+      {
+        "kind": "trace_complete"
+      },
+      {
+        "kind": "register_equals",
+        "register": "x5",
+        "value": 100
+      },
+      {
+        "kind": "register_written_by",
+        "register": "x5",
+        "mnemonic": "add"
+      }
+    ],
+    "reference_solution": "addi x6, x0, 60\naddi x7, x0, 40\nadd  x5, x6, x7\n"
+  },
+  "completion": "You executed RISC-V instructions and verified, from the simulator's own trace, how the PC and the register file change. Next: what happens when instructions overlap in a pipeline."
+}

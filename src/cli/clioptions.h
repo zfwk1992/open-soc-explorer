@@ -29,6 +29,11 @@ struct CLIModeOptions {
   std::optional<CachePreset> l1iCache;
   std::optional<CachePreset> l1dCache;
 
+  // Open SoC Explorer: if set, a trace (JSON Lines, see
+  // docs/TRACE_PROTOCOL.md) of the run is written to this path.
+  QString traceOutput;
+  qint64 traceMaxCycles = 1000000;
+
   // A list of enabled telemetry options.
   std::vector<std::shared_ptr<Telemetry>> telemetry;
 };

@@ -8,6 +8,9 @@ namespace Ripes {
 
 class CacheSim;
 class L1CacheShim;
+namespace Explorer {
+class TraceRecorder;
+}
 
 /// The CLIRunner class is used to run Ripes in CLI mode.
 /// Based on a CLIModeOptions struct, it will run the appropriate combination
@@ -48,6 +51,10 @@ private:
   std::unique_ptr<L1CacheShim> m_l1dShim;
   std::shared_ptr<CacheSim> m_l1iCache;
   std::shared_ptr<CacheSim> m_l1dCache;
+
+  // Open SoC Explorer trace recorder (only populated when --trace-out is set).
+  std::unique_ptr<Explorer::TraceRecorder> m_traceRecorder;
+  int writeTrace();
 };
 
 } // namespace Ripes
