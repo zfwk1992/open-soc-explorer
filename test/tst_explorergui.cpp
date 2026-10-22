@@ -9,6 +9,7 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QSplitter>
 #include <QTabWidget>
 #include <QTableView>
 #include <QTableWidget>
@@ -20,7 +21,9 @@
 
 #include "edittab.h"
 #include "explorer/mission.h"
+#include "explorer/missionprogress.h"
 #include "explorertab.h"
+#include "explorerwidgets.h"
 #include "fancytabbar/fancytabbar.h"
 #include "gem5sample.h"
 #include "mainwindow.h"
@@ -28,14 +31,23 @@
 #include "processorhandler.h"
 #include "ripessettings.h"
 #include "systemview.h"
+#include "theme/theme.h"
 
 using namespace Ripes;
 
 namespace {
 // Indices of the tabs in MainWindow (see MainWindow::TabIndex).
 constexpr int kEditorTab = 0;
+constexpr int kProcessorTab = 1;
 constexpr int kExplorerTab = 5;
 constexpr int kMissionsTab = 6;
+// Data role of the mission map cards (MissionsTab).
+constexpr int kCardRole = Qt::UserRole + 1;
+// Settings the test changes; restored in cleanupTestCase().
+const char *const kIsolatedSettings[] = {
+    RIPES_SETTING_OSX_MISSION_STEPS, RIPES_SETTING_OSX_MISSIONS_COMPLETED,
+    RIPES_SETTING_OSX_THEME, RIPES_SETTING_OSX_REDUCED_MOTION,
+    RIPES_SETTING_COLORSCHEME};
 } // namespace
 
 class tst_explorergui : public QObject {
@@ -49,12 +61,15 @@ private:
   void runToEnd();
   void runFast();
   QStringList stepStatuses() const;
+  QVariantMap missionCard(int row) const;
+  QStringList stripMoves() const;
   void screenshot(const QString &name);
 
   MainWindow *m_window = nullptr;
   MissionsTab *m_missions = nullptr;
   ExplorerTab *m_explorer = nullptr;
   std::vector<Explorer::Mission> m_catalog;
+  std::map<QString, QVariant> m_savedSettings;
 
 private slots:
   void initTestCase();
@@ -65,11 +80,22 @@ private slots:
   void tst_mission4CacheChallenge();
   void tst_systemViewRipes();
   void tst_gem5TraceInExplorer();
+  void tst_themes();
   void cleanupTestCase();
 };
 
 void tst_explorergui::initTestCase() {
   RipesSettings::setValue(RIPES_SETTING_OSX_TRACE_ENABLED, true);
+  // Start without mission progress, in the default (game) theme, with
+  // animations on. The user's values are restored in cleanupTestCase().
+  for (const char *key : kIsolatedSettings)
+    m_savedSettings[key] = RipesSettings::value(key);
+  RipesSettings::setValue(RIPES_SETTING_OSX_MISSION_STEPS, QStringList());
+  RipesSettings::setValue(RIPES_SETTING_OSX_MISSIONS_COMPLETED, QStringList());
+  RipesSettings::setValue(RIPES_SETTING_OSX_THEME, 0);
+  RipesSettings::setValue(RIPES_SETTING_OSX_REDUCED_MOTION, false);
+  RipesSettings::setValue(RIPES_SETTING_COLORSCHEME,
+                          static_cast<int>(ColorScheme::System));
   m_window = new MainWindow();
   m_window->resize(1680, 1000);
   m_window->show();
@@ -81,7 +107,43 @@ void tst_explorergui::initTestCase() {
   QCOMPARE(m_catalog.size(), size_t(4));
 }
 
-void tst_explorergui::cleanupTestCase() { delete m_window; }
+void tst_explorergui::cleanupTestCase() {
+  delete m_window;
+  for (const auto &[key, value] : m_savedSettings)
+    RipesSettings::setValue(key, value);
+}
+
+QVariantMap tst_explorergui::missionCard(int row) const {
+  return m_missions->findChild<QListWidget *>("missionList")
+      ->item(row)
+      ->data(kCardRole)
+      .toMap();
+}
+
+QStringList tst_explorergui::stripMoves() const {
+  auto *strip = m_explorer->findChild<PipelineStrip *>();
+  const auto &tiles = strip->tiles();
+  auto stage = [&](int i) { return tiles.at(i)->visual().stage; };
+  QStringList moves;
+  for (const auto &m : strip->moves()) {
+    const QString inst = Trace::instanceName(m.visual.instance);
+    switch (m.kind) {
+    case PipelineStrip::Move::Slide:
+      moves << QString("slide %1->%2 %3").arg(stage(m.from), stage(m.to), inst);
+      break;
+    case PipelineStrip::Move::Enter:
+      moves << QString("enter %1 %2").arg(stage(m.to), inst);
+      break;
+    case PipelineStrip::Move::Exit:
+      moves << QString("exit %1 %2 %3")
+                   .arg(stage(m.from), inst,
+                        m.retired ? "retired" : "squashed");
+      break;
+    }
+  }
+  moves.sort();
+  return moves;
+}
 
 void tst_explorergui::activateTab(int index) {
   m_window->findChild<FancyTabBar *>()->setActiveIndex(index);
@@ -145,6 +207,7 @@ void tst_explorergui::screenshot(const QString &name) {
   const QString dir = qEnvironmentVariable("OSX_SCREENSHOT_DIR");
   if (dir.isEmpty())
     return;
+  QTest::qWait(Theme::kTransitionMs + 120); // let transitions finish
   QDir().mkpath(dir);
   QVERIFY(m_window->grab().save(dir + "/" + name + ".png"));
 }
@@ -162,6 +225,19 @@ void tst_explorergui::tst_mission1Flow() {
   runToEnd();
   QTRY_COMPARE_WITH_TIMEOUT(stepStatuses(), QStringList({"✓", "✓", "✓"}), 2000);
   screenshot("missions-mission1");
+
+  // The verified steps are persisted and are all that is scored so far: two
+  // stars (half and all of the steps); Mission 2 unlocks, Mission 3 not yet.
+  QCOMPARE(RipesSettings::value(RIPES_SETTING_OSX_MISSION_STEPS).toStringList(),
+           QStringList({"m1-first-program/1", "m1-first-program/2",
+                        "m1-first-program/3"}));
+  QCOMPARE(missionCard(0).value("stars").toInt(), 2);
+  QCOMPARE(missionCard(0).value("status").toInt(),
+           int(Explorer::MissionStatus::InProgress));
+  QCOMPARE(missionCard(1).value("status").toInt(),
+           int(Explorer::MissionStatus::Available));
+  QCOMPARE(missionCard(2).value("status").toInt(),
+           int(Explorer::MissionStatus::Locked));
 
   // The example does not solve the challenge.
   click(m_missions, "Check challenge");
@@ -224,6 +300,13 @@ void tst_explorergui::tst_componentInspector() {
   QVERIFY(detail.contains("Instruction in EX (cycle 4)"));
   QVERIFY(detail.contains("rv_alu.h"));
   screenshot("explorer-components");
+
+  // Mission 2 is now in progress on the mission map.
+  activateTab(kMissionsTab);
+  QTRY_COMPARE(stepStatuses().value(0), QString("✓"));
+  QCOMPARE(missionCard(1).value("status").toInt(),
+           int(Explorer::MissionStatus::InProgress));
+  screenshot("missions-mission2-progress");
 }
 
 void tst_explorergui::tst_mission3ChallengeSolved() {
@@ -242,6 +325,30 @@ void tst_explorergui::tst_mission3ChallengeSolved() {
               .contains("squashed"));
   screenshot("explorer-mission3-flush");
 
+  // Stepping one cycle plays a short transition made only of what the trace
+  // records between cycles 6 and 7: stage changes, the fetch of inst-8, the
+  // retirement of inst-3 and the squash of inst-6 and inst-7.
+  auto *strip = m_explorer->findChild<PipelineStrip *>();
+  m_explorer->setCycle(6);
+  QTest::qWait(Theme::kTransitionMs + 150);
+  m_explorer->setCycle(7);
+  QVERIFY(strip->isAnimating());
+  QCOMPARE(stripMoves(),
+           QStringList({"enter IF inst-8", "exit ID inst-6 squashed",
+                        "exit IF inst-7 squashed", "exit WB inst-3 retired",
+                        "slide EX->MEM inst-5", "slide MEM->WB inst-4"}));
+  QTRY_VERIFY(!strip->isAnimating());
+  // No transition with reduced motion, nor for jumps of several cycles.
+  RipesSettings::setValue(RIPES_SETTING_OSX_REDUCED_MOTION, true);
+  m_explorer->setCycle(6);
+  QTest::qWait(Theme::kTransitionMs + 150);
+  m_explorer->setCycle(7);
+  QVERIFY(!strip->isAnimating());
+  RipesSettings::setValue(RIPES_SETTING_OSX_REDUCED_MOTION, false);
+  QTest::qWait(Theme::kTransitionMs + 150);
+  m_explorer->setCycle(9);
+  QVERIFY(!strip->isAnimating());
+
   // Solve the challenge with the reference solution.
   activateTab(kEditorTab);
   const auto *previous = ProcessorHandler::getProgram().get();
@@ -251,14 +358,23 @@ void tst_explorergui::tst_mission3ChallengeSolved() {
   runToEnd();
   activateTab(kMissionsTab);
   click(m_missions, "Check challenge");
-  QVERIFY(m_missions->findChild<QLabel *>("missionResult")
-              ->text()
-              .contains("Challenge solved"));
+  const QString result =
+      m_missions->findChild<QLabel *>("missionResult")->text();
+  QVERIFY(result.contains("Challenge solved"));
+  QVERIFY(result.contains(QString("+%1 XP").arg(Explorer::kXpPerChallenge)));
   QVERIFY(m_missions->findChild<QListWidget *>("missionList")
               ->item(2)
               ->text()
               .startsWith("✓"));
+  QCOMPARE(missionCard(2).value("status").toInt(),
+           int(Explorer::MissionStatus::Solved));
+  QTest::qWait(400); // XP counter transition
   screenshot("missions-mission3-solved");
+  // Checking again does not reward the same challenge twice.
+  click(m_missions, "Check challenge");
+  QVERIFY(m_missions->findChild<QLabel *>("missionResult")
+              ->text()
+              .contains("already counted"));
 }
 
 void tst_explorergui::tst_mission4CacheChallenge() {
@@ -374,8 +490,80 @@ void tst_explorergui::tst_gem5TraceInExplorer() {
   notSimulated.sort();
   // gem5 simulates caches, crossbars and a memory controller here.
   QCOMPARE(notSimulated, QStringList({"accelerator", "dma"}));
+  // Give the System view more room, as a user would by dragging the splitter.
+  auto *splitter = qobject_cast<QSplitter *>(
+      m_explorer->findChild<QTabWidget *>("explorerSideTabs")->parentWidget());
+  QVERIFY(splitter);
+  const auto sizes = splitter->sizes();
+  splitter->setSizes({sizes[0] + sizes[1] - 860, 860});
   QTest::qWait(100);
   screenshot("explorer-gem5-system");
+  splitter->setSizes(sizes);
+}
+
+void tst_explorergui::tst_themes() {
+  auto trigger = [&](const QString &text) {
+    for (auto *action : m_window->findChildren<QAction *>())
+      if (action->text() == text) {
+        action->trigger();
+        return true;
+      }
+    return false;
+  };
+  auto *sideTabs = m_explorer->findChild<QTabWidget *>("explorerSideTabs");
+
+  // The game theme is the default: own palette and style sheet.
+  QVERIFY(Theme::isGame());
+  QVERIFY(!qApp->styleSheet().isEmpty());
+  QCOMPARE(appInDarkMode(), Theme::tokens().dark);
+  QVERIFY(Theme::animationsEnabled());
+  activateTab(kProcessorTab);
+  QTest::qWait(300);
+  screenshot("processor-game");
+  activateTab(kEditorTab);
+  QTest::qWait(200);
+  screenshot("editor-game");
+
+  // Light variant of the game theme (follows the color scheme setting).
+  RipesSettings::setValue(RIPES_SETTING_COLORSCHEME,
+                          static_cast<int>(ColorScheme::Light));
+  QTRY_VERIFY(!Theme::tokens().dark);
+  QVERIFY(!appInDarkMode());
+  activateTab(kMissionsTab);
+  QTest::qWait(200);
+  screenshot("missions-game-light");
+  activateTab(kExplorerTab);
+  sideTabs->setCurrentIndex(0);
+  QTest::qWait(200);
+  screenshot("explorer-gem5-game-light");
+  RipesSettings::setValue(RIPES_SETTING_COLORSCHEME,
+                          static_cast<int>(ColorScheme::System));
+
+  // Classic restores the upstream look: no style sheet, platform palette,
+  // no transitions. The Explorer keeps its contracts.
+  QVERIFY(trigger("Classic (Ripes)"));
+  QTRY_VERIFY(!Theme::isGame());
+  QCOMPARE(RipesSettings::value(RIPES_SETTING_OSX_THEME).toInt(), 1);
+  QVERIFY(qApp->styleSheet().isEmpty());
+  QVERIFY(!Theme::animationsEnabled());
+  QVERIFY(m_explorer->findChild<QLabel *>("explorerBanner")
+              ->text()
+              .contains("cycle-level-simulator"));
+  QTest::qWait(200);
+  screenshot("classic-explorer-gem5");
+  activateTab(kMissionsTab);
+  QTest::qWait(200);
+  screenshot("classic-missions");
+
+  QVERIFY(trigger("Game (Open SoC Explorer)"));
+  QTRY_VERIFY(Theme::isGame());
+  QVERIFY(!qApp->styleSheet().isEmpty());
+  // Reduced motion turns the transitions off.
+  QVERIFY(trigger("Reduce motion"));
+  QVERIFY(RipesSettings::value(RIPES_SETTING_OSX_REDUCED_MOTION).toBool());
+  QVERIFY(!Theme::animationsEnabled());
+  QVERIFY(trigger("Reduce motion"));
+  QVERIFY(Theme::animationsEnabled());
 }
 
 int main(int argc, char **argv) {

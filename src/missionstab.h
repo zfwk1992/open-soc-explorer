@@ -8,9 +8,11 @@
 #include <vector>
 
 #include "explorer/mission.h"
+#include "explorer/missionprogress.h"
 #include "processorregistry.h"
 #include "ripestab.h"
 
+class QFrame;
 class QLabel;
 class QListWidget;
 class QPushButton;
@@ -22,6 +24,8 @@ namespace Ripes {
 namespace Explorer {
 class TraceRecorder;
 }
+class MissionHud;
+class MissionBanner;
 
 /**
  * @brief The MissionsTab class
@@ -29,6 +33,10 @@ class TraceRecorder;
  * program, guides the learner through steps that are verified live against
  * the simulator and its recorded trace, and ends with a challenge that is
  * scored using the measured results of the selected Ripes model.
+ *
+ * The mission map, stars, experience points and levels are computed by
+ * Explorer::MissionProgress from the persisted record of verified steps and
+ * solved challenges; nothing else is scored.
  */
 class MissionsTab : public RipesTab {
   Q_OBJECT
@@ -49,30 +57,37 @@ private slots:
   void showMission(int index);
   void evaluateSteps();
   void checkChallenge();
+  void resetProgress();
 
 private:
   struct StepWidgets {
+    QFrame *box = nullptr;
     QLabel *status = nullptr;
     QLabel *checks = nullptr;
   };
   Explorer::MissionState currentState() const;
+  void loadProgress();
+  void saveProgress();
   void refreshMissionList();
-  bool isCompleted(const QString &id) const;
-  void markCompleted(const QString &id);
+  void refreshProgressViews();
   QString criteriaHtml(const Explorer::CheckReport &report) const;
+  void applyTheme();
 
   Explorer::TraceRecorder *m_recorder = nullptr;
   std::function<QString()> m_sourceProvider;
   std::vector<Explorer::Mission> m_missions;
   int m_current = -1;
   bool m_visible = false;
-  /// Steps completed during this session, per mission id. A completed step
-  /// stays completed when the learner moves on (e.g. edits the program).
-  std::map<QString, std::set<size_t>> m_completedSteps;
+  /// Verified steps and solved challenges (persisted in the settings). A
+  /// verified step stays verified when the learner moves on (e.g. edits the
+  /// program).
+  Explorer::MissionProgress m_progress;
+  bool m_saving = false;
 
+  MissionHud *m_hud = nullptr;
   QListWidget *m_list = nullptr;
-  QLabel *m_title = nullptr;
-  QLabel *m_learn = nullptr;
+  MissionBanner *m_banner = nullptr;
+  QLabel *m_lockNote = nullptr;
   QLabel *m_objective = nullptr;
   QLabel *m_explanation = nullptr;
   QLabel *m_processorLabel = nullptr;
@@ -84,6 +99,7 @@ private:
   QPushButton *m_hintButton = nullptr;
   QLabel *m_result = nullptr;
   QLabel *m_completion = nullptr;
+  std::vector<std::pair<QPushButton *, int>> m_iconButtons;
 };
 
 } // namespace Ripes
