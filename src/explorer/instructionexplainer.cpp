@@ -284,11 +284,25 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
                       .arg(inst->endCycle);
 
   // ---- Hazards ------------------------------------------------------------
-  qint64 decodeCycle = inst->firstCycle;
-  if (profile.has_value() && !profile->decodeStage.isEmpty())
+  // Decode time: the model's decode stage (Ripes) or the engine's decode
+  // event (e.g. gem5). Without either, only the first cycle is known.
+  qint64 decodeCycle = -1;
+  if (profile.has_value() && !profile->decodeStage.isEmpty()) {
     for (const auto &[cycle, stage] : inst->stageEntries)
       if (h.stages[stage].name == profile->decodeStage)
         decodeCycle = cycle;
+  } else {
+    for (size_t idx : inst->events)
+      if (t.events[idx].type == EventType::InstructionDecode) {
+        decodeCycle = t.events[idx].cycle;
+        break;
+      }
+  }
+  const QString since = decodeCycle >= 0
+                            ? QString("was decoded at cycle %1")
+                            : QString("entered the pipeline at cycle %1");
+  if (decodeCycle < 0)
+    decodeCycle = inst->firstCycle;
   if (d.valid && !d.compressed) {
     const auto &order = replay.retirementOrder();
     for (const auto &op : e.operands) {
@@ -315,11 +329,11 @@ InstructionExplanation explainInstance(const TraceReplay &replay, qint64 id) {
         continue;
       QString text =
           QString("RAW dependency on %1: produced by %2 (%3), which retired at "
-                  "cycle %4, after this instruction was decoded at cycle %5.")
+                  "cycle %4, after this instruction %5.")
               .arg(op.name, Trace::instanceName(producer->id),
                    escape(producer->assembly))
               .arg(producer->endCycle)
-              .arg(decodeCycle);
+              .arg(since.arg(decodeCycle));
       if (!inst->heldCycles.empty())
         text += QString(" It was resolved by stalling for %1 cycle(s).")
                     .arg(inst->heldCycles.size());

@@ -160,6 +160,11 @@ struct SystemComponent {
   /// Paths of components this one is connected to (downstream), as reported
   /// by the engine. Views must not draw connections that are not listed.
   QStringList connections;
+  /// Meaning/unit of parameters and the engine's own description of
+  /// statistics, keyed like parameters/statistics (optional).
+  QVariantMap parameterInfo;
+  QVariantMap statisticInfo;
+
   bool operator==(const SystemComponent &other) const = default;
 };
 

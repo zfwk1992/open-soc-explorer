@@ -12,7 +12,9 @@
 #include <QTabWidget>
 #include <QTableView>
 #include <QTableWidget>
+#include <QTemporaryDir>
 #include <QTextBrowser>
+#include <QToolButton>
 #include <QTreeWidget>
 #include <QtTest/QTest>
 
@@ -20,6 +22,7 @@
 #include "explorer/mission.h"
 #include "explorertab.h"
 #include "fancytabbar/fancytabbar.h"
+#include "gem5sample.h"
 #include "mainwindow.h"
 #include "missionstab.h"
 #include "processorhandler.h"
@@ -59,6 +62,7 @@ private slots:
   void tst_componentInspector();
   void tst_mission3ChallengeSolved();
   void tst_systemViewRipes();
+  void tst_gem5TraceInExplorer();
   void cleanupTestCase();
 };
 
@@ -277,6 +281,67 @@ void tst_explorergui::tst_systemViewRipes() {
   QVERIFY(details.contains("Parameters"));
   QVERIFY(details.contains("instructions_retired"));
   screenshot("explorer-system-ripes");
+}
+
+void tst_explorergui::tst_gem5TraceInExplorer() {
+  QTemporaryDir dir;
+  QString error;
+  const QString path = Gem5Sample::convert(dir, "loop_sum_o3_l1l2", &error);
+  if (path.isEmpty())
+    QSKIP(qPrintable(error));
+  activateTab(kExplorerTab);
+  QVERIFY2(m_explorer->openTraceFile(path, &error), qPrintable(error));
+  QTest::qWait(200); // let deferred layout updates run, as in the app
+
+  const QString banner =
+      m_explorer->findChild<QLabel *>("explorerBanner")->text();
+  QVERIFY(banner.contains("gem5"));
+  QVERIFY(banner.contains("BaseO3CPU"));
+  QVERIFY(banner.contains("cycle-level-simulator"));
+  QVERIFY(banner.contains("1 cycle = 1000 ps"));
+  auto *timeline = m_explorer->findChild<QTableView *>("explorerTimeline");
+  QCOMPARE(timeline->model()->rowCount(), 317); // dynamic instructions
+
+  // The pipeline strip shows gem5's O3 stages, not the previous model's.
+  QStringList strip;
+  for (auto *b : m_explorer->findChildren<QToolButton *>())
+    if (b->isVisible() && b->property("instance").isValid())
+      strip << b->text().section('\n', 0, 0);
+  QCOMPARE(strip, QStringList({"F", "DEC", "REN", "DIS", "ISS", "CMP"}));
+
+  // Instruction 3 (add a0, a0, a1) in the out-of-order pipeline.
+  m_explorer->findChild<QTabWidget *>("explorerSideTabs")->setCurrentIndex(0);
+  m_explorer->setCycle(85);
+  m_explorer->selectInstance(3);
+  const QString explanation =
+      m_explorer->findChild<QTextBrowser *>("explorerExplanation")
+          ->toPlainText();
+  QVERIFY(explanation.contains("add a0, a0, a1"));
+  QVERIFY(explanation.contains("✓"));
+  // O3PipeView decode time of instruction 3 (fetched at 81).
+  QVERIFY(
+      explanation.contains("after this instruction was decoded at cycle 82"));
+  QTest::qWait(100);
+  screenshot("explorer-gem5-o3");
+
+  m_explorer->findChild<QTabWidget *>("explorerSideTabs")->setCurrentIndex(4);
+  auto *systemView = m_explorer->findChild<SystemView *>();
+  systemView->selectComponent("board.cache_hierarchy.l1i-cache-0");
+  const QString details =
+      m_explorer->findChild<QTextBrowser *>("systemDetails")->toPlainText();
+  QVERIFY(details.contains("demandMisses::total"));
+  QVERIFY(details.contains("capacity in bytes"));
+  QStringList notSimulated;
+  for (auto *item : m_explorer->findChild<QGraphicsView *>("systemTopology")
+                        ->scene()
+                        ->items())
+    if (item->data(0).toString().startsWith("not-simulated:"))
+      notSimulated << item->data(0).toString().section(':', 1);
+  notSimulated.sort();
+  // gem5 simulates caches, crossbars and a memory controller here.
+  QCOMPARE(notSimulated, QStringList({"accelerator", "dma"}));
+  QTest::qWait(100);
+  screenshot("explorer-gem5-system");
 }
 
 int main(int argc, char **argv) {

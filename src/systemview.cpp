@@ -22,7 +22,7 @@ namespace {
 
 const QStringList &roleOrder() {
   static const QStringList order = {
-      "cpu",    "cache",      "interconnect", "memory-controller",
+      "cpu",    "prefetcher", "cache", "interconnect", "memory-controller",
       "memory", "peripheral", "other"};
   return order;
 }
@@ -45,8 +45,8 @@ QString roleTitle(const QString &role) {
 QColor roleColor(const QString &role) {
   if (role == "cpu")
     return QColor(66, 133, 244, 90);
-  if (role == "cache")
-    return QColor(52, 168, 83, 90);
+  if (role == "cache" || role == "prefetcher")
+    return QColor(52, 168, 83, role == "cache" ? 90 : 45);
   if (role == "interconnect")
     return QColor(171, 71, 188, 80);
   if (role == "memory-controller" || role == "memory")
@@ -61,7 +61,7 @@ QString shortName(const QString &path) { return path.section('.', -1); }
 constexpr qreal kBoxW = 200;
 constexpr qreal kBoxH = 66;
 constexpr qreal kGapX = 26;
-constexpr qreal kGapY = 60;
+constexpr qreal kGapY = 40;
 
 } // namespace
 
@@ -83,7 +83,7 @@ SystemView::SystemView(QWidget *parent) : QWidget(parent) {
   m_details->setObjectName("systemDetails");
   splitter->setStretchFactor(0, 3);
   splitter->setStretchFactor(1, 2);
-  splitter->setSizes({600, 400});
+  splitter->setSizes({650, 350});
   layout->addWidget(splitter, 1);
 
   connect(m_scene, &QGraphicsScene::selectionChanged, this, [this] {
@@ -277,12 +277,16 @@ void SystemView::showDetails() {
     return;
   }
 
-  auto table = [](const QVariantMap &map) {
+  // Name, value and - if the trace provides it - the meaning of the value
+  // (for gem5 statistics: gem5's own description, quoted verbatim).
+  auto table = [](const QVariantMap &map, const QVariantMap &info) {
     QString html = "<table cellspacing='0' cellpadding='2'>";
     for (auto it = map.begin(); it != map.end(); ++it)
       html += "<tr><td><code>" + it.key().toHtmlEscaped() +
               "</code></td><td align='right'>" +
-              it.value().toString().toHtmlEscaped() + "</td></tr>";
+              it.value().toString().toHtmlEscaped() + "</td><td><small>" +
+              info.value(it.key()).toString().toHtmlEscaped() +
+              "</small></td></tr>";
     return html + "</table>";
   };
 
@@ -294,12 +298,13 @@ void SystemView::showDetails() {
   if (!comp->description.isEmpty())
     html += "<p>" + comp->description.toHtmlEscaped() + "</p>";
   if (!comp->parameters.isEmpty())
-    html += "<h4>Parameters</h4>" + table(comp->parameters);
+    html +=
+        "<h4>Parameters</h4>" + table(comp->parameters, comp->parameterInfo);
   if (!comp->statistics.isEmpty())
     html += QString("<h4>Statistics <span style='font-weight:normal'>(end of "
                     "simulation, reported by %1)</span></h4>")
                 .arg(m_header.source.engine.toHtmlEscaped()) +
-            table(comp->statistics);
+            table(comp->statistics, comp->statisticInfo);
   if (!comp->connections.isEmpty())
     html += "<h4>Connected to</h4><p><code>" +
             comp->connections.join("</code>, <code>") + "</code></p>";

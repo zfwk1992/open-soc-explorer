@@ -616,8 +616,12 @@ void ExplorerTab::updatePipelineStrip() {
     return;
   const auto &stages = m_replay->trace().header.stages;
   if (m_stageButtons.size() != stages.size()) {
-    for (auto *b : m_stageButtons)
+    // Hide the old buttons and show the new ones right away: deleteLater()
+    // and the layout's own show are both deferred to the event loop.
+    for (auto *b : m_stageButtons) {
+      b->hide();
       b->deleteLater();
+    }
     m_stageButtons.clear();
     // Nested lane layouts are their own layout items; deleting them leaves
     // the (already scheduled for deletion) buttons alone.
@@ -639,6 +643,7 @@ void ExplorerTab::updatePipelineStrip() {
           selectInstance(id);
       });
       lanes[sd.lane]->addWidget(b);
+      b->setVisible(m_stripContainer->isVisible());
       m_stageButtons.push_back(b);
     }
   }

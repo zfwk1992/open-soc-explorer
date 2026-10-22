@@ -163,6 +163,10 @@ QJsonObject headerToJson(const Trace &trace) {
       co["parameters"] = QJsonObject::fromVariantMap(c.parameters);
       co["statistics"] = QJsonObject::fromVariantMap(c.statistics);
       co["connections"] = QJsonArray::fromStringList(c.connections);
+      if (!c.parameterInfo.isEmpty())
+        co["parameter_info"] = QJsonObject::fromVariantMap(c.parameterInfo);
+      if (!c.statisticInfo.isEmpty())
+        co["statistic_info"] = QJsonObject::fromVariantMap(c.statisticInfo);
       system.append(co);
     }
     o["system"] = system;
@@ -354,7 +358,9 @@ std::optional<Trace> readJsonl(QIODevice &in, QString *error) {
                             co["role"].toString(), co["description"].toString(),
                             co["parameters"].toObject().toVariantMap(),
                             co["statistics"].toObject().toVariantMap(),
-                            toStringList(co["connections"])});
+                            toStringList(co["connections"]),
+                            co["parameter_info"].toObject().toVariantMap(),
+                            co["statistic_info"].toObject().toVariantMap()});
       }
       haveHeader = true;
     } else if (record == "event") {

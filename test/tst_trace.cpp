@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Part of Open SoC Explorer: tests for the trace protocol, the Ripes trace
 // adapter (TraceRecorder) and deterministic replay (TraceReplay).
+#include <QBuffer>
+#include <QElapsedTimer>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTemporaryDir>
 #include <QtTest/QTest>
 
 #include "explorer/instructionexplainer.h"
@@ -11,6 +14,7 @@
 #include "explorer/tracejson.h"
 #include "explorer/tracerecorder.h"
 #include "explorer/tracereplay.h"
+#include "gem5sample.h"
 #include "isa/rvisainfo_common.h"
 #include "processorhandler.h"
 #include "processorregistry.h"
@@ -87,6 +91,8 @@ private slots:
   void tst_systemDescription();
   void tst_multiOccupancyReplay();
   void tst_sameCycleRetirement();
+  void tst_gem5O3Trace();
+  void tst_largeTrace();
 };
 
 void tst_trace::initTestCase() { m_loader = new ProgramLoader(); }
@@ -718,6 +724,101 @@ void tst_trace::tst_sameCycleRetirement() {
   QVERIFY(!third.findings.join("\n").contains("hazard"));
   QVERIFY(!third.operands.empty());
   QVERIFY(!third.operands.front().value.has_value());
+}
+
+void tst_trace::tst_gem5O3Trace() {
+  // Real gem5 v26.0.0.0 O3CPU output (tools/gem5/testdata), converted by
+  // tools/gem5/gem5_to_osx.py.
+  QTemporaryDir dir;
+  QString error;
+  const QString path = Gem5Sample::convert(dir, "loop_sum_o3_l1l2", &error);
+  if (path.isEmpty())
+    QSKIP(qPrintable(error));
+  const auto trace = Trace::readJsonlFile(path, &error);
+  QVERIFY2(trace.has_value(), qPrintable(error));
+  const auto &h = trace->header;
+  QCOMPARE(h.source.engine, QString("gem5"));
+  QCOMPARE(h.source.model, QString("BaseO3CPU"));
+  QCOMPARE(h.ticksPerCycle, qint64(1000));
+  QCOMPARE(h.tickUnit, QString("ps"));
+  QCOMPARE(h.xlen, 64u);
+  QVERIFY(h.initialRegisters.empty());
+  int prefetchers = 0;
+  for (const auto &c : h.system)
+    if (c.role == "prefetcher") {
+      ++prefetchers;
+      QVERIFY(!c.parameterInfo.isEmpty());
+    }
+  QCOMPARE(prefetchers, 3);
+  for (const auto &ev : trace->events)
+    QCOMPARE(ev.cycle, *ev.tick / 1000);
+
+  // JSON round trip keeps the system description including the info maps.
+  QBuffer buffer;
+  buffer.open(QIODevice::ReadWrite);
+  QVERIFY(Trace::writeJsonl(*trace, buffer));
+  buffer.seek(0);
+  const auto again = Trace::readJsonl(buffer, &error);
+  QVERIFY2(again.has_value(), qPrintable(error));
+  QVERIFY(again->header.system == h.system);
+
+  TraceReplay replay(*trace);
+  const auto stats = replay.stats();
+  QCOMPARE(stats.retired, quint64(35));
+  QCOMPARE(stats.squashed, quint64(282));
+
+  // The out-of-order model holds several instructions in one stage.
+  int maxOccupants = 0;
+  for (qint64 c = replay.firstCycle(); c <= replay.lastCycle(); ++c)
+    for (const auto &slot : replay.pipelineAt(c))
+      maxOccupants = std::max(maxOccupants, slot.occupants);
+  QVERIFY(maxOccupants > 1);
+
+  // gem5 does not report initial registers: unknown until written.
+  QVERIFY(!replay.registerKnownAt("gpr", 10, replay.firstCycle()));
+  QVERIFY(replay.registerKnownAt("gpr", 10, replay.lastCycle()));
+  QCOMPARE(replay.registersAt(replay.lastCycle()).at("gpr")[10], quint64(55));
+
+  // Every committed result matches the ISA applied to the operands in commit
+  // order, also when dependent instructions commit in the same cycle; no
+  // hazard is claimed.
+  int checked = 0;
+  for (qint64 id : replay.retirementOrder()) {
+    const auto e = explainInstance(replay, id);
+    const QString findings = e.findings.join("\n");
+    QVERIFY2(!findings.contains("✗"), qPrintable(e.assembly + ": " + findings));
+    if (e.expected.has_value() && e.result.has_value()) {
+      QCOMPARE(e.result->value, *e.expected);
+      ++checked;
+    }
+  }
+  // All 25 register-writing instructions have known operands.
+  QCOMPARE(checked, 25);
+}
+
+void tst_trace::tst_largeTrace() {
+  // Opt-in: OSX_LARGE_TRACE=<file.jsonl> measures loading and replaying a
+  // large trace (e.g. gem5 array_sum on O3CPU).
+  const QString path = qEnvironmentVariable("OSX_LARGE_TRACE");
+  if (path.isEmpty())
+    QSKIP("set OSX_LARGE_TRACE to a trace file");
+  QElapsedTimer timer;
+  timer.start();
+  QString error;
+  auto trace = Trace::readJsonlFile(path, &error);
+  QVERIFY2(trace.has_value(), qPrintable(error));
+  const qint64 readMs = timer.restart();
+  const size_t events = trace->events.size();
+  TraceReplay replay(std::move(*trace));
+  const qint64 replayMs = timer.restart();
+  const auto stats = replay.stats();
+  const auto regs = replay.registersAt(replay.lastCycle());
+  qInfo("%zu events, %lld cycles, %llu retired: read %lld ms, replay %lld "
+        "ms, stats+registers %lld ms",
+        events, replay.lastCycle() - replay.firstCycle(),
+        static_cast<unsigned long long>(stats.retired), readMs, replayMs,
+        timer.elapsed());
+  QVERIFY(!regs.empty());
 }
 
 QTEST_MAIN(tst_trace)
