@@ -535,32 +535,38 @@ void ProcessorTab::processorSelection() {
   ProcessorSelectionDialog diag;
   if (diag.exec()) {
     // New processor model was selected
-    m_vsrtlWidget->clearDesign();
-    m_stageInstructionLabels.clear();
-    ProcessorHandler::selectProcessor(diag.getSelectedId(),
-                                      diag.getEnabledExtensions(),
-                                      diag.getRegisterInitialization());
+    selectProcessor(diag.getSelectedId(), diag.getEnabledExtensions(),
+                    diag.getRegisterInitialization(), diag.getSelectedLayout());
+  }
+}
 
-    // Store selected layout index
-    const auto &layouts =
-        ProcessorRegistry::getDescription(diag.getSelectedId()).layouts;
-    if (auto *layout = diag.getSelectedLayout()) {
-      auto layoutIter = std::find(layouts.begin(), layouts.end(), *layout);
-      Q_ASSERT(layoutIter != layouts.end());
-      const long layoutIndex = std::distance(layouts.begin(), layoutIter);
-      RipesSettings::setValue(RIPES_SETTING_PROCESSOR_LAYOUT_ID,
-                              static_cast<int>(layoutIndex));
-    }
+void ProcessorTab::selectProcessor(ProcessorID id,
+                                   const QStringList &extensions,
+                                   const RegisterInitialization &regInit,
+                                   const Layout *layout) {
+  m_autoClockAction->setChecked(false);
+  m_vsrtlWidget->clearDesign();
+  m_stageInstructionLabels.clear();
+  ProcessorHandler::selectProcessor(id, extensions, regInit);
 
-    if (ProcessorHandler::isVSRTLProcessor()) {
-      loadProcessorToWidget(diag.getSelectedLayout());
-    }
-    updateInstructionModel();
+  // Store selected layout index
+  const auto &layouts = ProcessorRegistry::getDescription(id).layouts;
+  if (layout) {
+    auto layoutIter = std::find(layouts.begin(), layouts.end(), *layout);
+    Q_ASSERT(layoutIter != layouts.end());
+    const long layoutIndex = std::distance(layouts.begin(), layoutIter);
+    RipesSettings::setValue(RIPES_SETTING_PROCESSOR_LAYOUT_ID,
+                            static_cast<int>(layoutIndex));
+  }
 
-    // Retrigger value display action if enabled
-    if (m_displayValuesAction->isChecked()) {
-      m_vsrtlWidget->setOutputPortValuesVisible(true);
-    }
+  if (ProcessorHandler::isVSRTLProcessor()) {
+    loadProcessorToWidget(layout);
+  }
+  updateInstructionModel();
+
+  // Retrigger value display action if enabled
+  if (m_displayValuesAction->isChecked()) {
+    m_vsrtlWidget->setOutputPortValuesVisible(true);
   }
 }
 

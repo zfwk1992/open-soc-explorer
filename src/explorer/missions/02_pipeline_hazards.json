@@ -27,7 +27,7 @@
     },
     {
       "title": "Find the stall",
-      "instruction": "Run the program. In the Explorer tab, look for the cycle where <code>add t2, t1, t1</code> is <i>held</i> and a stall bubble enters EX. Click the instruction: its explanation names the load it depends on.",
+      "instruction": "Run the program. In the Explorer tab, look for the cycle where <code>add t2, t1, t1</code> (disassembled as <code>add x7 x6 x6</code>) is <i>held</i> and a stall bubble enters EX. Click the instruction: its explanation names the load it depends on.",
       "checks": [
         {
           "kind": "finished"

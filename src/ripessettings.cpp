@@ -54,6 +54,11 @@ const std::map<QString, QVariant> s_defaultSettings = {
                       WritePolicy::WriteBack, WriteAllocPolicy::WriteAllocate,
                       ReplPolicy::LRU}})},
 
+    // Open SoC Explorer
+    {RIPES_SETTING_OSX_TRACE_ENABLED, true},
+    {RIPES_SETTING_OSX_TRACE_MAXCYCLES, 5000},
+    {RIPES_SETTING_OSX_MISSIONS_COMPLETED, QStringList()},
+
     // Program state preserving settings
     {RIPES_GLOBALSIGNAL_QUIT, 0},
     {RIPES_GLOBALSIGNAL_REQRESET, 0},
