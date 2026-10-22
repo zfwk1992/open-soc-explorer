@@ -54,6 +54,12 @@ QT_QPA_PLATFORM=offscreen ./build/test/tst_missions tst_mission2
 # Python trace tool (+ CLI export checks when the binary is given)
 OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools/trace -v
 
+# gem5 converter on recorded gem5 output (+ comparison with Ripes)
+OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools/gem5 -v
+
+# opt-in: load/replay time of a large trace
+OSX_LARGE_TRACE=/path/to/trace.jsonl ./build/test/tst_trace tst_largeTrace
+
 # GUI test with screenshots
 OSX_SCREENSHOT_DIR=/tmp/shots ./build/test/tst_explorergui
 ```
@@ -61,12 +67,25 @@ OSX_SCREENSHOT_DIR=/tmp/shots ./build/test/tst_explorergui
 | Suite | Covers |
 |---|---|
 | `tst_riscv`, `tst_assembler`, `tst_expreval`, `tst_cosimulate`, `tst_reverse`, `tst_stall` | upstream Ripes |
-| `tst_trace` | schema, decoder, recorder on all models, replay vs. live model, JSON round trip, determinism, reverse, truncation |
+| `tst_trace` | schema, decoder, recorder on all models, replay vs. live model, JSON round trip, determinism, reverse, truncation, system description, multi-occupancy and same-cycle commit, a real gem5 O3 trace |
 | `tst_missions` | mission catalogue, solvability, measured numbers, explainer, existence of cited source files |
-| `tst_explorergui` | main window end to end: missions, explorer, component inspector |
+| `tst_explorergui` | main window end to end: missions, explorer, component inspector, System view, a gem5 trace in the Explorer |
+| `tools/trace/test_osx_trace.py` | Python trace tool |
+| `tools/gem5/test_gem5_to_osx.py` | gem5 converter on recorded gem5 output; comparison with Ripes |
 
-Results at the time of writing: 9 suites, 99 test functions, all passing
-(56 upstream + 43 Open SoC Explorer), plus 7 Python tests.
+The tests that use gem5 data run `tools/gem5/gem5_to_osx.py` on the
+recorded output in `tools/gem5/testdata` (gem5 itself is not needed) and
+skip if no Python interpreter is found.
+
+Results at the time of writing: 9 suites, 106 test functions, all passing
+(56 upstream + 50 Open SoC Explorer, one of them opt-in), plus 7 Python
+trace-tool tests and 20 gem5 converter tests.
+
+### gem5
+
+Building and running gem5 is described in
+[tools/gem5/README.md](../tools/gem5/README.md). It is only needed to
+produce new gem5 traces or test data.
 
 ## 5. CLI trace export
 

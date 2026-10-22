@@ -40,28 +40,44 @@ Status legend: **Done** (implemented and covered by automated tests),
     (requires recording selected VSRTL signals per cycle),
   * missions about RV64, the M extension and the multi-cycle processor.
 
-## Milestone 4 — SoC Explorer and gem5: **Planned**
+## Milestone 4 — SoC Explorer and gem5: **Partial (gem5 offline adapter and System view done)**
 
-Ripes has no SoC components, so a meaningful SoC view needs another engine.
+Done (tested):
 
-1. **Topology view** listing only components that the active engine
-   simulates; everything else is drawn as *planned/conceptual* and never
-   animated.
-2. **Cache events from Ripes' cache simulator** (`CacheSim`) as `cache.hit` /
-   `cache.miss` events – clearly marked as a side-car model that does not
-   affect the processor timing.
-3. **gem5 adapter (offline)**:
-   * Environment: gem5 is not installed in the cloud environment used so far;
-     the user's local gem5 checkout needs to be located (path, version, ISA
-     build, e.g. `build/RISCV/gem5.opt`).
-   * Run a supported workload with a standard configuration (e.g.
-     `configs/example/gem5_library` RISC-V SE example), enable
-     `--debug-flags=Exec` and/or `O3PipeView`, collect `stats.txt`.
-   * Convert to the trace protocol with gem5 ticks in `time.tick`, cycles only
-     for named clock domains, `fidelity` describing the CPU model
-     (`AtomicSimpleCPU`, `TimingSimpleCPU`, `O3CPU`, ...).
-   * Compare configurations (cache sizes, CPU models) using statistics, not
-     animations.
+* **Trace schema 0.2.0**: simulated components (`system`) with parameters,
+  statistics and connections; engine ticks (`time.tick`,
+  `ticks_per_cycle`).
+* **System view** (Explorer → *System*): only components the engine
+  reported as simulated, their reported connections, parameters with their
+  meaning and statistics with the engine's description; typical SoC blocks
+  that are not simulated are dashed and never animated. Works for Ripes
+  (CPU, ideal memory, MMIO peripherals) and gem5 traces.
+* **gem5 offline adapter** (`tools/gem5`, gem5 v26.0.0.0): configuration
+  script, run script, converter for O3CPU, TimingSimpleCPU and
+  AtomicSimpleCPU, workloads. Validated against real gem5 output (recorded
+  in `tools/gem5/testdata`) and against Ripes (same committed instruction
+  stream and result).
+* **Out-of-order replay**: several instructions per stage, unknown initial
+  registers, operands in commit order.
+* **Measured cache-locality experiment** (strided vs. sequential, 16 vs.
+  4 KiB L1D), see [tools/gem5/README.md](../tools/gem5/README.md).
+
+Next:
+
+1. **Mission 4 (cache optimization) on gem5 data**: precomputed, recorded
+   gem5 runs of the cache experiment (no gem5 needed by the learner), scored
+   on the measured statistics; optionally a "run it yourself" path.
+2. **Comparison view** for two traces of the same program (e.g. strided vs.
+   sequential): cycles, misses, prefetches side by side, from the engine's
+   statistics.
+3. **MinorCPU** support (MinorTrace parsing).
+4. **Per-access cache and bus events** need more gem5 debug output (e.g.
+   `Cache`, `XBar`, `DRAM` flags) and a converter for it; until then only
+   end-of-run statistics are shown.
+5. **Cache events from Ripes' cache simulator** (`CacheSim`) as `cache.hit` /
+   `cache.miss` events, labelled as a side-car model that does not affect
+   the processor timing.
+6. Running gem5 from the GUI (currently: run script + open the trace).
 
 ## Milestone 5 — RTL integration (Ibex + Verilator): **Planned**
 
@@ -194,7 +210,7 @@ Rules for this track (in addition to the general rules):
 | 1 Execute your first RISC-V program | Done |
 | 2 Pipeline hazards | Done |
 | 3 Branch and flush | Done |
-| 4 Cache optimization | Planned – can use Ripes' cache simulator (hit rate, locality), with the caveat that it does not change processor timing |
+| 4 Cache optimization | Planned – the measured gem5 cache experiment (Milestone 4) is the basis; Ripes' cache simulator is an alternative that does not change processor timing |
 | 5 SoC data transfer | Planned – needs Milestone 4 |
 | 6 AI accelerator | Planned – needs Milestone 6 |
 | 7 Physical AI real-time challenge | Planned – needs Milestone 7 |

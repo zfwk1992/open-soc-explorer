@@ -29,20 +29,30 @@ squashed instruction's journey. Every value comes from the recorded trace.*
 | Feature | Status |
 |---|---|
 | Everything Ripes provides: assembly/C editor, assembler, RISC-V processor models (single-cycle, multi-cycle, 5-stage variants, dual-issue, ISS; RV32/RV64), datapath view, registers, memory, cache simulator, I/O peripherals, CLI mode | ✅ unchanged upstream functionality; upstream tests pass |
-| **Execution trace** (schema 0.1.0): fetch/decode/retire, stage entries, stalls, flushes/squashes, register writes, data memory requests/responses, with observability labels; recorded live for every model | ✅ |
+| **Execution trace** (schema 0.2.0): fetch/decode/retire, stage entries, stalls, flushes/squashes, register writes, data memory requests/responses, with observability labels, plus the simulated system's components; recorded live for every Ripes model | ✅ |
 | Trace export (GUI and `--trace-out` CLI option) and offline import (JSON Lines) | ✅ |
 | **Deterministic replay**: pipeline occupancy and registers at any recorded cycle; step forwards/backwards, playback with speed control | ✅ |
 | **CPU Explorer** tab: pipeline strip, instruction timeline, per-cycle events and registers, statistics (CPI, stalls, squashes, memory operations) | ✅ |
 | **Instruction explanations**: encoding, semantics, architectural operands, observed result checked against the ISA, data hazards, journey, implementing source files | ✅ |
 | **CPU component inspector**: purpose, live input/output signal values and wiring of datapath components (VSRTL models), instruction in the component's stage | ✅ |
 | **Learning missions 1–3** (first program, pipeline hazards, branch & flush) with live-verified steps and scored challenges | ✅ |
+| **System view**: the components the engine simulated (Ripes: CPU, ideal memory, I/O; gem5: caches, prefetchers, crossbars, memory controller, DRAM), their connections, parameters and statistics; non-simulated SoC blocks clearly marked | ✅ |
+| **gem5 (offline)**: run RISC-V programs on gem5's O3, TimingSimple or AtomicSimple CPU with configurable caches and replay them in the Explorer (`tools/gem5`); validated against real gem5 v26 output and against Ripes | ✅ |
 | Python trace tool (`tools/trace/osx_trace.py`: validate, summary, ASCII pipeline) | ✅ |
-| SoC topology view, gem5 adapter, Ibex/Verilator RTL adapter, AI-accelerator lab, Physical-AI workloads, VHDL/FPGA lab, classic-console architecture research track (Neo Geo, PS3 Cell), missions 4–10 | 🗺️ planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Cache mission on gem5 data, Ibex/Verilator RTL adapter, AI-accelerator lab, Physical-AI workloads, VHDL/FPGA lab, classic-console architecture research track (Neo Geo, PS3 Cell), missions 4–10 | 🗺️ planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 <p align="center">
   <img src="docs/images/missions-mission1.png" width="49%" alt="Missions tab">
   <img src="docs/images/explorer-components.png" width="49%" alt="CPU component inspector">
 </p>
+<p align="center">
+  <img src="docs/images/explorer-gem5-o3.png" width="49%" alt="gem5 O3CPU trace in the Explorer">
+  <img src="docs/images/explorer-gem5-system.png" width="49%" alt="System view of a gem5 run">
+</p>
+
+*Bottom: a gem5 O3CPU run (several instructions per stage, operands checked
+in commit order) and the System view with gem5's caches, prefetchers,
+crossbars and DRAM.*
 
 ## Quick start
 
@@ -79,15 +89,25 @@ python3 tools/trace/osx_trace.py summary  trace.jsonl
 python3 tools/trace/osx_trace.py pipeline trace.jsonl
 ```
 
+The same program on gem5's out-of-order CPU with L1 + L2 caches (needs a
+RISC-V gem5 build, see [tools/gem5/README.md](tools/gem5/README.md)):
+
+```bash
+GEM5=/path/to/gem5 tools/gem5/run_gem5.sh loop_sum o3 l1l2 out/loop_o3
+# Explorer tab → "Open a trace file for offline replay…" → out/loop_o3/trace.jsonl
+```
+
 ### Test
 
 ```bash
 cd build/test && QT_QPA_PLATFORM=offscreen bash ../../.github/workflows/scripts/run_tests.sh
 cd ../.. && OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools/trace
+OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools/gem5
 ```
 
-9 QtTest suites (99 test functions: 56 upstream, 43 Open SoC Explorer) and 7
-Python tests. CI runs the QtTest suites on Ubuntu, macOS and Windows.
+9 QtTest suites (106 test functions: 56 upstream, 50 Open SoC Explorer) and
+27 Python tests (trace tool and gem5 converter, using recorded gem5 output).
+CI runs the QtTest suites on Ubuntu, macOS and Windows.
 
 ## Documentation
 
@@ -96,7 +116,8 @@ Python tests. CI runs the QtTest suites on Ubuntu, macOS and Windows.
 | [PROJECT_VISION.md](docs/PROJECT_VISION.md) | Goals and principles |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layers, data flow, code map |
 | [RIPES_ARCHITECTURE.md](docs/RIPES_ARCHITECTURE.md) | Analysis of the Ripes code base and learning map |
-| [TRACE_PROTOCOL.md](docs/TRACE_PROTOCOL.md) | Trace schema 0.1.0 |
+| [TRACE_PROTOCOL.md](docs/TRACE_PROTOCOL.md) | Trace schema 0.2.0 |
+| [tools/gem5/README.md](tools/gem5/README.md) | Running gem5 and converting its output; measured results |
 | [SIMULATION_FIDELITY.md](docs/SIMULATION_FIDELITY.md) | What each model represents; findings |
 | [LEARNING_GUIDE.md](docs/LEARNING_GUIDE.md) | Using the Explorer and missions; writing missions |
 | [DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) | Build, test, CI, upstream sync |

@@ -100,22 +100,28 @@ simulates are listed. The Explorer's *System* view draws exactly these
 components and connections; typical SoC blocks that are absent are drawn as
 dashed "not simulated" boxes and never animated.
 
+Example (gem5 O3CPU run of `loop_sum`, L1 instruction cache):
+
 ```json
-{"path": "board.cache_hierarchy.l1dcaches", "type": "Cache", "role": "cache",
+{"path": "board.cache_hierarchy.l1i-cache-0", "type": "Cache", "role": "cache",
  "description": "Cache simulated by gem5 (classic memory system).",
- "parameters": {"size": "...", "assoc": "...", "tag_latency": "...", "...": "..."},
- "statistics": {"demandHits::total": "...", "demandMisses::total": "...", "...": "..."},
- "connections": ["board.cache_hierarchy.membus"]}
+ "parameters": {"size": 16384, "assoc": 8, "tag_latency": 1, "...": "..."},
+ "parameter_info": {"size": "capacity in bytes", "assoc": "associativity (ways)", "...": "..."},
+ "statistics": {"demandHits::total": 21, "demandMisses::total": 11, "...": "..."},
+ "statistic_info": {"demandMisses::total": "number of demand (read+write) misses (Count)", "...": "..."},
+ "connections": ["board.cache_hierarchy.l2buses"]}
 ```
 
 | Field | Meaning |
 |---|---|
 | `path` | Hierarchical name. Ripes: `soc.cpu0`, `soc.mem`, `soc.mmio.<peripheral>`. gem5: the SimObject path from `config.json`. |
 | `type` | Engine type name (Ripes `ProcessorID`, gem5 SimObject type). |
-| `role` | `cpu`, `cache`, `interconnect`, `memory-controller`, `memory`, `peripheral`, `dma`, `accelerator` or `other`. |
+| `role` | `cpu`, `cache`, `prefetcher`, `interconnect`, `memory-controller`, `memory`, `peripheral`, `dma`, `accelerator` or `other`. |
 | `parameters` | Configuration values as reported by the engine (gem5: `config.json`; sizes in bytes, latencies in cycles of the component's clock). |
-| `statistics` | End-of-simulation values reported by the engine (gem5: `stats.txt`), not computed by Open SoC Explorer. |
-| `connections` | Paths of components this one sends requests to (gem5: requestor port → owner of the peer port). |
+| `parameter_info` | Optional: meaning and unit of each parameter. |
+| `statistics` | End-of-simulation values reported by the engine (gem5: `stats.txt`), not computed by Open SoC Explorer. Values that are not finite numbers are omitted. |
+| `statistic_info` | Optional: the engine's own description of each statistic (gem5: the `stats.txt` comment, verbatim). |
+| `connections` | Paths of components this one sends requests to (gem5: requestor port → owner of the peer port; a prefetcher → the cache it belongs to). |
 
 ## 3. Event record
 
@@ -287,7 +293,25 @@ See [SIMULATION_FIDELITY.md](SIMULATION_FIDELITY.md).
 `complete` is `starts_at_reset && !truncated && program_finished`. Missions
 only score complete traces.
 
-## 9. Guidance for other engines
+## 9. The gem5 converter
+
+`tools/gem5/gem5_to_osx.py` (offline; see
+[tools/gem5/README.md](../tools/gem5/README.md) and
+[SIMULATION_FIDELITY.md §6](SIMULATION_FIDELITY.md)) emits:
+
+| Type | gem5 source | Observability |
+|---|---|---|
+| `instruction.fetch`, `instruction.decode`, `pipeline.stage_enter` (stages `F`, `DEC`, `REN`, `DIS`, `ISS`, `CMP`), `instruction.retire` | O3CPU `O3PipeView` | `direct` |
+| `pipeline.flush` `kind: squash` | O3CPU instruction that never committed | `inferred` (its time is not recorded) |
+| `instruction.decode`, `pipeline.stage_enter` (stage `EXEC`) | Simple CPUs, `Exec` record tick | `direct` |
+| `instruction.retire` | Simple CPUs, start of the next instruction | `inferred` |
+| `register.write` | `Exec` `D=` (integer registers) | `direct`, placed at commit |
+| `memory.request` | `Exec` `A=` | `direct` address, placed at commit |
+
+`initial_state.registers` is empty, `time.tick` holds gem5 ticks and the
+header `system` comes from `config.json` and `stats.txt`.
+
+## 10. Guidance for other engines
 
 * Use your engine's native time as `time.tick` with its unit documented in a
   `time_domains` entry; only fill `time.cycle` for a real clock of a named
@@ -297,7 +321,7 @@ only score complete traces.
 * Emit only what the engine observes; use `inferred` for anything derived.
 * Prefer offline traces first; live streaming can reuse the same records.
 
-## 10. Versioning
+## 11. Versioning
 
 * Patch: clarifications, no format change.
 * Minor (0.x → 0.y): backwards-compatible additions (new event types, new

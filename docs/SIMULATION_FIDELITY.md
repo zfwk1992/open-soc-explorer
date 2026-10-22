@@ -156,6 +156,32 @@ others. Operand values in explanations are reconstructed in commit order,
 including instructions that committed earlier in the same cycle
 (`TraceReplay::registersBeforeRetire`).
 
+### 6.4 Findings from the gem5 runs
+
+Measured with gem5 v26.0.0.0 (details and commands:
+[tools/gem5/README.md](../tools/gem5/README.md)):
+
+* **Same program, same architectural result.** `loop_sum` (the Mission 3
+  loop) ends with `a0 = 55` on gem5's O3, TimingSimple and AtomicSimple CPUs
+  and on Ripes, with the same committed instruction stream (tested by
+  `test_gem5_to_osx.py`, `RipesComparisonTest`).
+* **Instruction counts differ by one.** gem5 commits 35 instructions, Ripes
+  retires 36: the final exit `ecall` ends the gem5 simulation and gem5 does
+  not count it (`commitStats0.numInsts 35`). Instructions that are still in
+  flight when gem5 exits have no `O3PipeView` record and do not appear.
+* **Cold start.** The first instruction is fetched at cycle 81 (O3) / 78
+  (TimingSimple): the instruction cache misses all the way to DRAM. Traces
+  therefore start at tick 0, not at the first fetch.
+* **Cycle counts are model properties.** `loop_sum` takes 248 cycles on O3
+  with L1 + L2, 163 on TimingSimple with L1, 35 on AtomicSimple, and 60 on
+  Ripes' 5-stage model with ideal memory. None of these describes a real
+  chip.
+* **Prefetchers are part of the simulated system.** gem5's standard-library
+  cache hierarchy gives every cache a stride prefetcher. In the sequential
+  `array_sum` run the L1D prefetcher issued 484 prefetches, 120 of them
+  useful. The System view lists the prefetchers; cache statistics must be
+  read with them in mind.
+
 ## 7. Mission scoring
 
 Missions verify conditions against the live processor state and against the
