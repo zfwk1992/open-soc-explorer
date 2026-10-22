@@ -118,6 +118,7 @@ private:
   std::vector<unsigned> lanes() const;
   qint64 instanceInStage(const CycleState &s, const QString &stageName) const;
   void fillCompleteness(Trace::Trace &t) const;
+  std::vector<Trace::SystemComponent> describeSystem() const;
 
   mutable std::mutex m_mutex;
   bool m_enabled = true;

@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QtTest/QTest>
 
+#include "explorer/instructionexplainer.h"
 #include "explorer/modelprofile.h"
 #include "explorer/riscvdecoder.h"
 #include "explorer/tracejson.h"
@@ -83,6 +84,9 @@ private slots:
   void tst_determinism();
   void tst_reverseKeepsTraceConsistent();
   void tst_truncation();
+  void tst_systemDescription();
+  void tst_multiOccupancyReplay();
+  void tst_sameCycleRetirement();
 };
 
 void tst_trace::initTestCase() { m_loader = new ProgramLoader(); }
@@ -566,6 +570,154 @@ void tst_trace::tst_truncation() {
   QVERIFY(!trace.isComplete());
   for (const auto &ev : trace.events)
     QVERIFY(ev.cycle <= 5);
+}
+
+void tst_trace::tst_systemDescription() {
+  TraceRecorder recorder;
+  load(ProcessorID::RV32_5S, kLoopProgram);
+  runToEnd();
+  const auto trace = recorder.trace();
+  const auto &system = trace.header.system;
+  QVERIFY(system.size() >= 2);
+  QCOMPARE(system[0].path, QString("soc.cpu0"));
+  QCOMPARE(system[0].role, QString("cpu"));
+  QCOMPARE(system[0].type, QString("RV32_5S"));
+  QCOMPARE(system[0].parameters["stages"].toInt(), 5);
+  QCOMPARE(system[0].connections, QStringList{"soc.mem"});
+  QCOMPARE(system[0].statistics["instructions_retired"].toLongLong(), 29);
+  QCOMPARE(system[1].role, QString("memory"));
+  QVERIFY(
+      system[1].parameters["program_sections"].toString().contains(".text"));
+  // Every listed peripheral is reachable through the memory, and nothing is
+  // listed that Ripes does not simulate.
+  for (size_t i = 2; i < system.size(); ++i) {
+    QCOMPARE(system[i].role, QString("peripheral"));
+    QVERIFY(system[1].connections.contains(system[i].path));
+  }
+  for (const auto &c : system)
+    QVERIFY(c.role != "cache" && c.role != "interconnect");
+
+  // Round trip of the schema 0.2.0 header fields.
+  auto modified = trace;
+  modified.header.ticksPerCycle = 500;
+  modified.header.tickUnit = "ps";
+  modified.header.clockDomainDescription = "test domain";
+  const auto parsed = Trace::fromJsonl(Trace::toJsonl(modified));
+  QVERIFY(parsed.has_value());
+  QCOMPARE(parsed->header.system, modified.header.system);
+  QCOMPARE(parsed->header.ticksPerCycle, qint64(500));
+  QCOMPARE(parsed->header.tickUnit, QString("ps"));
+  QCOMPARE(parsed->header.clockDomainDescription, QString("test domain"));
+}
+
+void tst_trace::tst_multiOccupancyReplay() {
+  // Out-of-order engines (e.g. gem5's O3CPU) hold several instructions in
+  // one stage. Hand-built trace: two instructions fetched together, the
+  // younger one completes first; a third is squashed.
+  Trace::Trace t;
+  t.header.stages = {{0, 0, "F", "c.f"}, {0, 1, "IS", "c.is"}};
+  t.completeness.endCycle = 10;
+  quint64 seq = 0;
+  auto ev = [&](qint64 cycle, EventType type, const QString &component,
+                qint64 inst, const QVariantMap &payload = {}) {
+    Trace::TraceEvent e;
+    e.sequence = seq++;
+    e.cycle = cycle;
+    e.type = type;
+    e.component = component;
+    e.instance = inst;
+    e.pc = 0x100 + 4 * inst;
+    e.assembly = QString("op%1").arg(inst);
+    e.payload = payload;
+    t.events.push_back(e);
+  };
+  ev(1, EventType::StageEnter, "c.f", 1);
+  ev(1, EventType::StageEnter, "c.f", 2);
+  ev(1, EventType::StageEnter, "c.f", 3);
+  ev(2, EventType::StageEnter, "c.is", 1);
+  ev(2, EventType::StageEnter, "c.is", 2);
+  ev(4, EventType::PipelineFlush, "c.f", 3, {{"kind", "squash"}});
+  ev(5, EventType::InstructionRetire, "c.is", 2);
+  ev(7, EventType::InstructionRetire, "c.is", 1);
+  TraceReplay replay(t);
+
+  auto fetch = replay.pipelineAt(1)[0];
+  QCOMPARE(fetch.occupants, 3);
+  QCOMPARE(fetch.instance, qint64(1)); // oldest
+  QCOMPARE(replay.occupantsOf(0, 1), (std::vector<qint64>{1, 2, 3}));
+  QCOMPARE(replay.occupantsOf(1, 4), (std::vector<qint64>{1, 2}));
+  QCOMPARE(replay.occupantsOf(0, 3), (std::vector<qint64>{3}));
+  QCOMPARE(replay.stageOf(2, 4), 1);
+  QCOMPARE(replay.stageOf(2, 5), -1); // retired at 5
+  QCOMPARE(replay.stageOf(1, 6), 1);
+  QCOMPARE(replay.stageOf(3, 4), -1); // squashed at 4
+  QCOMPARE(replay.pipelineAt(6)[1].occupants, 1);
+  const auto stats = replay.stats();
+  QCOMPARE(stats.retired, quint64(2));
+  QCOMPARE(stats.squashed, quint64(1));
+  QCOMPARE(replay.retirementOrder(), (std::vector<qint64>{2, 1}));
+}
+
+void tst_trace::tst_sameCycleRetirement() {
+  // Superscalar engines commit dependent instructions in the same cycle and
+  // do not report initial register values (gem5). The operands of the second
+  // instruction must include the result of the first, and registers that
+  // were never written must be reported as unknown, not as zero.
+  Trace::Trace t;
+  t.header.xlen = 32;
+  t.header.stages = {{0, 0, "F", "c.f"}};
+  QStringList names;
+  for (int i = 0; i < 32; ++i)
+    names << QString("x%1").arg(i);
+  t.header.registerFiles = {{"gpr", names, names}};
+  t.completeness.endCycle = 6;
+  quint64 seq = 0;
+  auto ev = [&](qint64 cycle, EventType type, qint64 inst,
+                const QVariantMap &payload = {}) {
+    Trace::TraceEvent e;
+    e.sequence = seq++;
+    e.cycle = cycle;
+    e.type = type;
+    e.component = "c.f";
+    e.instance = inst;
+    e.pc = 0x100 + 4 * inst;
+    e.payload = payload;
+    t.events.push_back(e);
+  };
+  ev(1, EventType::InstructionFetch, 1,
+     {{"word", "0x00700293"}}); // addi x5, x0, 7
+  ev(1, EventType::InstructionFetch, 2,
+     {{"word", "0x00528333"}}); // add x6, x5, x5
+  ev(1, EventType::InstructionFetch, 3,
+     {{"word", "0x007383b3"}}); // add x7, x7, x7
+  ev(5, EventType::InstructionRetire, 1);
+  ev(5, EventType::RegisterWrite, 1,
+     {{"regfile", "gpr"}, {"index", 5}, {"value", "0x00000007"}});
+  ev(5, EventType::InstructionRetire, 2);
+  ev(5, EventType::RegisterWrite, 2,
+     {{"regfile", "gpr"}, {"index", 6}, {"value", "0x0000000e"}});
+  ev(5, EventType::InstructionRetire, 3);
+  ev(5, EventType::RegisterWrite, 3,
+     {{"regfile", "gpr"}, {"index", 7}, {"value", "0x00000000"}});
+  TraceReplay replay(t);
+
+  QVERIFY(!replay.registerKnownBeforeRetire(1, "gpr", 5));
+  QVERIFY(replay.registerKnownBeforeRetire(2, "gpr", 5));
+  QCOMPARE(replay.registersBeforeRetire(2)->at("gpr")[5], quint64(7));
+  QCOMPARE(replay.registersBeforeRetire(2)->at("gpr")[6], quint64(0));
+  QVERIFY(!replay.registerKnownAt("gpr", 5, 4));
+  QVERIFY(replay.registerKnownAt("gpr", 5, 5));
+
+  const auto second = explainInstance(replay, 2);
+  QCOMPARE(second.expected, std::optional<quint64>(14));
+  QVERIFY(second.findings.join("\n").contains("matches the ISA"));
+
+  // x7 was never written before instruction 3: no ISA check, no hazard claim.
+  const auto third = explainInstance(replay, 3);
+  QVERIFY(!third.expected.has_value());
+  QVERIFY(!third.findings.join("\n").contains("hazard"));
+  QVERIFY(!third.operands.empty());
+  QVERIFY(!third.operands.front().value.has_value());
 }
 
 QTEST_MAIN(tst_trace)

@@ -106,6 +106,7 @@ void TraceReplay::build() {
         inst->outcome = Outcome::Retired;
         inst->endCycle = ev.cycle;
         inst->retireEvent = i;
+        m_retirePosition[inst->id] = m_retireOrder.size();
         m_retireOrder.push_back(inst->id);
       }
       break;
@@ -113,7 +114,8 @@ void TraceReplay::build() {
       const auto value = Trace::fromHex(ev.payload.value("value").toString());
       if (value.has_value())
         m_regWrites.push_back({ev.cycle, ev.payload.value("regfile").toString(),
-                               ev.payload.value("index").toInt(), *value});
+                               ev.payload.value("index").toInt(), *value,
+                               ev.instance});
       break;
     }
     default:
@@ -134,16 +136,25 @@ void TraceReplay::build() {
       for (qint64 c = std::max(start, m_firstCycle);
            c <= std::min(end, m_lastCycle); ++c) {
         auto &slot = m_occupancy[rel(c)][inst.stageEntries[k].second];
-        slot.kind = SlotKind::Instruction;
-        slot.instance = id;
-        slot.held = std::find(inst.heldCycles.begin(), inst.heldCycles.end(),
-                              c) != inst.heldCycles.end();
+        ++slot.occupants;
+        // Instances are visited in id (fetch) order: keep the oldest one.
+        if (slot.kind != SlotKind::Instruction) {
+          slot.kind = SlotKind::Instruction;
+          slot.instance = id;
+          slot.held = std::find(inst.heldCycles.begin(), inst.heldCycles.end(),
+                                c) != inst.heldCycles.end();
+        }
       }
     }
   }
 
   // Register checkpoints.
   RegisterState state = h.initialRegisters;
+  // Register files without initial values (e.g. gem5 traces) start as zero;
+  // registerKnownAt() tells which values are actually known.
+  for (const auto &rf : h.registerFiles)
+    if (!state.count(rf.name))
+      state[rf.name] = std::vector<quint64>(rf.names.size(), 0);
   size_t w = 0;
   for (qint64 c = m_firstCycle; c <= m_lastCycle; ++c) {
     while (w < m_regWrites.size() && m_regWrites[w].cycle <= c) {
@@ -183,6 +194,21 @@ TraceReplay::RegisterState TraceReplay::registersAt(qint64 cycle) const {
   return state;
 }
 
+bool TraceReplay::registerKnownAt(const QString &regfile, int index,
+                                  qint64 cycle) const {
+  const auto it = m_trace.header.initialRegisters.find(regfile);
+  if (it != m_trace.header.initialRegisters.end() &&
+      static_cast<size_t>(index) < it->second.size())
+    return true;
+  for (const auto &rw : m_regWrites) {
+    if (rw.cycle > cycle)
+      break;
+    if (rw.regfile == regfile && rw.index == index)
+      return true;
+  }
+  return false;
+}
+
 std::vector<size_t> TraceReplay::eventsAt(qint64 cycle) const {
   std::vector<size_t> result;
   if (cycle < m_firstCycle || cycle > m_lastCycle)
@@ -199,12 +225,49 @@ const TraceReplay::Instance *TraceReplay::instance(qint64 id) const {
 }
 
 int TraceReplay::stageOf(qint64 id, qint64 cycle) const {
-  if (cycle < m_firstCycle || cycle > m_lastCycle)
+  const auto *inst = instance(id);
+  if (!inst || cycle < m_firstCycle || cycle > m_lastCycle)
     return -1;
-  for (const auto &slot : m_occupancy[cycle - m_firstCycle])
-    if (slot.kind == SlotKind::Instruction && slot.instance == id)
-      return slot.stage;
-  return -1;
+  // Same occupancy rule as in build(): from a stage entry until the cycle
+  // before the next entry, retirement or squash.
+  const auto &entries = inst->stageEntries;
+  auto it = std::upper_bound(
+      entries.begin(), entries.end(), cycle,
+      [](qint64 c, const std::pair<qint64, int> &e) { return c < e.first; });
+  if (it == entries.begin())
+    return -1;
+  const auto &entry = *(it - 1);
+  qint64 end = m_lastCycle;
+  if (it != entries.end())
+    end = it->first - 1;
+  else if (inst->endCycle >= 0)
+    end = inst->endCycle - 1;
+  return cycle <= end ? entry.second : -1;
+}
+
+bool TraceReplay::isHeld(qint64 id, qint64 cycle) const {
+  const auto *inst = instance(id);
+  return inst && std::find(inst->heldCycles.begin(), inst->heldCycles.end(),
+                           cycle) != inst->heldCycles.end();
+}
+
+std::vector<qint64> TraceReplay::occupantsOf(int stage, qint64 cycle) const {
+  std::vector<qint64> result;
+  for (const auto &[id, inst] : m_instances)
+    if (inst.firstCycle <= cycle && stageOf(id, cycle) == stage)
+      result.push_back(id);
+  return result;
+}
+
+bool TraceReplay::visibleBeforeRetire(const RegWrite &rw,
+                                      const Instance &inst) const {
+  if (rw.cycle < inst.endCycle)
+    return true;
+  if (rw.cycle > inst.endCycle || rw.instance < 0)
+    return false;
+  const auto writer = m_retirePosition.find(rw.instance);
+  return writer != m_retirePosition.end() &&
+         writer->second < m_retirePosition.at(inst.id);
 }
 
 std::optional<TraceReplay::RegisterState>
@@ -212,7 +275,36 @@ TraceReplay::registersBeforeRetire(qint64 id) const {
   const auto *inst = instance(id);
   if (!inst || inst->outcome != Outcome::Retired)
     return std::nullopt;
-  return registersAt(inst->endCycle - 1);
+  RegisterState state = registersAt(inst->endCycle - 1);
+  auto it = std::lower_bound(
+      m_regWrites.begin(), m_regWrites.end(), inst->endCycle,
+      [](const RegWrite &rw, qint64 c) { return rw.cycle < c; });
+  for (; it != m_regWrites.end() && it->cycle == inst->endCycle; ++it) {
+    auto &file = state[it->regfile];
+    if (visibleBeforeRetire(*it, *inst) && it->index >= 0 &&
+        static_cast<size_t>(it->index) < file.size())
+      file[it->index] = it->value;
+  }
+  return state;
+}
+
+bool TraceReplay::registerKnownBeforeRetire(qint64 id, const QString &regfile,
+                                            int index) const {
+  const auto *inst = instance(id);
+  if (!inst || inst->outcome != Outcome::Retired)
+    return false;
+  const auto it = m_trace.header.initialRegisters.find(regfile);
+  if (it != m_trace.header.initialRegisters.end() &&
+      static_cast<size_t>(index) < it->second.size())
+    return true;
+  for (const auto &rw : m_regWrites) {
+    if (rw.cycle > inst->endCycle)
+      break;
+    if (rw.regfile == regfile && rw.index == index &&
+        visibleBeforeRetire(rw, *inst))
+      return true;
+  }
+  return false;
 }
 
 QString TraceReplay::mnemonicOf(qint64 id) const {

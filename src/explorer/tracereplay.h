@@ -50,8 +50,12 @@ public:
   struct Slot {
     int stage = -1;
     SlotKind kind = SlotKind::Empty;
+    /// Oldest instruction in the stage (models such as gem5's O3CPU can hold
+    /// several instructions per stage).
     qint64 instance = -1;
     bool held = false;
+    /// Number of instructions in the stage.
+    int occupants = 0;
   };
 
   struct Stats {
@@ -87,6 +91,10 @@ public:
   std::vector<Slot> pipelineAt(qint64 cycle) const;
   /// Architectural register state visible at @p cycle.
   RegisterState registersAt(qint64 cycle) const;
+  /// True if the value of register @p index of @p regfile at @p cycle is
+  /// known: the trace provides its initial value or it was written at or
+  /// before @p cycle. Engines such as gem5 do not report initial registers.
+  bool registerKnownAt(const QString &regfile, int index, qint64 cycle) const;
   /// Indices of events recorded at @p cycle.
   std::vector<size_t> eventsAt(qint64 cycle) const;
 
@@ -94,13 +102,23 @@ public:
   const Instance *instance(qint64 id) const;
   /// Stage index occupied by @p id at @p cycle, or -1.
   int stageOf(qint64 id, qint64 cycle) const;
+  /// True if @p id was held (stalled) in its stage at @p cycle.
+  bool isHeld(qint64 id, qint64 cycle) const;
+  /// Instances occupying stage @p stage at @p cycle, oldest first.
+  std::vector<qint64> occupantsOf(int stage, qint64 cycle) const;
   /// Instances retired in program order.
   const std::vector<qint64> &retirementOrder() const { return m_retireOrder; }
 
   /// Register state immediately before @p id retired, i.e. the architectural
-  /// operand values of an in-order processor. std::nullopt if the instance
-  /// did not retire.
+  /// operand values of an in-order processor: all writes of earlier cycles
+  /// plus the writes of instances that retired earlier in the same cycle
+  /// (superscalar and out-of-order models commit several instructions per
+  /// cycle). std::nullopt if the instance did not retire.
   std::optional<RegisterState> registersBeforeRetire(qint64 id) const;
+  /// True if register @p index of @p regfile is known in
+  /// registersBeforeRetire(@p id).
+  bool registerKnownBeforeRetire(qint64 id, const QString &regfile,
+                                 int index) const;
 
   /// Mnemonic (first token of the disassembly) of an instance.
   QString mnemonicOf(qint64 id) const;
@@ -115,6 +133,8 @@ private:
   qint64 m_lastCycle = 0;
   std::map<qint64, Instance> m_instances;
   std::vector<qint64> m_retireOrder;
+  /// Position of each retired instance in m_retireOrder.
+  std::map<qint64, size_t> m_retirePosition;
   std::map<QString, int> m_stageByComponent;
   /// occupancy[cycle - first][stage]
   std::vector<std::vector<Slot>> m_occupancy;
@@ -126,7 +146,10 @@ private:
     QString regfile;
     int index;
     quint64 value;
+    qint64 instance;
   };
+  /// True if @p rw is visible to @p inst immediately before it retires.
+  bool visibleBeforeRetire(const RegWrite &rw, const Instance &inst) const;
   std::vector<RegWrite> m_regWrites;
   static constexpr qint64 kCheckpointInterval = 64;
 };

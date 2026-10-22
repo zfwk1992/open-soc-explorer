@@ -99,8 +99,14 @@ QJsonObject headerToJson(const Trace &trace) {
   domain["name"] = h.clockDomain;
   domain["unit"] = "cycle";
   domain["description"] =
-      "One clock() of the simulated model. Not comparable to wall-clock time, "
-      "gem5 ticks or cycles of other engines.";
+      h.clockDomainDescription.isEmpty()
+          ? QString("One clock() of the simulated model. Not comparable to "
+                    "wall-clock time, gem5 ticks or cycles of other engines.")
+          : h.clockDomainDescription;
+  if (h.ticksPerCycle > 0) {
+    domain["ticks_per_cycle"] = h.ticksPerCycle;
+    domain["tick_unit"] = h.tickUnit;
+  }
   o["time_domains"] = QJsonArray{domain};
 
   QJsonObject program;
@@ -145,6 +151,22 @@ QJsonObject headerToJson(const Trace &trace) {
   }
   init["registers"] = regs;
   o["initial_state"] = init;
+
+  if (!h.system.empty()) {
+    QJsonArray system;
+    for (const auto &c : h.system) {
+      QJsonObject co;
+      co["path"] = c.path;
+      co["type"] = c.type;
+      co["role"] = c.role;
+      co["description"] = c.description;
+      co["parameters"] = QJsonObject::fromVariantMap(c.parameters);
+      co["statistics"] = QJsonObject::fromVariantMap(c.statistics);
+      co["connections"] = QJsonArray::fromStringList(c.connections);
+      system.append(co);
+    }
+    o["system"] = system;
+  }
   return o;
 }
 
@@ -161,7 +183,7 @@ QJsonObject eventToJson(const Trace &trace, const TraceEvent &ev,
   QJsonObject time;
   time["domain"] = h.clockDomain;
   time["cycle"] = ev.cycle;
-  time["tick"] = QJsonValue();
+  time["tick"] = ev.tick.has_value() ? QJsonValue(*ev.tick) : QJsonValue();
   o["time"] = time;
 
   QJsonObject e;
@@ -290,8 +312,13 @@ std::optional<Trace> readJsonl(QIODevice &in, QString *error) {
       h.createdUtc = o["created_utc"].toString();
       h.source = sourceFromJson(o["source"].toObject());
       const auto domains = o["time_domains"].toArray();
-      if (!domains.isEmpty())
-        h.clockDomain = domains.first().toObject()["name"].toString();
+      if (!domains.isEmpty()) {
+        const auto d = domains.first().toObject();
+        h.clockDomain = d["name"].toString();
+        h.clockDomainDescription = d["description"].toString();
+        h.ticksPerCycle = d["ticks_per_cycle"].toInteger();
+        h.tickUnit = d["tick_unit"].toString();
+      }
       const auto program = o["program"].toObject();
       h.entryPoint = fromHex(program["entry_point"].toString()).value_or(0);
       h.textStart = fromHex(program["text_start"].toString()).value_or(0);
@@ -321,6 +348,14 @@ std::optional<Trace> readJsonl(QIODevice &in, QString *error) {
           values.push_back(fromHex(v.toString()).value_or(0));
         h.initialRegisters[it.key()] = values;
       }
+      for (const auto &cv : o["system"].toArray()) {
+        const auto co = cv.toObject();
+        h.system.push_back({co["path"].toString(), co["type"].toString(),
+                            co["role"].toString(), co["description"].toString(),
+                            co["parameters"].toObject().toVariantMap(),
+                            co["statistics"].toObject().toVariantMap(),
+                            toStringList(co["connections"])});
+      }
       haveHeader = true;
     } else if (record == "event") {
       if (!haveHeader)
@@ -328,6 +363,9 @@ std::optional<Trace> readJsonl(QIODevice &in, QString *error) {
       TraceEvent ev;
       ev.sequence = o["sequence"].toInteger();
       ev.cycle = o["time"].toObject()["cycle"].toInteger();
+      const auto tick = o["time"].toObject()["tick"];
+      if (!tick.isNull() && !tick.isUndefined())
+        ev.tick = tick.toInteger();
       const auto e = o["event"].toObject();
       const auto type = eventTypeFromName(e["type"].toString());
       if (!type.has_value())

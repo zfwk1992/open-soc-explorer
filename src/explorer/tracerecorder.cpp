@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <set>
 
+#include "io/iomanager.h"
 #include "processorhandler.h"
 #include "tracejson.h"
 #include "version/version.h"
@@ -129,7 +130,74 @@ Trace::Trace TraceRecorder::trace() const {
   std::lock_guard lock(m_mutex);
   Trace::Trace copy = m_trace;
   fillCompleteness(copy);
+  // Aggregate statistics of the processor at the end of the recorded range.
+  for (auto &c : copy.header.system)
+    if (c.role == "cpu") {
+      c.statistics["cycles"] = m_last.cycle;
+      c.statistics["instructions_retired"] =
+          static_cast<qlonglong>(m_last.retired);
+    }
   return copy;
+}
+
+std::vector<Trace::SystemComponent> TraceRecorder::describeSystem() const {
+  // Only components that the Ripes model actually simulates are listed: the
+  // processor, the ideal memory it uses for instruction and data accesses,
+  // and the memory-mapped peripherals registered with the IOManager.
+  std::vector<Trace::SystemComponent> system;
+  const auto *proc = ProcessorHandler::getProcessor();
+  const auto isa = ProcessorHandler::currentISA();
+
+  Trace::SystemComponent cpu;
+  cpu.path = "soc.cpu0";
+  cpu.type = m_profile.idName;
+  cpu.role = "cpu";
+  cpu.description = m_profile.name + " – " + m_profile.fidelityNote;
+  cpu.parameters["isa"] = isa->name();
+  cpu.parameters["extensions"] = isa->enabledExtensions().join(",");
+  cpu.parameters["lanes"] = static_cast<int>(proc->structure().size());
+  cpu.parameters["stages"] = static_cast<int>(proc->structure().numStages());
+  cpu.parameters["forwarding_unit"] = m_profile.hasForwarding;
+  cpu.parameters["hazard_detection_unit"] = m_profile.hasHazardDetection;
+  cpu.parameters["source_file"] = m_profile.sourceFile;
+  // Instruction and data ports both access the address space below.
+  cpu.connections << "soc.mem";
+  system.push_back(cpu);
+
+  Trace::SystemComponent mem;
+  mem.path = "soc.mem";
+  mem.type = "vsrtl::core::AddressSpaceMM";
+  mem.role = "memory";
+  mem.description =
+      "Ideal memory shared by instruction fetch and data accesses: every "
+      "access completes in the cycle it is presented. There is no bus, no "
+      "latency and no contention.";
+  QStringList sections;
+  if (auto program = ProcessorHandler::getProgram())
+    for (const auto &[name, section] : program->sections)
+      sections << QString("%1 @ %2 (%3 bytes)")
+                      .arg(name, Trace::toHex(section.address, isa->bits()))
+                      .arg(section.data.size());
+  mem.parameters["program_sections"] = sections.join("; ");
+  system.push_back(mem);
+
+  auto &memory = ProcessorHandler::getMemory();
+  for (const auto &[start, entry] : IOManager::get().memoryMap()) {
+    if (memory.regionType(start) != vsrtl::core::AddressSpace::RegionType::IO)
+      continue;
+    Trace::SystemComponent p;
+    p.path = "soc.mmio." + entry.name.toLower().replace(' ', '_');
+    p.type = "Ripes peripheral";
+    p.role = "peripheral";
+    p.description = entry.name + " (memory-mapped I/O)";
+    p.parameters["base_address"] = Trace::toHex(start, isa->bits());
+    p.parameters["size_bytes"] = entry.size;
+    // Peripheral registers are reached through the address space, which
+    // forwards accesses in this range to the peripheral.
+    system[1].connections << p.path;
+    system.push_back(p);
+  }
+  return system;
 }
 
 bool TraceRecorder::exportJsonl(const QString &path, QString *error) const {
@@ -236,6 +304,7 @@ void TraceRecorder::beginRunLocked() {
     }
     h.programHash = programImageHash(*program);
   }
+  h.system = describeSystem();
 
   m_nextSequence = 0;
   m_nextInstance = 1;
