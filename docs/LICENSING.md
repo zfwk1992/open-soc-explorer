@@ -72,14 +72,34 @@ Qt Charts is not available under the LGPL. As a consequence:
 6. Generated traces and screenshots of the application are project
    documentation and are covered by the repository license.
 
-## 5. External simulators (planned integrations)
+## 5. External simulators
+
+### 5.1 gem5 (integrated as an external tool)
+
+gem5 is **not** vendored, linked or redistributed. Open SoC Explorer only
+
+* provides a gem5 configuration script (`tools/gem5/se_trace.py`, MIT) that
+  gem5 executes and that uses gem5's Python standard library at run time,
+* converts files that gem5 writes (`tools/gem5/gem5_to_osx.py`, MIT), and
+* stores small gem5 output samples (debug trace, `config.json`,
+  `stats.txt`) as test data in `tools/gem5/testdata/`. They were produced by
+  running gem5 on the workloads in `tools/gem5/workloads/` and contain gem5's
+  disassembly of those programs.
+
+gem5's license, verified for the version used (v26.0.0.0, `LICENSE` and
+`COPYING` in the gem5 repository): BSD-3-Clause-style licenses (some files
+MIT-style) with various copyright holders; some files under `ext/` are
+LGPL; some files carry an additional notice that the license does not
+extend to hardware implementations. Anyone who redistributes a gem5 build
+must follow those terms; this repository does not.
+
+### 5.2 Planned integrations
 
 These are *not* part of the repository today. When integrated, they will be
 used as external tools or separate submodules:
 
 | Project | License (upstream, to be re-verified at integration time) |
 |---|---|
-| gem5 | BSD-3-Clause-style (various copyright holders) |
 | lowRISC Ibex | Apache-2.0 |
 | Verilator | LGPL-3.0 or Artistic-2.0 (tool; generated C++ has its own terms, see Verilator docs) |
 | Gemmini | BSD-3-Clause (UC Berkeley) |

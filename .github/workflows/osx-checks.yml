@@ -21,6 +21,11 @@ jobs:
     - name: Trace tool unit tests
       run: python3 -m unittest discover -s tools/trace -v
 
+    # Uses recorded gem5 output (tools/gem5/testdata); gem5 itself is not
+    # built in CI.
+    - name: gem5 converter unit tests
+      run: python3 -m unittest discover -s tools/gem5 -v
+
     - name: Mission definitions are valid JSON
       run: |
         for f in src/explorer/missions/*.json; do

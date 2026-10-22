@@ -1,13 +1,24 @@
 # Open SoC Explorer trace protocol
 
-**Schema version: 0.1.0** (`Ripes::Trace::kSchemaVersion`,
+**Schema version: 0.2.0** (`Ripes::Trace::kSchemaVersion`,
 `src/explorer/tracetypes.h`)
 
 The trace protocol is a simulator-neutral, versioned format for execution
-events. The Ripes adapter (`src/explorer/tracerecorder.cpp`) produces it today;
-future gem5, RTL (Verilator/Ibex) and accelerator adapters are meant to produce
-the same format so that the Explorer GUI, the replay engine and the missions
-work unchanged on top of them.
+events. Two adapters produce it today:
+
+* the Ripes adapter (`src/explorer/tracerecorder.cpp`, live, all Ripes
+  models), and
+* the offline gem5 converter (`tools/gem5/gem5_to_osx.py`, gem5
+  `TimingSimpleCPU`, `AtomicSimpleCPU` and `O3CPU`, see §9).
+
+Future RTL (Verilator/Ibex) and accelerator adapters are meant to produce the
+same format so that the Explorer GUI, the replay engine and the missions work
+unchanged on top of them.
+
+Changes in 0.2.0 (backwards compatible, 0.1.0 traces still load): header
+`system` (simulated components, §2.1), `time_domains[].ticks_per_cycle` /
+`tick_unit`, events with `time.tick`, fidelity class `cycle-level-simulator`,
+and several instructions per stage (out-of-order models, §7).
 
 The protocol was designed for this project. It is **not** a format that Ripes,
 gem5 or any RTL simulator emits by itself.
@@ -28,6 +39,8 @@ Produce traces with:
 * GUI: *Explorer* tab → *Export trace (JSON Lines)…*
 * CLI: `Ripes --mode cli -t asm --src prog.s --proc RV32_5S --trace-out trace.jsonl`
   (`--trace-max-cycles N` bounds the recording, default 1 000 000)
+* gem5: run gem5 with the debug flags listed in `tools/gem5/README.md`, then
+  `tools/gem5/gem5_to_osx.py`
 
 Read them with `Ripes::Trace::readJsonl()` (C++), the *Explorer* tab
 (*Open a trace file for offline replay…*), or `tools/trace/osx_trace.py`
@@ -38,7 +51,7 @@ Read them with `Ripes::Trace::readJsonl()` (C++), the *Explorer* tab
 ```json
 {
   "record": "header",
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "run_id": "run-131d1e28",
   "created_utc": "2026-10-22T09:30:00Z",
   "source": {
@@ -59,7 +72,11 @@ Read them with `Ripes::Trace::readJsonl()` (C++), the *Explorer* tab
     "register_files": [{"name": "gpr", "names": ["x0", "..."], "aliases": ["zero", "..."]}]
   },
   "initial_state": {"cycle": 0, "pc": "0x00000000",
-                    "registers": {"gpr": ["0x00000000", "..."]}}
+                    "registers": {"gpr": ["0x00000000", "..."]}},
+  "system": [
+    {"path": "soc.cpu0", "type": "RV32_5S", "role": "cpu", "...": "..."},
+    {"path": "soc.mem", "type": "AddressSpaceMM", "role": "memory", "...": "..."}
+  ]
 }
 ```
 
@@ -70,10 +87,35 @@ Read them with `Ripes::Trace::readJsonl()` (C++), the *Explorer* tab
 | `source.model` | Engine-specific model identifier (Ripes: `ProcessorID` name). |
 | `source.fidelity` | Coarse fidelity class, see §6. Always read `fidelity_note` too. |
 | `source.source_file` | Where the modelled behaviour is implemented (repository-relative). |
-| `time_domains` | Clock domains used by events. Ripes uses one: `cpu_clk`. |
-| `program.image_sha256` | SHA-256 (hex) over name, address and bytes of every loaded section; identifies the program image. |
+| `time_domains` | Clock domains used by events. Both adapters use one: `cpu_clk`. Engines with their own time base add `ticks_per_cycle` and `tick_unit` (gem5: ticks of 1 `ps`). |
+| `program.image_sha256` | Identifies the program. Ripes: SHA-256 (hex) over name, address and bytes of every loaded section. gem5 converter: SHA-256 of the ELF file. |
 | `processor.stages` | Stages in the order used by the producer; `component` links events to stages. |
-| `initial_state` | Architectural state at `cycle` (= first cycle of the trace). |
+| `initial_state` | Architectural state at `cycle` (= first cycle of the trace). `registers` may be empty: gem5 traces do not contain initial register values, and consumers must then treat a register as *unknown* until it is written (`TraceReplay::registerKnownAt()`), never as zero. |
+| `system` | Optional (0.2.0): the hardware components the engine simulated, §2.1. |
+
+### 2.1 System description (`system`)
+
+One entry per simulated component; only components that the engine actually
+simulates are listed. The Explorer's *System* view draws exactly these
+components and connections; typical SoC blocks that are absent are drawn as
+dashed "not simulated" boxes and never animated.
+
+```json
+{"path": "board.cache_hierarchy.l1dcaches", "type": "Cache", "role": "cache",
+ "description": "Cache simulated by gem5 (classic memory system).",
+ "parameters": {"size": "...", "assoc": "...", "tag_latency": "...", "...": "..."},
+ "statistics": {"demandHits::total": "...", "demandMisses::total": "...", "...": "..."},
+ "connections": ["board.cache_hierarchy.membus"]}
+```
+
+| Field | Meaning |
+|---|---|
+| `path` | Hierarchical name. Ripes: `soc.cpu0`, `soc.mem`, `soc.mmio.<peripheral>`. gem5: the SimObject path from `config.json`. |
+| `type` | Engine type name (Ripes `ProcessorID`, gem5 SimObject type). |
+| `role` | `cpu`, `cache`, `interconnect`, `memory-controller`, `memory`, `peripheral`, `dma`, `accelerator` or `other`. |
+| `parameters` | Configuration values as reported by the engine (gem5: `config.json`; sizes in bytes, latencies in cycles of the component's clock). |
+| `statistics` | End-of-simulation values reported by the engine (gem5: `stats.txt`), not computed by Open SoC Explorer. |
+| `connections` | Paths of components this one sends requests to (gem5: requestor port → owner of the peer port). |
 
 ## 3. Event record
 
@@ -83,7 +125,7 @@ correlation, observability and state fields:
 ```json
 {
   "record": "event",
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "run_id": "run-131d1e28",
   "sequence": 31,
   "source": {"engine": "ripes", "model": "RV32_5S", "fidelity": "educational-model"},
@@ -113,7 +155,7 @@ example program on `RV32_5S`; long fields are abbreviated with `...`.)
 | `sequence` | Unique, strictly increasing per run. Used for ordering and correlation. |
 | `time.domain` | Clock domain of `cycle`. |
 | `time.cycle` | Cycle number in that domain. A Ripes cycle is one `clock()` of the model. |
-| `time.tick` | Engine tick (e.g. gem5 ticks, ps) if the engine has one; `null` for Ripes. **Ticks and cycles are never interchangeable.** |
+| `time.tick` | Engine tick (gem5: ticks of 1 ps) if the engine has one; `null` for Ripes. For gem5 traces `cycle = tick / ticks_per_cycle` of the CPU clock domain. **Ticks and cycles of different engines are never compared.** |
 | `event.type` | See §4. |
 | `event.component` | Hierarchical component path (`soc.cpu0.pipeline.ex`, `soc.cpu0.regfile.gpr`, `soc.cpu0.lsu`, `soc.mem.data`, `soc.mmio`). |
 | `event.instruction_id` | Dynamic instruction instance (`inst-N`, in fetch order) or `null`. |
@@ -188,8 +230,9 @@ Consumers must not present `inferred` information as measured fact.
 | `source.fidelity` | Meaning |
 |---|---|
 | `educational-model` | Textbook datapath model (Ripes VSRTL models). Cycle counts are properties of the model only. |
-| `functional-iss` | Instruction set simulator: architectural results only, no timing. |
-| *(reserved)* `architectural-simulator`, `rtl-cycle-accurate` | For future gem5 and RTL adapters. |
+| `functional-iss` | Instruction set simulator: architectural results only, no timing model (Ripes ISS, gem5 `AtomicSimpleCPU`). |
+| `cycle-level-simulator` | Cycle-level microarchitecture simulator with a configurable memory system (gem5 `TimingSimpleCPU`, `O3CPU`). Timing is a property of the configured model, not of a specific chip. |
+| *(reserved)* `rtl-cycle-accurate` | For the future RTL adapter. |
 
 See [SIMULATION_FIDELITY.md](SIMULATION_FIDELITY.md).
 
@@ -233,7 +276,7 @@ See [SIMULATION_FIDELITY.md](SIMULATION_FIDELITY.md).
 ## 8. Footer record
 
 ```json
-{"record":"footer","schema_version":"0.1.0","run_id":"run-131d1e28",
+{"record":"footer","schema_version":"0.2.0","run_id":"run-131d1e28",
  "completeness":{"complete":true,"starts_at_reset":true,"start_cycle":0,"end_cycle":12,
                  "truncated":false,"truncation_reason":null,"program_finished":true,
                  "caveats":["Instruction instance identity and squash causes are inferred ...",
