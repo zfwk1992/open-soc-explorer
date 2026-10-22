@@ -79,6 +79,7 @@ add_subdirectory(processors)
 add_subdirectory(version)
 add_subdirectory(cli)
 add_subdirectory(explorer)
+add_subdirectory(i18n)
 add_subdirectory(theme)
 
 # Also link Qt and VSRTL libraries.

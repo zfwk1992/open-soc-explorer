@@ -22,6 +22,7 @@
 #include "wasmSupport.h"
 
 #include "fancytabbar/fancytabbar.h"
+#include "i18n/language.h"
 
 #include <QCloseEvent>
 #include <QDesktopServices>
@@ -43,6 +44,17 @@
 
 namespace Ripes {
 
+// Open SoC Explorer: names of the tabs (in TabIndex order), translated in
+// retranslate().
+static const char *const kTabNames[] = {
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Editor"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Processor"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Cache"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Memory"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "I/O"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Explorer"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Missions")};
+
 static void clearSaveFile() {
   RipesSettings::setValue(RIPES_SETTING_HAS_SAVEFILE, false);
   RipesSettings::setValue(RIPES_SETTING_SAVEPATH, "");
@@ -51,13 +63,15 @@ static void clearSaveFile() {
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_ui(new Ui::MainWindow) {
   m_ui->setupUi(this);
-  setWindowTitle("Open SoC Explorer (based on Ripes)");
+  setWindowTitle(tr("Open SoC Explorer (based on Ripes)"));
   setWindowIcon(QIcon(":/icons/logo.svg"));
   m_ui->actionOpen_wiki->setIcon(QIcon(":/icons/info.svg"));
 
   // Open SoC Explorer: application theme (palette and style sheet) and its
   // View menu entries. Applied before the tabs are created.
   Theme::install(m_ui->menuView);
+  // Open SoC Explorer: user interface language and its View menu entry.
+  I18n::install(m_ui->menuView);
 
   // Initialize processor handler
   ProcessorHandler::get();
@@ -127,13 +141,18 @@ MainWindow::MainWindow(QWidget *parent)
 
   // Setup tab bar.
   m_ui->tabbar->addFancyTab(style()->standardIcon(QStyle::SP_FileIcon),
-                            "Editor");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/cpu.svg"), "Processor");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/server.svg"), "Cache");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/ram-memory.svg"), "Memory");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/led.svg"), "I/O");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/trace.svg"), "Explorer");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/compass.svg"), "Missions");
+                            tr(kTabNames[EditTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/cpu.svg"),
+                            tr(kTabNames[ProcessorTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/server.svg"),
+                            tr(kTabNames[CacheTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/ram-memory.svg"),
+                            tr(kTabNames[MemoryTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/led.svg"), tr(kTabNames[IOTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/trace.svg"),
+                            tr(kTabNames[ExplorerTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/compass.svg"),
+                            tr(kTabNames[MissionsTabID]));
   connect(m_ui->tabbar, &FancyTabBar::activeIndexChanged, this,
           &MainWindow::tabChanged);
   connect(m_ui->tabbar, &FancyTabBar::activeIndexChanged, m_stackedTabs,
@@ -196,6 +215,23 @@ MainWindow::MainWindow(QWidget *parent)
 
   m_currentTabID = ProcessorTabID;
   m_ui->tabbar->setActiveIndex(m_currentTabID);
+  // Texts set before the language was installed (.ui, upstream literals).
+  if (I18n::isChinese())
+    retranslate();
+}
+
+void MainWindow::changeEvent(QEvent *event) {
+  QMainWindow::changeEvent(event);
+  if (event->type() == QEvent::LanguageChange)
+    retranslate();
+}
+
+void MainWindow::retranslate() {
+  m_ui->retranslateUi(this);
+  setWindowTitle(tr("Open SoC Explorer (based on Ripes)"));
+  for (int i = 0; i < NTabsID; ++i)
+    m_ui->tabbar->setTabText(i, tr(kTabNames[i]));
+  I18n::retranslateUpstream(this);
 }
 
 #define _setupStatusWidget(name, _permanent)                                   \

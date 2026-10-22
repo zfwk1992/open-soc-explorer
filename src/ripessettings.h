@@ -46,6 +46,9 @@ namespace Ripes {
 #define RIPES_SETTING_OSX_THEME ("osx_theme")
 // Disables the short UI animations of the game theme.
 #define RIPES_SETTING_OSX_REDUCED_MOTION ("osx_reduced_motion")
+// User interface language: "system" (Simplified Chinese if the system locale
+// is Chinese, else English), "en" or "zh_CN".
+#define RIPES_SETTING_OSX_LANGUAGE ("osx_language")
 
 // This is not really a setting, but instead a method to leverage the static
 // observer objects that are generated for a setting. Used for other objects to

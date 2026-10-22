@@ -5,11 +5,13 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QFontDatabase>
 #include <QMenu>
 #include <QPalette>
 #include <QStyleHints>
 
+#include "i18n/languagechange.h"
 #include "ripessettings.h"
 
 // Q_INIT_RESOURCE must be used outside of any namespace.
@@ -19,6 +21,11 @@ namespace Ripes {
 namespace Theme {
 
 namespace {
+
+/// Translation context of the theme's menu entries.
+struct Text {
+  Q_DECLARE_TR_FUNCTIONS(Ripes::Theme)
+};
 
 Tokens darkTokens() {
   Tokens t;
@@ -247,16 +254,14 @@ void install(QMenu *viewMenu) {
   if (!viewMenu)
     return;
 
-  auto *themeMenu = viewMenu->addMenu("Theme");
+  auto *themeMenu = viewMenu->addMenu(QString());
   auto *group = new QActionGroup(themeMenu);
-  auto *game = themeMenu->addAction("Game (Open SoC Explorer)");
-  auto *classic = themeMenu->addAction("Classic (Ripes)");
+  auto *game = themeMenu->addAction(QString());
+  auto *classic = themeMenu->addAction(QString());
   for (auto *a : {game, classic}) {
     a->setCheckable(true);
     group->addAction(a);
   }
-  game->setToolTip("Open SoC Explorer's game-like theme");
-  classic->setToolTip("The original Ripes look");
   auto syncChecks = [game, classic] {
     game->setChecked(kind() == Kind::Game);
     classic->setChecked(kind() == Kind::Classic);
@@ -268,13 +273,29 @@ void install(QMenu *viewMenu) {
   QObject::connect(classic, &QAction::triggered, themeMenu,
                    [] { RipesSettings::setValue(RIPES_SETTING_OSX_THEME, 1); });
 
-  auto *motion = viewMenu->addAction("Reduce motion");
+  auto *motion = viewMenu->addAction(QString());
   motion->setCheckable(true);
   motion->setChecked(reducedMotion());
-  motion->setToolTip("Turn off the short transitions of the game theme");
   QObject::connect(motion, &QAction::toggled, motion, [](bool on) {
     RipesSettings::setValue(RIPES_SETTING_OSX_REDUCED_MOTION, on);
   });
+
+  // Texts of the current language; the menu and the action translate
+  // themselves (I18n::retranslateUpstream() skips them).
+  auto retranslate = [themeMenu, game, classic, motion] {
+    themeMenu->setTitle(Text::tr("Theme"));
+    game->setText(Text::tr("Game (Open SoC Explorer)"));
+    classic->setText(Text::tr("Classic (Ripes)"));
+    game->setToolTip(Text::tr("Open SoC Explorer's game-like theme"));
+    classic->setToolTip(Text::tr("The original Ripes look"));
+    motion->setText(Text::tr("Reduce motion"));
+    motion->setToolTip(
+        Text::tr("Turn off the short transitions of the game theme"));
+  };
+  retranslate();
+  themeMenu->setProperty("osxOwnTranslation", true);
+  motion->setProperty("osxOwnTranslation", true);
+  new I18n::LanguageChangeWatcher(themeMenu, retranslate);
   viewMenu->addSeparator();
 }
 

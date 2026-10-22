@@ -61,6 +61,7 @@ const std::map<QString, QVariant> s_defaultSettings = {
     {RIPES_SETTING_OSX_MISSION_STEPS, QStringList()},
     {RIPES_SETTING_OSX_THEME, 0},
     {RIPES_SETTING_OSX_REDUCED_MOTION, false},
+    {RIPES_SETTING_OSX_LANGUAGE, "system"},
 
     // Program state preserving settings
     {RIPES_GLOBALSIGNAL_QUIT, 0},
