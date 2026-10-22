@@ -18,3 +18,22 @@ To debug the webassembly build, you can use the following workflow:
 cd mortbopet.github.io
 emrun index.html --no_browser
 ```
+## Open SoC Explorer web version
+
+`.github/workflows/web-pages.yml` builds the WebAssembly version, assembles
+the site with `web/prepare_site.py` (Qt's loader page as `index.html`, a
+phone viewport, and `coi-serviceworker` for cross-origin isolation), runs
+`web/smoke_test.py` (headless Chromium at desktop and phone-landscape size:
+the page must be cross-origin isolated, report no uncaught error and draw the
+UI) and publishes the result to the `gh-pages` branch. To serve it, enable
+GitHub Pages for the repository with source *Deploy from a branch*,
+`gh-pages`, `/ (root)`; the site is then at
+`https://<owner>.github.io/<repository>/`.
+
+Local test of a build directory:
+
+```bash
+python3 web/prepare_site.py <wasm build dir> site
+pip install playwright pillow && python -m playwright install chromium
+python3 web/smoke_test.py site smoke.png
+```

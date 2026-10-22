@@ -1,0 +1,57 @@
+# Open SoC Explorer: build the WebAssembly version, test it in a headless
+# browser and publish it to the gh-pages branch (served by GitHub Pages at
+# https://<owner>.github.io/<repo>/ once Pages is enabled for that branch).
+name: Web version (GitHub Pages)
+
+on:
+  push:
+    branches:
+      - main
+      - feature/web
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/wasm-release.yml
+
+  test-and-publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/download-artifact@v4
+      with:
+        name: Release_wasm
+        path: wasm
+
+    - name: Assemble the site
+      run: python3 web/prepare_site.py wasm site
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Browser smoke test (headless Chromium)
+      run: |
+        pip install playwright pillow
+        python -m playwright install --with-deps chromium
+        python web/smoke_test.py site smoke.png
+
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: web-smoke-screenshots
+        path: smoke-*.png
+
+    - name: Publish to the gh-pages branch
+      if: github.event_name != 'pull_request'
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: site
+        publish_branch: gh-pages
+        force_orphan: true
+        commit_message: "web: ${{ github.sha }}"

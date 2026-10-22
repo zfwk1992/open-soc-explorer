@@ -112,3 +112,5 @@ jobs:
           Ripes.js
           Ripes.worker.js
           qtloader.js
+          Ripes.html
+          qtlogo.svg

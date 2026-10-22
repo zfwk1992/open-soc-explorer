@@ -72,6 +72,17 @@ Qt Charts is not available under the LGPL. As a consequence:
 6. Generated traces and screenshots of the application are project
    documentation and are covered by the repository license.
 
+## 4b. Web version
+
+The web site (`web/`, published to the `gh-pages` branch) contains the
+WebAssembly build of this repository plus `web/coi-serviceworker.min.js`
+from [coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker)
+0.1.7 (npm), MIT, © 2021 Guido Zuidhof (`web/LICENSE.coi-serviceworker`). It
+makes the page cross-origin isolated on static hosts, which the
+multithreaded WebAssembly build needs. The Qt for WebAssembly runtime is
+linked statically into `Ripes.wasm` (LGPL-3.0 / GPL-3.0 for Qt Charts, see
+§3); the corresponding source is this repository.
+
 ## 5. External simulators
 
 ### 5.1 gem5 (integrated as an external tool)
