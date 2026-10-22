@@ -62,19 +62,32 @@ def run(site, shot):
             page = context.new_page()
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
-            page.on("console", lambda m: print(f"[{label}] {m.type}: {m.text}")
-                    if m.type in ("error", "warning") else None)
+            page.on("console", lambda m: print(f"[{label}] {m.type}: {m.text}"))
             page.goto(url)
             isolated = page.evaluate("self.crossOriginIsolated")
-            # Qt creates its canvas once the module is instantiated; give the
-            # application time to start and draw its first frames.
-            page.wait_for_function(
-                "() => { const s = document.querySelector('#screen');"
-                " return !!(document.querySelector('canvas') ||"
-                " (s && s.shadowRoot && s.shadowRoot.querySelector('canvas')) ||"
-                " document.querySelector('[aria-label]')); }",
-                timeout=180000)
+            # Qt draws into canvases that may live inside shadow roots; look
+            # for one recursively. Give the application time to start.
+            find_canvas = """() => {
+                const walk = (root) => {
+                  for (const el of root.querySelectorAll('*')) {
+                    if (el.tagName === 'CANVAS' && el.width > 100) return true;
+                    if (el.shadowRoot && walk(el.shadowRoot)) return true;
+                  }
+                  return false;
+                };
+                return walk(document);
+            }"""
+            found = False
+            for _ in range(36):  # up to 3 minutes
+                if page.evaluate(find_canvas):
+                    found = True
+                    break
+                page.wait_for_timeout(5000)
             page.wait_for_timeout(15000)
+            print(f"[{label}] canvas found: {found}; body: "
+                  f"{page.evaluate('document.body.innerText')[:300]!r}")
+            if not found:
+                failures.append(f"{label}: no Qt canvas after 3 minutes")
             png = page.screenshot(path=shot.replace(".png", f"-{label}.png"))
             spread = picture_spread(png)
             print(f"[{label}] crossOriginIsolated={isolated} "
