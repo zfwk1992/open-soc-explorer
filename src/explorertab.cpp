@@ -5,6 +5,7 @@
 #include <QAction>
 #include <QComboBox>
 #include <QFileDialog>
+#include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -24,6 +25,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <map>
 
@@ -33,9 +35,12 @@
 #include "explorer/modelprofile.h"
 #include "explorer/tracejson.h"
 #include "explorer/tracerecorder.h"
+#include "explorerwidgets.h"
 #include "processorhandler.h"
 #include "ripessettings.h"
 #include "systemview.h"
+#include "theme/painting.h"
+#include "theme/theme.h"
 
 namespace Ripes {
 
@@ -61,12 +66,23 @@ QColor slotColor(TraceReplay::SlotKind kind, bool held, bool wrongPath) {
   return QColor(128, 128, 128, 25);
 }
 
-QString rgba(const QColor &c) {
-  return QString("rgba(%1,%2,%3,%4)")
-      .arg(c.red())
-      .arg(c.green())
-      .arg(c.blue())
-      .arg(c.alpha());
+/// A horizontal meter in Qt rich text (a two-cell table) for a ratio
+/// computed from recorded counts.
+QString meterHtml(double fraction, const QColor &color) {
+  const auto &t = Theme::tokens();
+  const QString track = Theme::mix(t.base, t.border, 0.85).name();
+  const int pct = std::clamp(int(std::lround(fraction * 100)), 0, 100);
+  QString cells;
+  if (pct > 0)
+    cells += QString("<td width='%1%' bgcolor='%2'></td>")
+                 .arg(pct)
+                 .arg(color.name());
+  if (pct < 100)
+    cells +=
+        QString("<td width='%1%' bgcolor='%2'></td>").arg(100 - pct).arg(track);
+  return "<table width='100%' cellspacing='0' cellpadding='0' "
+         "style='font-size:5pt'><tr>" +
+         cells + "</tr></table>";
 }
 
 QString signedString(quint64 v, unsigned xlen) {
@@ -185,6 +201,18 @@ QVariant InstructionTimelineModel::data(const QModelIndex &index,
   }
   case Qt::TextAlignmentRole:
     return Qt::AlignCenter;
+  case TimelineRole::Stage:
+    return stage;
+  case TimelineRole::ColorIndex:
+    return stage >= 0 ? static_cast<int>(stages[stage].index) : 0;
+  case TimelineRole::Held:
+    return held;
+  case TimelineRole::WrongPath:
+    return squashed;
+  case TimelineRole::End:
+    return stage < 0 && cycle == inst->endCycle ? (squashed ? 2 : 1) : 0;
+  case TimelineRole::CurrentCycle:
+    return cycle == m_currentCycle;
   case Qt::ToolTipRole: {
     QString tip = Trace::instanceName(id) + "  " + inst->assembly +
                   QString("\ncycle %1: ").arg(cycle);
@@ -221,6 +249,13 @@ QVariant InstructionTimelineModel::headerData(int section,
     return QVariant();
   if (role == Qt::DisplayRole)
     return QString("%1  %2").arg(Trace::instanceName(inst->id), inst->assembly);
+  if (role == Qt::ForegroundRole) {
+    if (inst->outcome == TraceReplay::Outcome::Squashed)
+      return Theme::tokens().bad;
+    if (inst->outcome == TraceReplay::Outcome::InFlight)
+      return Theme::tokens().muted;
+    return QVariant();
+  }
   if (role == Qt::ToolTipRole) {
     switch (inst->outcome) {
     case TraceReplay::Outcome::Retired:
@@ -263,6 +298,35 @@ ExplorerTab::ExplorerTab(QToolBar *toolbar, TraceRecorder *recorder,
     updateCycleViews();
     updateExplanation();
   });
+  connect(Theme::Notifier::get(), &Theme::Notifier::changed, this,
+          &ExplorerTab::applyTheme);
+  applyTheme();
+}
+
+void ExplorerTab::applyTheme() {
+  const auto &t = Theme::tokens();
+  using Theme::Glyph;
+  for (auto [button, glyph] : m_controlButtons) {
+    const bool play = button == m_playButton;
+    const QColor color = play && Theme::isGame() ? t.accentText : t.text;
+    button->setIcon(Theme::glyphIcon(
+        play && button->isChecked() ? Glyph::Pause : static_cast<Glyph>(glyph),
+        color, play ? 22 : 18));
+  }
+  m_followButton->setIcon(Theme::glyphIcon(Glyph::Follow, t.ok, 16));
+  const QString css =
+      QString("h4 { color: %1; } h3 { color: %2; }")
+          .arg((Theme::isGame() ? t.accent : t.text).name(), t.text.name());
+  for (auto *browser : {m_explanation, m_statistics, m_componentDetail})
+    browser->document()->setDefaultStyleSheet(css);
+  m_strip->update();
+  m_legend->update();
+  m_timeline->viewport()->update();
+  m_timeline->verticalHeader()->viewport()->update();
+  updateBanner();
+  updateStatistics();
+  updateExplanation();
+  updatePipelineStrip();
 }
 
 ExplorerTab::~ExplorerTab() = default;
@@ -318,31 +382,39 @@ void ExplorerTab::setupToolbar() {
 
 void ExplorerTab::setupUi() {
   auto *root = new QVBoxLayout(this);
+  root->setContentsMargins(8, 6, 8, 6);
+  root->setSpacing(6);
 
-  m_banner = new QLabel(this);
+  m_banner = new HudBanner(this);
   m_banner->setObjectName("explorerBanner");
-  m_banner->setWordWrap(true);
-  m_banner->setTextFormat(Qt::RichText);
-  m_banner->setFrameShape(QFrame::StyledPanel);
-  m_banner->setMargin(6);
   root->addWidget(m_banner);
 
-  // Playback controls
-  auto *bar = new QHBoxLayout();
-  auto makeButton = [&](QStyle::StandardPixmap icon, const QString &tip) {
-    auto *b = new QToolButton(this);
-    b->setIcon(style()->standardIcon(icon));
+  // Playback controls ("controller bar"). They replay the recording; they
+  // never drive the simulator.
+  auto *controls = new QFrame(this);
+  controls->setObjectName("explorerControls");
+  auto *bar = new QHBoxLayout(controls);
+  bar->setContentsMargins(8, 4, 8, 4);
+  bar->setSpacing(6);
+  using Theme::Glyph;
+  auto makeButton = [&](Glyph glyph, const QString &tip) {
+    auto *b = new QToolButton(controls);
+    b->setObjectName("explorerControl");
     b->setToolTip(tip);
+    b->setIconSize(QSize(18, 18));
+    b->setAutoRaise(true);
     bar->addWidget(b);
+    m_controlButtons.emplace_back(b, static_cast<int>(glyph));
     return b;
   };
-  auto *first = makeButton(QStyle::SP_MediaSkipBackward, "First cycle");
-  auto *prev = makeButton(QStyle::SP_MediaSeekBackward, "Previous cycle");
-  m_playButton =
-      makeButton(QStyle::SP_MediaPlay, "Play back the recorded trace");
+  auto *first = makeButton(Glyph::First, "First cycle");
+  auto *prev = makeButton(Glyph::Previous, "Previous cycle");
+  m_playButton = makeButton(Glyph::Play, "Play back the recorded trace");
+  m_playButton->setObjectName("explorerPlay");
+  m_playButton->setIconSize(QSize(22, 22));
   m_playButton->setCheckable(true);
-  auto *next = makeButton(QStyle::SP_MediaSeekForward, "Next cycle");
-  auto *last = makeButton(QStyle::SP_MediaSkipForward, "Last recorded cycle");
+  auto *next = makeButton(Glyph::Next, "Next cycle");
+  auto *last = makeButton(Glyph::Last, "Last recorded cycle");
   connect(first, &QToolButton::clicked, this, [this] {
     if (m_replay)
       setCycle(m_replay->firstCycle());
@@ -354,8 +426,7 @@ void ExplorerTab::setupUi() {
       setCycle(m_replay->lastCycle());
   });
   connect(m_playButton, &QToolButton::toggled, this, [this](bool play) {
-    m_playButton->setIcon(style()->standardIcon(play ? QStyle::SP_MediaPause
-                                                     : QStyle::SP_MediaPlay));
+    applyTheme(); // play/pause icon
     if (play) {
       m_followButton->setChecked(false);
       if (m_replay && m_cycle >= m_replay->lastCycle())
@@ -366,15 +437,21 @@ void ExplorerTab::setupUi() {
     }
   });
 
-  m_slider = new QSlider(Qt::Horizontal, this);
+  bar->addSpacing(6);
+  m_slider = new QSlider(Qt::Horizontal, controls);
+  m_slider->setToolTip("Recorded cycles: drag to replay any cycle");
   connect(m_slider, &QSlider::valueChanged, this,
           [this](int v) { setCycle(v); });
   bar->addWidget(m_slider, 1);
-  m_cycleLabel = new QLabel(this);
-  m_cycleLabel->setMinimumWidth(130);
+  m_cycleLabel = new QLabel(controls);
+  m_cycleLabel->setObjectName("explorerCycle");
+  m_cycleLabel->setFont(Theme::monoFont(13, true));
+  m_cycleLabel->setAlignment(Qt::AlignCenter);
+  m_cycleLabel->setMinimumWidth(150);
+  m_cycleLabel->setToolTip("Selected cycle / last recorded cycle");
   bar->addWidget(m_cycleLabel);
 
-  m_speed = new QComboBox(this);
+  m_speed = new QComboBox(controls);
   for (int cps : {1, 2, 5, 10, 25})
     m_speed->addItem(QString("%1 cycle%2/s").arg(cps).arg(cps == 1 ? "" : "s"),
                      1000 / cps);
@@ -384,8 +461,10 @@ void ExplorerTab::setupUi() {
           [this] { m_playTimer.setInterval(m_speed->currentData().toInt()); });
   bar->addWidget(m_speed);
 
-  m_followButton = new QToolButton(this);
+  m_followButton = new QToolButton(controls);
+  m_followButton->setObjectName("explorerFollow");
   m_followButton->setText("Follow simulator");
+  m_followButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   m_followButton->setCheckable(true);
   m_followButton->setChecked(true);
   m_followButton->setToolTip(
@@ -395,7 +474,7 @@ void ExplorerTab::setupUi() {
       setCycle(m_replay->lastCycle());
   });
   bar->addWidget(m_followButton);
-  root->addLayout(bar);
+  root->addWidget(controls);
 
   // Main area
   auto *mainSplitter = new QSplitter(Qt::Horizontal, this);
@@ -403,24 +482,14 @@ void ExplorerTab::setupUi() {
 
   auto *stripGroup = new QGroupBox("Pipeline at the selected cycle", left);
   auto *stripGroupLayout = new QVBoxLayout(stripGroup);
-  m_stripContainer = new QWidget(stripGroup);
-  m_stripLayout = new QVBoxLayout(m_stripContainer);
-  m_stripLayout->setContentsMargins(0, 0, 0, 0);
-  stripGroupLayout->addWidget(m_stripContainer);
-  auto *legend = new QLabel(
-      QString("<span style='background:%1'>&nbsp;instruction&nbsp;</span> "
-              "<span style='background:%2'>&nbsp;held (stall)&nbsp;</span> "
-              "<span style='background:%3'>&nbsp;stall bubble&nbsp;</span> "
-              "<span style='background:%4'>&nbsp;flushed / wrong path&nbsp;"
-              "</span>")
-          .arg(
-              rgba(slotColor(TraceReplay::SlotKind::Instruction, false, false)),
-              rgba(slotColor(TraceReplay::SlotKind::Instruction, true, false)),
-              rgba(slotColor(TraceReplay::SlotKind::StallBubble, false, false)),
-              rgba(
-                  slotColor(TraceReplay::SlotKind::FlushBubble, false, false))),
-      stripGroup);
-  stripGroupLayout->addWidget(legend);
+  stripGroupLayout->setSpacing(4);
+  m_strip = new PipelineStrip(stripGroup);
+  m_strip->setObjectName("explorerPipeline");
+  connect(m_strip, &PipelineStrip::instanceClicked, this,
+          [this](qint64 id) { selectInstance(id); });
+  stripGroupLayout->addWidget(m_strip);
+  m_legend = new StripLegend(stripGroup);
+  stripGroupLayout->addWidget(m_legend);
 
   auto *timelineGroup = new QGroupBox(
       "Instruction timeline (rows: dynamic instructions, columns: cycles; "
@@ -431,9 +500,11 @@ void ExplorerTab::setupUi() {
   m_timeline->setObjectName("explorerTimeline");
   m_timelineModel = new InstructionTimelineModel(this);
   m_timeline->setModel(m_timelineModel);
-  m_timeline->horizontalHeader()->setDefaultSectionSize(42);
+  m_timeline->setItemDelegate(new TimelineDelegate(m_timeline));
+  m_timeline->setShowGrid(false);
+  m_timeline->horizontalHeader()->setDefaultSectionSize(44);
   m_timeline->horizontalHeader()->setSectionResizeMode(QHeaderView::Fixed);
-  m_timeline->verticalHeader()->setDefaultSectionSize(22);
+  m_timeline->verticalHeader()->setDefaultSectionSize(24);
   m_timeline->setSelectionMode(QAbstractItemView::SingleSelection);
   m_timeline->setEditTriggers(QAbstractItemView::NoEditTriggers);
   connect(m_timeline, &QTableView::clicked, this,
@@ -458,6 +529,10 @@ void ExplorerTab::setupUi() {
   m_events->horizontalHeader()->setStretchLastSection(false);
   m_events->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
   m_events->verticalHeader()->setVisible(false);
+  m_events->verticalHeader()->setDefaultSectionSize(26);
+  m_events->setShowGrid(false);
+  m_events->setAlternatingRowColors(true);
+  m_events->setItemDelegateForColumn(5, new ChipDelegate(m_events));
   m_events->setEditTriggers(QAbstractItemView::NoEditTriggers);
   m_events->setSelectionBehavior(QAbstractItemView::SelectRows);
   connect(m_events, &QTableWidget::cellClicked, this, [this](int row, int) {
@@ -483,6 +558,9 @@ void ExplorerTab::setupUi() {
   m_registers->setHorizontalHeaderLabels(
       {"Register", "Alias", "Value", "Signed"});
   m_registers->verticalHeader()->setVisible(false);
+  m_registers->verticalHeader()->setDefaultSectionSize(24);
+  m_registers->setShowGrid(false);
+  m_registers->setAlternatingRowColors(true);
   m_registers->horizontalHeader()->setStretchLastSection(true);
   m_registers->setEditTriggers(QAbstractItemView::NoEditTriggers);
   m_sideTabs->addTab(m_registers, "Registers");
@@ -519,8 +597,11 @@ void ExplorerTab::setupUi() {
   m_systemView = new SystemView(m_sideTabs);
   m_sideTabs->addTab(m_systemView, "System");
 
+  m_sideTabs->setDocumentMode(false);
+  m_sideTabs->setUsesScrollButtons(true);
   mainSplitter->setStretchFactor(0, 3);
   mainSplitter->setStretchFactor(1, 2);
+  mainSplitter->setSizes({1000, 640});
   root->addWidget(mainSplitter, 1);
 
   updateExplanation();
@@ -565,9 +646,10 @@ void ExplorerTab::loadReplay(Trace::Trace trace) {
   updateStatistics();
   m_systemView->setTrace(m_replay->trace().header);
   const bool follow = !m_offline && m_followButton->isChecked();
-  m_cycle = std::clamp(follow ? m_replay->lastCycle() : m_cycle,
-                       m_replay->firstCycle(), m_replay->lastCycle());
-  setCycle(m_cycle);
+  const qint64 target = follow ? m_replay->lastCycle() : m_cycle;
+  // Following a simulator that advanced by one cycle shows the transition.
+  m_cycle = std::clamp(m_cycle, m_replay->firstCycle(), m_replay->lastCycle());
+  setCycle(target);
   updateCycleViews();
   updateExplanation();
 }
@@ -577,20 +659,25 @@ void ExplorerTab::setCycle(qint64 cycle) {
     return;
   cycle = std::clamp(cycle, m_replay->firstCycle(), m_replay->lastCycle());
   const bool changed = cycle != m_cycle;
+  if (changed)
+    m_previousCycle = m_cycle;
   m_cycle = cycle;
   m_slider->blockSignals(true);
   m_slider->setValue(static_cast<int>(cycle));
   m_slider->blockSignals(false);
   m_cycleLabel->setText(
-      QString("Cycle %1 / %2").arg(cycle).arg(m_replay->lastCycle()));
+      QString("CYCLE %1 / %2").arg(cycle).arg(m_replay->lastCycle()));
   m_timelineModel->setCurrentCycle(cycle);
   const int col = m_timelineModel->columnForCycle(cycle);
   const int row = std::max(0, m_timelineModel->rowForInstance(m_selected));
   if (m_timelineModel->rowCount() > 0)
     m_timeline->scrollTo(m_timelineModel->index(row, col),
                          QAbstractItemView::EnsureVisible);
-  if (changed)
+  if (changed) {
     updateCycleViews();
+    m_previousCycle = -1;
+    m_sinceCycleChange.start();
+  }
 }
 
 void ExplorerTab::selectInstance(qint64 id) {
@@ -615,56 +702,50 @@ void ExplorerTab::updatePipelineStrip() {
   if (!m_replay)
     return;
   const auto &stages = m_replay->trace().header.stages;
-  if (m_stageButtons.size() != stages.size()) {
-    // Hide the old buttons and show the new ones right away: deleteLater()
-    // and the layout's own show are both deferred to the event loop.
-    for (auto *b : m_stageButtons) {
-      b->hide();
-      b->deleteLater();
-    }
-    m_stageButtons.clear();
-    // Nested lane layouts are their own layout items; deleting them leaves
-    // the (already scheduled for deletion) buttons alone.
-    while (auto *item = m_stripLayout->takeAt(0))
-      delete item;
-    std::map<unsigned, QHBoxLayout *> lanes;
-    for (const auto &sd : stages) {
-      if (!lanes.count(sd.lane)) {
-        lanes[sd.lane] = new QHBoxLayout();
-        m_stripLayout->addLayout(lanes[sd.lane]);
-      }
-      auto *b = new QToolButton(m_stripContainer);
-      b->setToolButtonStyle(Qt::ToolButtonTextOnly);
-      b->setMinimumSize(120, 52);
-      b->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-      connect(b, &QToolButton::clicked, this, [this, b] {
-        const qint64 id = b->property("instance").toLongLong();
-        if (id >= 0)
-          selectInstance(id);
-      });
-      lanes[sd.lane]->addWidget(b);
-      b->setVisible(m_stripContainer->isVisible());
-      m_stageButtons.push_back(b);
-    }
+  std::vector<std::pair<unsigned, QString>> lanesAndNames;
+  std::vector<std::pair<int, QString>> legend;
+  for (const auto &sd : stages) {
+    lanesAndNames.emplace_back(sd.lane, sd.name);
+    if (sd.lane == stages.front().lane)
+      legend.emplace_back(static_cast<int>(sd.index), sd.name);
   }
+  if (m_strip->setStages(lanesAndNames))
+    m_legend->setStages(legend);
 
-  const auto pipeline = m_replay->pipelineAt(m_cycle);
-  for (size_t i = 0; i < stages.size() && i < pipeline.size(); ++i) {
-    const auto &slot = pipeline[i];
-    auto *b = m_stageButtons[i];
-    QString body;
-    bool wrongPath = false;
-    switch (slot.kind) {
-    case TraceReplay::SlotKind::Instruction: {
+  // Everything shown comes from the replayed trace at the selected cycle.
+  auto visualOf = [&](const TraceReplay::Slot &slot, size_t i) {
+    SlotVisual v;
+    v.kind = slot.kind;
+    v.stage = stages[i].name;
+    v.colorIndex = static_cast<int>(stages[i].index);
+    v.held = slot.held;
+    v.occupants = slot.occupants;
+    if (slot.kind == TraceReplay::SlotKind::Instruction) {
       const auto *inst = m_replay->instance(slot.instance);
-      body = inst ? inst->assembly : Trace::instanceName(slot.instance);
-      wrongPath = inst && inst->outcome == TraceReplay::Outcome::Squashed;
+      v.instance = slot.instance;
+      v.assembly = inst ? inst->assembly : Trace::instanceName(slot.instance);
+      v.wrongPath = inst && inst->outcome == TraceReplay::Outcome::Squashed;
+      v.selected = slot.instance == m_selected;
+    }
+    return v;
+  };
+
+  const auto &tiles = m_strip->tiles();
+  const auto pipeline = m_replay->pipelineAt(m_cycle);
+  for (size_t i = 0;
+       i < stages.size() && i < pipeline.size() && i < tiles.size(); ++i) {
+    const auto &slot = pipeline[i];
+    const SlotVisual v = visualOf(slot, i);
+    auto *b = tiles[i];
+    QString body;
+    switch (slot.kind) {
+    case TraceReplay::SlotKind::Instruction:
+      body = v.assembly;
       if (slot.held)
         body += "  (held)";
       if (slot.occupants > 1)
         body += QString("\n+%1 more").arg(slot.occupants - 1);
       break;
-    }
     case TraceReplay::SlotKind::StallBubble:
       body = "stall bubble";
       break;
@@ -679,18 +760,71 @@ void ExplorerTab::updatePipelineStrip() {
     b->setProperty("instance", slot.kind == TraceReplay::SlotKind::Instruction
                                    ? slot.instance
                                    : qint64(-1));
-    const bool selected = slot.kind == TraceReplay::SlotKind::Instruction &&
-                          slot.instance == m_selected;
-    b->setStyleSheet(QString("QToolButton { background-color: %1; border: %2; "
-                             "border-radius: 4px; padding: 4px; }")
-                         .arg(rgba(slotColor(slot.kind, slot.held, wrongPath)),
-                              selected ? "2px solid palette(highlight)"
-                                       : "1px solid palette(mid)"));
-    b->setToolTip(slot.kind == TraceReplay::SlotKind::Instruction
-                      ? Trace::instanceName(slot.instance) +
-                            " - click to explain this instruction"
-                      : QString());
+    b->setVisual(v);
+    b->setToolTip(
+        slot.kind == TraceReplay::SlotKind::Instruction
+            ? Trace::instanceName(slot.instance) + "  " + v.assembly +
+                  (v.wrongPath ? "\nwrong path: squashed later" : QString()) +
+                  "\nclick to explain this instruction"
+            : QString());
   }
+
+  // Transition between two consecutive recorded cycles. Moves are those of
+  // the trace: an instance's stage in the previous and the selected cycle,
+  // fetches (not in the pipeline before) and retirements/squashes recorded
+  // for the selected cycle. Skipped while the simulator runs, when cycles
+  // change faster than the transition, or with reduced motion.
+  if (m_previousCycle < 0)
+    return;
+  const qint64 from = m_previousCycle;
+  const bool animate =
+      Theme::animationsEnabled() && !ProcessorHandler::isRunning() &&
+      std::abs(m_cycle - from) == 1 && m_strip->isVisible() &&
+      (!m_sinceCycleChange.isValid() ||
+       m_sinceCycleChange.elapsed() > Theme::kTransitionMs + 60) &&
+      from >= m_replay->firstCycle() && from <= m_replay->lastCycle();
+  if (!animate) {
+    m_strip->stopAnimation();
+    return;
+  }
+  std::vector<PipelineStrip::Move> moves;
+  for (size_t i = 0; i < pipeline.size() && i < tiles.size(); ++i) {
+    const auto &slot = pipeline[i];
+    if (slot.kind != TraceReplay::SlotKind::Instruction)
+      continue;
+    const int src = m_replay->stageOf(slot.instance, from);
+    PipelineStrip::Move m;
+    m.visual = tiles[i]->visual();
+    m.to = static_cast<int>(i);
+    if (src >= 0 && src != static_cast<int>(i)) {
+      m.kind = PipelineStrip::Move::Slide;
+      m.from = src;
+      moves.push_back(m);
+    } else if (src < 0) {
+      m.kind = PipelineStrip::Move::Enter;
+      moves.push_back(m);
+    }
+  }
+  if (m_cycle == from + 1) {
+    const auto before = m_replay->pipelineAt(from);
+    for (size_t i = 0; i < before.size() && i < tiles.size(); ++i) {
+      const auto &slot = before[i];
+      if (slot.kind != TraceReplay::SlotKind::Instruction)
+        continue;
+      const auto *inst = m_replay->instance(slot.instance);
+      if (!inst || inst->endCycle != m_cycle ||
+          inst->outcome == TraceReplay::Outcome::InFlight ||
+          m_replay->stageOf(slot.instance, m_cycle) >= 0)
+        continue;
+      PipelineStrip::Move m;
+      m.kind = PipelineStrip::Move::Exit;
+      m.from = static_cast<int>(i);
+      m.visual = visualOf(slot, i);
+      m.retired = inst->outcome == TraceReplay::Outcome::Retired;
+      moves.push_back(m);
+    }
+  }
+  m_strip->animate(std::move(moves));
 }
 
 void ExplorerTab::updateEvents() {
@@ -739,7 +873,7 @@ void ExplorerTab::updateRegisters() {
     rows += rf.names.size();
   m_registers->setRowCount(rows);
   int row = 0;
-  const QColor changedColor(245, 166, 35, 110);
+  const QColor changedColor = Theme::withAlpha(Theme::tokens().warn, 90);
   for (const auto &rf : h.registerFiles) {
     const auto itNow = now.find(rf.name);
     const auto itBefore = before.find(rf.name);
@@ -786,8 +920,13 @@ void ExplorerTab::updateExplanation() {
 }
 
 void ExplorerTab::updateBanner() {
+  const auto &tk = Theme::tokens();
   if (!m_replay) {
     m_banner->setText("No trace recorded yet.");
+    m_banner->setBadges(
+        {{"Trace", "No trace recorded yet", tk.muted,
+          "Load a program and clock the processor to record a trace."}},
+        QString());
     return;
   }
   const auto &t = m_replay->trace();
@@ -825,6 +964,50 @@ void ExplorerTab::updateBanner() {
                       " &nbsp;·&nbsp; <i>no pipeline stage information in "
                       "this trace</i>");
   m_banner->setToolTip(s.fidelityNote);
+
+  // The same facts as badges.
+  QString shortMode = m_offline                 ? "Offline replay"
+                      : m_recorder->isEnabled() ? "Live trace"
+                                                : "Recording disabled";
+  QColor statusColor = tk.info;
+  if (c.truncated)
+    statusColor = tk.bad;
+  else if (c.programFinished)
+    statusColor = c.startsAtReset ? tk.ok : tk.warn;
+  QString traceTip =
+      m_offline ? "Offline replay of " + m_offlineFile : shortMode;
+  traceTip += "\n" + QString("%1 events, cycles %2 to %3")
+                         .arg(t.events.size())
+                         .arg(m_replay->firstCycle())
+                         .arg(m_replay->lastCycle());
+  std::vector<HudBanner::Badge> badges = {
+      {"Engine", (s.engine + " " + s.engineVersion).trimmed(), tk.accent,
+       "Simulation engine that produced this trace (adapter " + s.adapter +
+           " " + s.adapterVersion + ")"},
+      {"Model", QString("%1 (%2)").arg(s.modelName, s.model), tk.accent2,
+       "Model implementation: " + s.sourceFile},
+      {"Fidelity", s.fidelity, Theme::fidelityColor(s.fidelity),
+       s.fidelityNote},
+      {"Clock domain", t.header.clockDomain, tk.info,
+       t.header.clockDomainDescription.isEmpty()
+           ? QString("Cycles of the model's clock domain")
+           : t.header.clockDomainDescription}};
+  if (t.header.ticksPerCycle > 0)
+    badges.push_back({"Time base",
+                      QString("1 cycle = %1 %2")
+                          .arg(t.header.ticksPerCycle)
+                          .arg(t.header.tickUnit),
+                      tk.info, "Engine ticks per cycle of the clock domain"});
+  badges.push_back(
+      {"Trace", shortMode + " · " + completeness, statusColor, traceTip});
+  if (t.header.stages.empty())
+    badges.push_back({"Pipeline", "no stage information", tk.muted,
+                      "This trace has no pipeline stage information"});
+  // First sentence of the fidelity note (the full note is in the tooltips).
+  QString note = s.fidelityNote.section(". ", 0, 0).trimmed();
+  if (note.endsWith('.'))
+    note.chop(1);
+  m_banner->setBadges(badges, note.isEmpty() ? QString() : "ⓘ " + note);
 }
 
 void ExplorerTab::updateStatistics() {
@@ -832,34 +1015,86 @@ void ExplorerTab::updateStatistics() {
     return;
   const auto st = m_replay->stats();
   const auto &t = m_replay->trace();
-  QString html = "<h3>Statistics from the recorded trace</h3><table "
-                 "cellpadding='3'>";
-  auto row = [&](const QString &k, const QString &v) {
-    html +=
-        "<tr><td>" + k + "</td><td align='right'><b>" + v + "</b></td></tr>";
+  const auto &tk = Theme::tokens();
+  const qint64 fetched = static_cast<qint64>(m_replay->instances().size());
+
+  // Headline numbers as tiles.
+  auto tile = [&](const QString &value, const QString &label,
+                  const QColor &color) {
+    return QString("<td align='center' bgcolor='%1' width='33%'>"
+                   "<span style='font-size:18pt; font-weight:700; "
+                   "color:%2'>%3</span><br><span style='color:%4; "
+                   "font-size:8pt; font-weight:600'>%5</span></td>")
+        .arg(Theme::mix(tk.card, color, tk.dark ? 0.1 : 0.06).name(),
+             color.name(), value, tk.muted.name(), label);
+  };
+  QString html = "<h3>Statistics from the recorded trace</h3>";
+  html += "<table width='100%' cellspacing='6' cellpadding='8'><tr>" +
+          tile(QString::number(st.cycles), "CYCLES", tk.accent) +
+          tile(QString::number(st.retired), "RETIRED", tk.ok) +
+          tile(st.retired ? QString::number(st.cpi, 'f', 2) : "-", "CPI",
+               tk.accent2) +
+          "</tr></table>";
+
+  // Counts; ratios of two recorded counts also get a meter.
+  html += "<table width='100%' cellpadding='3' cellspacing='0'>";
+  auto row = [&](const QString &k, const QString &v, double num = -1,
+                 double den = 0, const QColor &color = QColor(),
+                 const QString &of = QString()) {
+    html += "<tr><td>" + k + "</td><td align='right'><b>" + v + "</b></td>";
+    if (num >= 0 && den > 0)
+      html += "<td width='34%'>" + meterHtml(num / den, color) +
+              "</td><td><small style='color:" + tk.muted.name() + "'>" +
+              QString("%1 % of %2").arg(100.0 * num / den, 0, 'f', 0).arg(of) +
+              "</small></td>";
+    else
+      html += "<td></td><td></td>";
+    html += "</tr>";
   };
   row("Cycles", QString::number(st.cycles));
-  row("Instructions retired", QString::number(st.retired));
+  row("Instructions retired", QString::number(st.retired), double(st.retired),
+      double(fetched), tk.ok, "fetched");
   row("CPI", st.retired ? QString::number(st.cpi, 'f', 3) : "-");
-  row("Stall cycles", QString::number(st.stallCycles));
+  row("Stall cycles", QString::number(st.stallCycles), double(st.stallCycles),
+      double(st.cycles), tk.warn, "cycles");
   row("Stall bubbles inserted", QString::number(st.stallBubbles));
-  row("Squashed instructions", QString::number(st.squashed));
+  row("Squashed instructions", QString::number(st.squashed),
+      double(st.squashed), double(fetched), tk.bad, "fetched");
   row("Conditional branches (taken)",
-      QString("%1 (%2)").arg(st.retiredBranches).arg(st.retiredTakenBranches));
+      QString("%1 (%2)").arg(st.retiredBranches).arg(st.retiredTakenBranches),
+      double(st.retiredTakenBranches), double(st.retiredBranches), tk.accent2,
+      "taken");
   row("Register writes", QString::number(st.registerWrites));
   row("Data memory reads / writes",
       QString("%1 / %2").arg(st.memoryReads).arg(st.memoryWrites));
   row("Events", QString::number(t.events.size()));
   html += "</table>";
+  html += QString("<p style='color:%1'><small>Meters show the ratio of two "
+                  "counts of this trace (fetched = dynamic instructions "
+                  "recorded).</small></p>")
+              .arg(tk.muted.name());
+  auto yesNo = [&](bool good, const QString &text) {
+    return QString("<span style='color:%1'>%2</span> %3")
+        .arg((good ? tk.ok : tk.bad).name(), good ? "✓" : "✗", text);
+  };
   html += "<h4>Trace completeness</h4><ul>";
-  html += QString("<li>Starts at reset: %1</li>")
-              .arg(t.completeness.startsAtReset ? "yes" : "no");
-  html += QString("<li>Truncated: %1</li>")
-              .arg(t.completeness.truncated
-                       ? "yes (" + t.completeness.truncationReason + ")"
-                       : QString("no"));
-  html += QString("<li>Program finished: %1</li>")
-              .arg(t.completeness.programFinished ? "yes" : "no");
+  html += "<li>" +
+          yesNo(t.completeness.startsAtReset,
+                QString("Starts at reset: %1")
+                    .arg(t.completeness.startsAtReset ? "yes" : "no")) +
+          "</li>";
+  html += "<li>" +
+          yesNo(!t.completeness.truncated,
+                QString("Truncated: %1")
+                    .arg(t.completeness.truncated
+                             ? "yes (" + t.completeness.truncationReason + ")"
+                             : QString("no"))) +
+          "</li>";
+  html += "<li>" +
+          yesNo(t.completeness.programFinished,
+                QString("Program finished: %1")
+                    .arg(t.completeness.programFinished ? "yes" : "no")) +
+          "</li>";
   html += "</ul><h4>Caveats</h4><ul>";
   for (const auto &cav : t.completeness.caveats)
     html += "<li>" + cav.toHtmlEscaped() + "</li>";

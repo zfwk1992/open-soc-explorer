@@ -3,6 +3,7 @@
 #pragma once
 
 #include <QAbstractTableModel>
+#include <QElapsedTimer>
 #include <QTimer>
 
 #include <memory>
@@ -28,6 +29,9 @@ class QVBoxLayout;
 namespace Ripes {
 
 class SystemView;
+class HudBanner;
+class PipelineStrip;
+class StripLegend;
 namespace Explorer {
 class TraceRecorder;
 }
@@ -107,6 +111,7 @@ private:
   void updateExplanation();
   void updateStatistics();
   void rebuildComponentTree();
+  void applyTheme();
   bool isDark() const;
 
   Explorer::TraceRecorder *m_recorder = nullptr;
@@ -118,18 +123,23 @@ private:
   bool m_dirty = true;
   qint64 m_cycle = 0;
   qint64 m_selected = -1;
+  /// Cycle shown before the last change, for the strip transition.
+  qint64 m_previousCycle = -1;
+  /// Time since the last cycle change; transitions are skipped when cycles
+  /// change faster than a transition takes.
+  QElapsedTimer m_sinceCycleChange;
 
-  QLabel *m_banner = nullptr;
+  HudBanner *m_banner = nullptr;
   QLabel *m_cycleLabel = nullptr;
   QSlider *m_slider = nullptr;
+  std::vector<std::pair<QToolButton *, int>> m_controlButtons;
   QToolButton *m_playButton = nullptr;
   QComboBox *m_speed = nullptr;
   QToolButton *m_followButton = nullptr;
   QTimer m_playTimer;
 
-  QWidget *m_stripContainer = nullptr;
-  QVBoxLayout *m_stripLayout = nullptr;
-  std::vector<QToolButton *> m_stageButtons;
+  PipelineStrip *m_strip = nullptr;
+  StripLegend *m_legend = nullptr;
 
   QTableView *m_timeline = nullptr;
   InstructionTimelineModel *m_timelineModel = nullptr;
