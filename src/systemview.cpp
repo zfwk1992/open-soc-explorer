@@ -502,7 +502,7 @@ bool SystemView::eventFilter(QObject *watched, QEvent *event) {
     if (wheel->modifiers() & Qt::ControlModifier) {
       const qreal factor = std::pow(1.15, wheel->angleDelta().y() / 120.0);
       m_view->scale(factor, factor);
-      m_autoFit = false;
+      setAutoFit(false);
       return true;
     }
   }
@@ -511,6 +511,16 @@ bool SystemView::eventFilter(QObject *watched, QEvent *event) {
       (event->type() == QEvent::Resize || event->type() == QEvent::Show))
     fitTopology();
   return QWidget::eventFilter(watched, event);
+}
+
+void SystemView::setAutoFit(bool on) {
+  m_autoFit = on;
+  // While the topology is fitted to the view, scroll bars are off: with
+  // them, fitting could make them appear and disappear in turn, each
+  // change resizing the viewport and fitting again.
+  const auto policy = on ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded;
+  m_view->setHorizontalScrollBarPolicy(policy);
+  m_view->setVerticalScrollBarPolicy(policy);
 }
 
 void SystemView::fitTopology() {
@@ -805,7 +815,7 @@ void SystemView::rebuild() {
   m_view->resetTransform();
   m_scene->setSceneRect(
       m_scene->itemsBoundingRect().adjusted(-20, -20, 20, 20));
-  m_autoFit = true;
+  setAutoFit(true);
   fitTopology();
   showDetails();
 }

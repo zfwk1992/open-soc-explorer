@@ -42,6 +42,7 @@ private:
   void rebuild();
   void showDetails();
   void fitTopology();
+  void setAutoFit(bool on);
 
   Trace::TraceHeader m_header;
   QString m_selected;

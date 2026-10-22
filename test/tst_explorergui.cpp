@@ -90,7 +90,7 @@ private:
 class DemoRecorder {
 public:
   DemoRecorder(QWidget *window, const QString &dir)
-      : m_window(window), m_dir(dir),
+      : m_window(window), m_dir(dir), m_size(window->size()),
         m_pointer(window->width() / 2, window->height() / 2) {
     QDir().mkpath(dir);
     m_clock.install();
@@ -132,8 +132,11 @@ private:
     QCoreApplication::processEvents();
     m_clock.step(kFrameMs);
     QCoreApplication::processEvents();
-    QImage img =
-        m_window->grab().toImage().convertToFormat(QImage::Format_RGB32);
+    // Every frame has the size of the first (the encoder needs one size).
+    QImage img = m_window->grab()
+                     .toImage()
+                     .convertToFormat(QImage::Format_RGB32)
+                     .copy(QRect(QPoint(0, 0), m_size));
     QPainter p(&img);
     p.setRenderHint(QPainter::Antialiasing);
     for (auto *w : m_overlays)
@@ -183,6 +186,7 @@ private:
   }
 
   QWidget *m_window;
+  QSize m_size;
   QList<QWidget *> m_overlays;
   QString m_dir;
   QPointF m_pointer;
