@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: MIT
 // Part of Open SoC Explorer: end-to-end test of the Explorer and Missions tabs
 // in the real main window. Set OSX_SCREENSHOT_DIR to save screenshots.
+#include <QAbstractAnimation>
+#include <QAbstractButton>
+#include <QAction>
 #include <QApplication>
 #include <QDir>
 #include <QGraphicsItem>
 #include <QGraphicsView>
 #include <QLabel>
 #include <QListWidget>
+#include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSplitter>
@@ -15,6 +20,7 @@
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTextBrowser>
+#include <QToolBar>
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QtTest/QTest>
@@ -48,6 +54,131 @@ const char *const kIsolatedSettings[] = {
     RIPES_SETTING_OSX_MISSION_STEPS, RIPES_SETTING_OSX_MISSIONS_COMPLETED,
     RIPES_SETTING_OSX_THEME, RIPES_SETTING_OSX_REDUCED_MOTION,
     RIPES_SETTING_COLORSCHEME};
+
+/// Animation driver with a virtual clock for the demo recording: Qt's
+/// animations advance only when a frame is taken, so that the video shows
+/// them at their real duration however long grabbing a frame takes.
+class FrameClock : public QAnimationDriver {
+public:
+  void step(qint64 ms) {
+    m_ms += ms;
+    if (isRunning())
+      advance();
+  }
+  qint64 elapsed() const override { return m_ms - m_startMs; }
+
+protected:
+  void start() override {
+    m_startMs = m_ms;
+    QAnimationDriver::start();
+  }
+
+private:
+  qint64 m_ms = 0;
+  qint64 m_startMs = 0;
+};
+
+/// Records the main window as PNG frames (25 per second of virtual time)
+/// with a drawn pointer, click ripples and captions for the demo video.
+/// The window content is the real application; only the pointer, ripple and
+/// caption are drawn on top of the frames.
+class DemoRecorder {
+public:
+  DemoRecorder(QWidget *window, const QString &dir)
+      : m_window(window), m_dir(dir),
+        m_pointer(window->width() / 2, window->height() / 2) {
+    QDir().mkpath(dir);
+    m_clock.install();
+  }
+  ~DemoRecorder() { m_clock.uninstall(); }
+
+  void caption(const QString &text) { m_caption = text; }
+  void hold(int ms) {
+    for (int t = 0; t < ms; t += kFrameMs)
+      frame();
+  }
+  QPoint centerOf(const QWidget *w) const {
+    return w->mapTo(m_window, w->rect().center());
+  }
+  void moveTo(const QPoint &target, int ms = 520) {
+    const QPointF from = m_pointer;
+    const int n = std::max(1, ms / kFrameMs);
+    for (int i = 1; i <= n; ++i) {
+      const qreal t = qreal(i) / n;
+      const qreal e = t < 0.5 ? 2 * t * t : 1 - std::pow(-2 * t + 2, 2) / 2;
+      m_pointer = from + (QPointF(target) - from) * e;
+      frame();
+    }
+  }
+  void moveTo(const QWidget *w, int ms = 520) { moveTo(centerOf(w), ms); }
+  /// Shows a click at the pointer; the caller performs the action.
+  void click() {
+    m_rippleFrames = 8;
+    hold(2 * kFrameMs);
+  }
+  int frames() const { return m_index; }
+
+private:
+  static constexpr int kFrameMs = 40;
+
+  void frame() {
+    QCoreApplication::processEvents();
+    m_clock.step(kFrameMs);
+    QCoreApplication::processEvents();
+    QImage img =
+        m_window->grab().toImage().convertToFormat(QImage::Format_RGB32);
+    QPainter p(&img);
+    p.setRenderHint(QPainter::Antialiasing);
+    if (!m_caption.isEmpty()) {
+      QFont f = QApplication::font();
+      f.setPointSizeF(f.pointSizeF() * 1.25);
+      f.setBold(true);
+      p.setFont(f);
+      const QFontMetrics fm(f);
+      const QRect r(0, 0, fm.horizontalAdvance(m_caption) + 44,
+                    fm.height() + 20);
+      const QRect box = r.translated((img.width() - r.width()) / 2,
+                                     img.height() - r.height() - 26);
+      p.setPen(QPen(QColor(56, 198, 255, 200), 1.5));
+      p.setBrush(QColor(8, 12, 24, 215));
+      p.drawRoundedRect(box, 14, 14);
+      p.setPen(QColor(240, 245, 255));
+      p.drawText(box, Qt::AlignCenter, m_caption);
+    }
+    if (m_rippleFrames > 0) {
+      const qreal t = 1.0 - m_rippleFrames / 8.0;
+      p.setPen(QPen(QColor(56, 198, 255, int(230 * (1 - t))), 3));
+      p.setBrush(Qt::NoBrush);
+      p.drawEllipse(m_pointer, 8 + 22 * t, 8 + 22 * t);
+      --m_rippleFrames;
+    }
+    QPainterPath arrow;
+    const QPointF o = m_pointer;
+    arrow.moveTo(o);
+    arrow.lineTo(o + QPointF(0, 21));
+    arrow.lineTo(o + QPointF(5.5, 16));
+    arrow.lineTo(o + QPointF(9.5, 24.5));
+    arrow.lineTo(o + QPointF(13, 23));
+    arrow.lineTo(o + QPointF(9, 14.5));
+    arrow.lineTo(o + QPointF(16, 14.5));
+    arrow.closeSubpath();
+    p.setPen(QPen(QColor(10, 14, 24), 1.6));
+    p.setBrush(QColor(255, 255, 255));
+    p.drawPath(arrow);
+    p.end();
+    img.save(
+        QString("%1/frame_%2.png").arg(m_dir).arg(m_index++, 5, 10, QChar('0')),
+        "PNG", 85);
+  }
+
+  QWidget *m_window;
+  QString m_dir;
+  QPointF m_pointer;
+  QString m_caption;
+  int m_rippleFrames = 0;
+  int m_index = 0;
+  FrameClock m_clock;
+};
 } // namespace
 
 class tst_explorergui : public QObject {
@@ -81,6 +212,7 @@ private slots:
   void tst_systemViewRipes();
   void tst_gem5TraceInExplorer();
   void tst_themes();
+  void tst_demoVideo();
   void cleanupTestCase();
 };
 
@@ -564,6 +696,221 @@ void tst_explorergui::tst_themes() {
   QVERIFY(!Theme::animationsEnabled());
   QVERIFY(trigger("Reduce motion"));
   QVERIFY(Theme::animationsEnabled());
+}
+
+// Opt-in: with OSX_DEMO_DIR set, records a demo of real usage as PNG frames
+// (see tools/demo/make_video.sh). Run it on its own, from fresh progress:
+//   OSX_DEMO_DIR=frames ./tst_explorergui tst_demoVideo
+void tst_explorergui::tst_demoVideo() {
+  const QString dir = qEnvironmentVariable("OSX_DEMO_DIR");
+  if (dir.isEmpty())
+    QSKIP("set OSX_DEMO_DIR to record the demo frames");
+  auto *bar = m_window->findChild<FancyTabBar *>();
+  auto *list = m_missions->findChild<QListWidget *>("missionList");
+  auto *sideTabs = m_explorer->findChild<QTabWidget *>("explorerSideTabs");
+  auto *strip = m_explorer->findChild<PipelineStrip *>();
+  const int tabH = (bar->minimumHeight() - 12) / 7;
+  auto sidebarPos = [&](int index) {
+    return bar->mapTo(m_window,
+                      QPoint(bar->width() / 2, 6 + tabH * index + tabH / 2));
+  };
+  auto button = [&](QWidget *parent, const QString &text) -> QWidget * {
+    for (auto *b : parent->findChildren<QAbstractButton *>())
+      if (b->text() == text && b->isVisible())
+        return b;
+    return nullptr;
+  };
+  auto toolButton = [&](const QString &actionText,
+                        QAction **actionOut) -> QWidget * {
+    for (auto *a : m_window->findChildren<QAction *>())
+      if (a->text() == actionText)
+        for (auto *tb : m_window->findChildren<QToolBar *>())
+          if (auto *w = tb->widgetForAction(a); w && w->isVisible()) {
+            *actionOut = a;
+            return w;
+          }
+    return nullptr;
+  };
+  auto settle = [] {
+    QTest::qWait(150); // let the simulator thread and GUI updates finish
+  };
+
+  activateTab(kMissionsTab);
+  list->setCurrentRow(-1);
+  DemoRecorder rec(m_window, dir);
+
+  // 1. Mission map: progress only from checks on the simulator.
+  rec.caption("Mission map · progress only comes from checks on the simulator");
+  rec.hold(1400);
+  rec.moveTo(list->viewport()->mapTo(
+      m_window, list->visualItemRect(list->item(0)).center()));
+  rec.click();
+  list->setCurrentRow(0);
+  rec.hold(700);
+  rec.caption("Load the example program and select the processor");
+  rec.moveTo(button(m_missions, "Load example"));
+  rec.click();
+  QTest::mouseClick(button(m_missions, "Load example"), Qt::LeftButton);
+  settle();
+  rec.hold(900);
+  rec.moveTo(sidebarPos(kMissionsTab));
+  rec.click();
+  bar->setActiveIndex(kMissionsTab);
+  rec.hold(400);
+  rec.moveTo(button(m_missions, "Select processor"));
+  rec.click();
+  QTest::mouseClick(button(m_missions, "Select processor"), Qt::LeftButton);
+  settle();
+  rec.caption("Each guided step is verified live: +100 XP per verified step");
+  rec.hold(1100);
+  QAction *clockAction = nullptr, *runAction = nullptr;
+  QWidget *clockButton = toolButton("Clock (F5)", &clockAction);
+  QWidget *runButton = toolButton("Run (F8)", &runAction);
+  QVERIFY(clockButton && runButton);
+  rec.moveTo(clockButton);
+  rec.click();
+  clockAction->trigger();
+  settle();
+  rec.hold(1000);
+  rec.moveTo(runButton);
+  rec.click();
+  runAction->trigger();
+  QTRY_VERIFY_WITH_TIMEOUT(!ProcessorHandler::isRunning(), 20000);
+  settle();
+  rec.hold(1400);
+
+  // 2. Mission 2 is unlocked: hazards on the 5-stage pipeline.
+  rec.caption("Mission 2 unlocked · pipeline hazards on the 5-stage processor");
+  rec.moveTo(list->viewport()->mapTo(
+      m_window, list->visualItemRect(list->item(1)).center()));
+  rec.click();
+  list->setCurrentRow(1);
+  rec.hold(800);
+  rec.moveTo(button(m_missions, "Load example"));
+  rec.click();
+  QTest::mouseClick(button(m_missions, "Load example"), Qt::LeftButton);
+  settle();
+  rec.hold(500);
+  rec.moveTo(sidebarPos(kMissionsTab), 400);
+  rec.click();
+  bar->setActiveIndex(kMissionsTab);
+  rec.hold(300);
+  rec.moveTo(button(m_missions, "Select processor"));
+  rec.click();
+  QTest::mouseClick(button(m_missions, "Select processor"), Qt::LeftButton);
+  settle();
+  rec.hold(900);
+
+  // 3. Explorer: clock the processor; every cycle is recorded and replayed.
+  rec.caption("Explorer · each clock is recorded; the strip moves as the "
+              "trace says");
+  rec.moveTo(sidebarPos(kExplorerTab));
+  rec.click();
+  bar->setActiveIndex(kExplorerTab);
+  sideTabs->setCurrentIndex(0);
+  rec.hold(600);
+  rec.moveTo(clockButton);
+  for (int i = 0; i < 7; ++i) {
+    rec.click();
+    clockAction->trigger();
+    settle();
+    rec.hold(720);
+  }
+  // Explain the held instruction (load-use hazard).
+  for (auto *tile : strip->tiles())
+    if (tile->visual().held) {
+      rec.caption("A load-use hazard: the add is held, a stall bubble "
+                  "enters EX");
+      rec.moveTo(tile);
+      rec.click();
+      QTest::mouseClick(tile, Qt::LeftButton);
+      rec.hold(1800);
+      break;
+    }
+
+  // 4. Step backwards and forwards through the recording.
+  rec.caption("Step backwards and forwards through recorded cycles");
+  QWidget *prev = nullptr, *next = nullptr;
+  for (auto *b : m_explorer->findChildren<QToolButton *>("explorerControl")) {
+    if (b->toolTip() == "Previous cycle")
+      prev = b;
+    if (b->toolTip() == "Next cycle")
+      next = b;
+  }
+  QVERIFY(prev && next);
+  rec.moveTo(prev);
+  for (int i = 0; i < 2; ++i) {
+    rec.click();
+    QTest::mouseClick(prev, Qt::LeftButton);
+    rec.hold(640);
+  }
+  rec.moveTo(next);
+  for (int i = 0; i < 2; ++i) {
+    rec.click();
+    QTest::mouseClick(next, Qt::LeftButton);
+    rec.hold(640);
+  }
+
+  // 5. A gem5 O3CPU trace and the System view.
+  QTemporaryDir tmp;
+  QString error;
+  const QString path = Gem5Sample::convert(tmp, "loop_sum_o3_l1l2", &error);
+  QVERIFY2(!path.isEmpty(), qPrintable(error));
+  rec.caption("Offline replay of a gem5 O3CPU run (converted with tools/gem5)");
+  QAction *openAction = nullptr;
+  QWidget *openButton =
+      toolButton("Open a trace file for offline replay...", &openAction);
+  QVERIFY(openButton);
+  rec.moveTo(openButton);
+  rec.click();
+  QVERIFY2(m_explorer->openTraceFile(path, &error), qPrintable(error));
+  m_explorer->setCycle(81);
+  rec.hold(1000);
+  rec.moveTo(next);
+  for (int i = 0; i < 4; ++i) {
+    rec.click();
+    QTest::mouseClick(next, Qt::LeftButton);
+    rec.hold(680);
+  }
+  rec.caption("System view · what gem5 simulated, and what it did not");
+  rec.moveTo(sideTabs->tabBar()->mapTo(
+      m_window, sideTabs->tabBar()->tabRect(4).center()));
+  rec.click();
+  sideTabs->setCurrentIndex(4);
+  rec.hold(500);
+  // Widen the side panel by dragging the splitter.
+  auto *splitter = qobject_cast<QSplitter *>(sideTabs->parentWidget());
+  const auto sizes = splitter->sizes();
+  const int total = sizes[0] + sizes[1];
+  const QPoint handle = splitter->handle(1)->mapTo(
+      m_window, splitter->handle(1)->rect().center());
+  rec.moveTo(handle, 400);
+  for (int i = 1; i <= 10; ++i) {
+    const int right = sizes[1] + (860 - sizes[1]) * i / 10;
+    splitter->setSizes({total - right, right});
+    rec.moveTo(handle - QPoint(right - sizes[1], 0), 40);
+  }
+  rec.hold(400);
+  auto *view = m_explorer->findChild<QGraphicsView *>("systemTopology");
+  for (const QString component :
+       {"board.cache_hierarchy.l1i-cache-0", "board.memory.mem_ctrl"}) {
+    QGraphicsItem *chip = nullptr;
+    for (auto *item : view->scene()->items())
+      if (item->data(0).toString() == component)
+        chip = item;
+    QVERIFY(chip);
+    const QPoint inView =
+        view->mapFromScene(chip->sceneBoundingRect().center());
+    rec.moveTo(view->viewport()->mapTo(m_window, inView));
+    QTest::mouseMove(view->viewport(), inView);
+    rec.click();
+    m_explorer->findChild<SystemView *>()->selectComponent(component);
+    rec.hold(1700);
+  }
+  rec.caption("Open SoC Explorer · every value comes from a simulator");
+  rec.hold(1500);
+  splitter->setSizes(sizes);
+  qInfo("recorded %d frames", rec.frames());
 }
 
 int main(int argc, char **argv) {
