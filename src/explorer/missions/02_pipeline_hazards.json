@@ -97,5 +97,37 @@
     ],
     "reference_solution": ".data\nvalues: .word 7, 5\n.text\n    la   t0, values\n    lw   t1, 0(t0)\n    lw   t3, 4(t0)\n    add  t2, t1, t1\n    addi t4, x0, 1\n    add  t5, t3, t4\n"
   },
-  "completion": "You used the trace to locate a load-use stall, saw how much forwarding saves, and removed the stall by scheduling instructions - exactly what compilers do for in-order pipelines."
+  "completion": "You used the trace to locate a load-use stall, saw how much forwarding saves, and removed the stall by scheduling instructions - exactly what compilers do for in-order pipelines.",
+  "i18n": {
+    "zh_CN": {
+      "title": "流水线冒险",
+      "learn": [
+        "数据相关",
+        "前递",
+        "停顿",
+        "CPI"
+      ],
+      "objective": "在 5 级流水线上找出程序中的加载-使用冒险，与没有前递的流水线进行比较，然后重排代码，使它运行时没有任何停顿。",
+      "explanation": "<p>5 级流水线处理器让指令重叠执行：当一条指令处于 EX 时，下一条已经在译码（ID），再下一条正在取指（IF）。如果一条指令需要的寄存器还没有被更早的指令写入，就存在<b>写后读（RAW）数据相关</b>。</p><p>Ripes 的 5 级处理器有一个<b>前递单元</b>：结果从 EX/MEM 和 MEM/WB 流水线寄存器直接送到 ALU 的输入端，因此大多数相关不需要付出任何代价。而<b>加载</b>指令要到 MEM 级之后才拿到数据，所以<i>紧接着</i>使用被加载寄存器的指令必须等待一个周期。这时<b>冒险检测单元</b>冻结 IF 和 ID，并向 EX 插入一个气泡：这就是<b>停顿</b>。</p><p><b>CPI</b>（每条指令的周期数）= 周期数 / 退休的指令数。每个停顿周期都会使它增大。探索器选项卡在时间线中显示被保持的指令和气泡；所有数字都来自 Ripes 模型所记录的轨迹。</p>",
+      "steps": [
+        {
+          "title": "在 5 级流水线处理器上加载程序",
+          "instruction": "点击<b>加载示例</b>和<b>选择处理器</b>（带前递和冒险检测的 5 级流水线处理器）。"
+        },
+        {
+          "title": "找到停顿",
+          "instruction": "运行程序。在探索器选项卡中，找到 <code>add t2, t1, t1</code>（反汇编显示为 <code>add x7 x6 x6</code>）被<i>保持</i>、且有一个停顿气泡进入 EX 的那个周期。点击这条指令：它的解释会指出它所依赖的加载指令。"
+        },
+        {
+          "title": "去掉前递单元",
+          "instruction": "通过处理器选择对话框选择<b>没有前递单元的 5 级流水线处理器</b>（RV32_5S_NO_FW），再次运行同一个程序。现在每个依赖于最近结果的相关都必须等到写回。比较停顿次数和 CPI。"
+        }
+      ],
+      "challenge": {
+        "text": "切换回 5 级流水线处理器（RV32_5S）。重排指令，使 <code>t2 = 14</code> 和 <code>t5 = 6</code> 仍然成立，但程序运行时<b>没有任何停顿周期</b>。",
+        "hint": "给第一条加载指令更多时间：在 lw t1 和使用它的指令之间插入一条不相关的指令。"
+      },
+      "completion": "你借助轨迹定位了一个加载-使用停顿，看到了前递能节省多少周期，并通过指令调度消除了停顿——这正是编译器为顺序流水线所做的工作。"
+    }
+  }
 }

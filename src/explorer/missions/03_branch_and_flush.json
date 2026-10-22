@@ -88,5 +88,36 @@
     ],
     "reference_solution": "    addi a0, x0, 0\n    addi a1, x0, 10\nloop:\n    add  a0, a0, a1\n    addi a1, a1, -1\n    add  a0, a0, a1\n    addi a1, a1, -1\n    bne  a1, x0, loop\n    addi a2, x0, 1\n    addi a3, x0, 2\n"
   },
-  "completion": "You measured the cost of taken branches in a pipeline with static not-taken fetching and reduced it with loop unrolling. Real processors add branch predictors to avoid most of these flushes."
+  "completion": "You measured the cost of taken branches in a pipeline with static not-taken fetching and reduced it with loop unrolling. Real processors add branch predictors to avoid most of these flushes.",
+  "i18n": {
+    "zh_CN": {
+      "title": "分支与冲刷",
+      "learn": [
+        "分支条件",
+        "PC 更新",
+        "流水线冲刷"
+      ],
+      "objective": "观察一条跳转的分支如何把较新的指令从 5 级流水线中冲刷掉，然后重构一个循环，减少浪费的指令槽。",
+      "explanation": "<p>像 <code>bne rs1, rs2, label</code> 这样的条件分支会比较两个寄存器。如果条件成立，下一个 PC 是分支目标；否则是 PC + 4。</p><p>Ripes 的 5 级流水线处理器总是顺序取指（相当于预测<i>不跳转</i>），并在 <b>EX</b> 级计算分支。当分支实际跳转时，已经位于 IF 和 ID 中的两条较新的指令是从错误路径上取来的。它们被<b>作废</b>（冲刷）：它们从不写寄存器或内存，但浪费了两个周期的流水线容量。</p><p>轨迹记录了每一条被作废的指令，并把它与导致作废的分支关联起来。每次迭代都向回跳转的循环每次都要付出这个代价；<b>循环展开</b>让每次迭代做更多的工作，从而减少跳转的分支。</p>",
+      "steps": [
+        {
+          "title": "加载循环",
+          "instruction": "点击<b>加载示例</b>和<b>选择处理器</b>。"
+        },
+        {
+          "title": "捕捉第一次冲刷",
+          "instruction": "让处理器运行时钟，直到第一条 <code>bne</code> 到达 EX 并跳转（大约在周期 7）。两条较新的指令从 IF 和 ID 中消失：在探索器的时间线中，它们被标记为已作废，原因是这条分支。"
+        },
+        {
+          "title": "统计代价",
+          "instruction": "运行到结束。检查 <code>a0 = 55</code>，并查看统计：有多少条指令被作废？有多少次分支跳转？"
+        }
+      ],
+      "challenge": {
+        "text": "用一个循环计算同样的和（<code>a0 = 55</code>），它仍然至少执行两条条件分支，但在 5 级流水线处理器上因冲刷浪费的指令槽（被作废的指令）<b>最多 8 个</b>。",
+        "hint": "展开循环：每次迭代加两个计数值，这样分支跳转的次数就减半了。"
+      },
+      "completion": "你测量了在静态“不跳转”取指的流水线中跳转分支的代价，并用循环展开降低了它。真实的处理器会加入分支预测器来避免大部分这样的冲刷。"
+    }
+  }
 }

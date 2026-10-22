@@ -96,5 +96,36 @@
       }
     ]
   },
-  "completion": "Row by row, each miss brings in a line of four words and the next three loads hit: 64 misses and 192 hits (75 %). Column by column, every load missed. Same instructions, same result, very different memory behaviour; on a processor with a real memory system that difference becomes time."
+  "completion": "Row by row, each miss brings in a line of four words and the next three loads hit: 64 misses and 192 hits (75 %). Column by column, every load missed. Same instructions, same result, very different memory behaviour; on a processor with a real memory system that difference becomes time.",
+  "i18n": {
+    "zh_CN": {
+      "title": "缓存局部性",
+      "learn": [
+        "缓存行与组",
+        "空间局部性",
+        "冲突缺失"
+      ],
+      "objective": "测量内存访问的顺序如何改变一个小型数据缓存的命中率，然后重排循环，让它用上缓存取来的数据。",
+      "explanation": "<p>缓存以<b>缓存行</b>（若干个连续字节）为单位保存最近用过的内存的副本。发生<b>缺失</b>时，它会取回整个缓存行，因此相邻的字在接下来的访问中已经就绪（<i>空间局部性</i>）。缓存行放入哪个<b>组</b>由地址位决定：在直接映射缓存中，组号位相同的两个缓存行会互相驱逐（<i>冲突缺失</i>）。</p><p>本任务的数据缓存：<b>256 字节，直接映射，16 个 16 字节的缓存行</b>（每行 4 个字）。地址位划分为：位 1–0 是字节偏移，位 3–2 是行内的字，位 7–4 是组号，其余是标记（tag）。</p><p>矩阵<b>按行</b>存储：<code>m[r][c]</code> 位于 <code>matrix + (16r + c) · 4</code>。沿着一列向下访问时每一步跳过 64 字节，所以每次访问都落在不同的缓存行中，而一列的 16 行只用到 16 个组中的 4 个。</p><p><b>保真度。</b>命中和缺失次数来自轨迹中记录的数据访问，按照与 Ripes 缓存模拟器相同的缓存规则计算；你可以在<b>缓存</b>选项卡中观察同一个缓存（数据缓存：2<sup>N</sup> 路数 = 0，2<sup>N</sup> 组数 = 4，2<sup>N</sup> 每行字数 = 2，LRU，写回，写分配）。Ripes 的处理器使用理想存储器，所以在 Ripes 中一次缺失<b>不</b>花费任何周期。在时序模型上则不然：在 gem5 的乱序 CPU 上做的同类实验（4 KiB L1 数据缓存，2048 次加载，见 tools/gem5/README.md）中，跨步访问用了 6,939 个周期、发生 2,030 次 L1 缺失，顺序访问用了 2,601 个周期、发生 119 次缺失。</p>",
+      "steps": [
+        {
+          "title": "加载程序",
+          "instruction": "点击<b>加载示例</b>和<b>选择处理器</b>。该程序按列对一个 16 × 16 的矩阵求和。"
+        },
+        {
+          "title": "运行并检查和",
+          "instruction": "运行到结束。1 … 256 的和是 <code>a0 = 32896</code>。在探索器中查看 <code>lw</code> 指令：从一行到下一行，它们的地址增加 64 字节。"
+        },
+        {
+          "title": "测量数据缓存",
+          "instruction": "256 次加载每次都缺失：一列会访问 16 个不同的缓存行，它们争用 4 个组；等到下一列再次需要某个缓存行时，它已经被驱逐了。与按上述方式配置的<b>缓存</b>选项卡进行比较。"
+        }
+      ],
+      "challenge": {
+        "text": "用全部 256 次加载计算同样的和（<code>a0 = 32896</code>），并在本任务的缓存上达到<b>至少 70 %</b> 的数据缓存命中率。",
+        "hint": "按照矩阵在内存中的存储顺序访问它：交换两层循环，使相邻的加载相隔 4 个字节。"
+      },
+      "completion": "按行访问时，每次缺失都会取回一个包含四个字的缓存行，接下来的三次加载都命中：64 次缺失，192 次命中（75 %）。按列访问时，每次加载都缺失。同样的指令、同样的结果，内存行为却截然不同；在拥有真实存储系统的处理器上，这种差别就会变成时间。"
+    }
+  }
 }
