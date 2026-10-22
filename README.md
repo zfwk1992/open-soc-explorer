@@ -39,6 +39,7 @@ squashed instruction's journey. Every value comes from the recorded trace.*
 | **System view**: the components the engine simulated (Ripes: CPU, ideal memory, I/O; gem5: caches, prefetchers, crossbars, memory controller, DRAM), their connections, parameters and statistics; non-simulated SoC blocks clearly marked | ✅ |
 | **gem5 (offline)**: run RISC-V programs on gem5's O3, TimingSimple or AtomicSimple CPU with configurable caches and replay them in the Explorer (`tools/gem5`); validated against real gem5 v26 output and against Ripes | ✅ |
 | Python trace tool (`tools/trace/osx_trace.py`: validate, summary, ASCII pipeline) | ✅ |
+| **English / 简体中文** user interface, switchable at run time (*View → Language*); missions 1–4 fully translated | ✅ (some upstream Ripes texts stay English, see [LEARNING_GUIDE.md §3.3](docs/LEARNING_GUIDE.md)) |
 | Ibex/Verilator RTL adapter, AI-accelerator lab, Physical-AI workloads, VHDL/FPGA lab, classic-console architecture research track (Neo Geo, PS3 Cell), missions 5–10 | 🗺️ planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 <p align="center">
@@ -79,6 +80,9 @@ ninja -C build
 The default **game theme** (dark or light, following the color scheme)
 can be switched to the original Ripes look with *View → Theme → Classic*;
 *View → Reduce motion* turns its short transitions off.
+*View → Language* switches between English and 简体中文 (Simplified Chinese)
+while the application runs; by default the language follows the system
+locale.
 
 1. *Missions* tab → pick Mission 1 on the mission map → *Load example* → *Select processor*.
 2. Press *Clock* / *Run* in the toolbar; the guided steps tick off as the
@@ -109,7 +113,7 @@ cd ../.. && OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools
 OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools/gem5
 ```
 
-9 QtTest suites (114 test functions: 56 upstream, 58 Open SoC Explorer, two of them opt-in) and
+9 QtTest suites (119 test functions: 56 upstream, 63 Open SoC Explorer, three of them opt-in) and
 27 Python tests (trace tool and gem5 converter, using recorded gem5 output).
 CI runs the QtTest suites on Ubuntu, macOS and Windows.
 
@@ -129,6 +133,17 @@ CI runs the QtTest suites on Ubuntu, macOS and Windows.
 | [LICENSING.md](docs/LICENSING.md) | Licenses and attribution |
 | [RIPES_README.md](docs/RIPES_README.md) and the other files in `docs/` | Upstream Ripes documentation |
 
+## 简体中文简介
+
+Open SoC Explorer 是一个基于 [Ripes](https://github.com/mortbopet/Ripes)
+的交互式 RISC-V 与 SoC 模拟学习平台。它记录模拟器的执行轨迹，在 CPU
+探索器中逐周期回放流水线（取指、译码、执行、访存、写回），解释每条指令的
+操作数、结果、冒险与停顿，并提供由模拟器实时验证的学习任务（流水线冒险、
+分支与冲刷、缓存局部性等）。界面可在运行时通过 *视图 → 语言* 在 English 与
+简体中文之间切换，默认跟随系统语言。所有显示的数值都来自模拟器或 ISA
+规范；Ripes 的处理器是教学用的数据通路模型，其周期数不代表任何真实处理器核
+（见 [SIMULATION_FIDELITY.md](docs/SIMULATION_FIDELITY.md)）。
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The most important rule: never
@@ -140,7 +155,7 @@ simulator output, a recorded trace or the ISA specification.
 `origin` is this repository, `upstream` is `mortbopet/Ripes`. Merge
 `upstream/master` into a sync branch (no rebase, no force-push), rebuild and
 run all tests; see
-[DEVELOPMENT_GUIDE.md §7](docs/DEVELOPMENT_GUIDE.md#7-syncing-with-upstream-ripes).
+[DEVELOPMENT_GUIDE.md §8](docs/DEVELOPMENT_GUIDE.md#8-syncing-with-upstream-ripes).
 
 ## License and credits
 

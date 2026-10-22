@@ -21,6 +21,8 @@ Open SoC Explorer
 │   ├── System view ................ SystemView (src/systemview.*)     [new]
 │   │     components and connections the engine simulated, parameters,
 │   │     engine statistics; absent SoC blocks drawn as "not simulated"
+│   ├── Languages .................. src/i18n, translations/*.ts       [new]
+│   │     English / 简体中文 at run time; trace texts translated on display
 │   └── Accelerator explorer ....... —                                  [planned]
 │
 ├── Simulation control ............. Ripes ProcessorHandler + toolbar   [Ripes]

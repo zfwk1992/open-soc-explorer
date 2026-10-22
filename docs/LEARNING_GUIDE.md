@@ -136,6 +136,24 @@ Challenges are scored only on a **complete** trace: recorded from reset, not
 truncated, program finished. If a challenge says "run the program to
 completion", reset and run again with recording enabled.
 
+### 3.3 Language
+
+*View → Language* switches the user interface between **English** and
+**简体中文** (Simplified Chinese) while the application runs; the setting is
+stored (`osx_language`, default: Chinese if the system locale is Chinese,
+otherwise English). Translated: the Explorer, Missions and System views,
+instruction explanations, mission texts and criteria, datapath component
+and instruction descriptions, the descriptive texts of traces (fidelity
+notes, caveats, gem5 parameter meanings), and Ripes' menus, tool bars and
+dialog labels. Kept as they are: identifiers (register names, stage
+names, engine and model names such as `RV32_5S` or `BaseO3CPU`, fidelity
+classes such as `educational-model`, event types such as `pipeline.stall`,
+trace field and statistic names), the example programs, gem5's own
+statistic descriptions, and some upstream Ripes texts built at run time
+(processor names and descriptions, the status bar, register table
+headers, VSRTL datapath labels). Exported traces are always English, so
+they do not depend on the language.
+
 ## 4. Writing a mission
 
 Missions are JSON files in `src/explorer/missions/` listed in
@@ -149,6 +167,7 @@ Missions are JSON files in `src/explorer/missions/` listed in
 | `objective`, `explanation` (HTML), `example` (assembly), `completion` | Texts |
 | `steps[]` | `title`, `instruction` (HTML), `checks[]` |
 | `challenge` | `text` (HTML), `hint`, `checks[]`, `reference_solution` (not shown in the GUI; used by the tests to prove the mission is solvable) |
+| `i18n` | Optional: translations per language, e.g. `{"zh_CN": {"title", "objective", "explanation", "learn", "completion", "steps": [{"title", "instruction"}], "challenge": {"text", "hint"}}}`; missing texts fall back to English (see [DEVELOPMENT_GUIDE.md §5](DEVELOPMENT_GUIDE.md#5-translations)) |
 | `data_cache` | Optional: `blocks`, `lines`, `ways` (log2 values, as in Ripes' Cache tab: words per line, sets, ways), `write_allocate` (default true). Required by the `dcache_*` criteria |
 
 Criteria (`checks[]` entries have a `kind` and parameters; an optional
