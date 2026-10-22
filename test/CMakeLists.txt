@@ -28,4 +28,6 @@ create_qtest(tst_reverse)
 create_qtest(tst_stall)
 
 # Open SoC Explorer tests
+add_definitions(-DOSX_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 create_qtest(tst_trace)
+create_qtest(tst_missions)

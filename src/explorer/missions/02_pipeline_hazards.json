@@ -1,0 +1,101 @@
+{
+  "id": "m2-pipeline-hazards",
+  "number": 2,
+  "title": "Pipeline Hazards",
+  "learn": [
+    "Data dependency",
+    "Forwarding",
+    "Stall",
+    "CPI"
+  ],
+  "processor": "RV32_5S",
+  "objective": "Find the load-use hazard in a program on the 5-stage pipeline, compare it with a pipeline without forwarding, then reorder the code so it runs without any stall.",
+  "explanation": "<p>The 5-stage processor overlaps instructions: while one instruction is in EX, the next one is already being decoded (ID) and the one after that fetched (IF). If an instruction needs a register that an older instruction has not written yet, there is a <b>read-after-write (RAW) data dependency</b>.</p><p>Ripes' 5-stage processor has a <b>forwarding unit</b>: results are passed from the EX/MEM and MEM/WB pipeline registers straight to the ALU inputs, so most dependencies cost nothing. A <b>load</b> only has its data after the MEM stage, so an instruction that uses the loaded register <i>immediately</i> must wait one cycle. The <b>hazard detection unit</b> then freezes IF and ID and inserts a bubble into EX: a <b>stall</b>.</p><p><b>CPI</b> (cycles per instruction) = cycles / retired instructions. Every stall cycle increases it. The Explorer tab shows held instructions and bubbles in the timeline; all numbers come from the recorded trace of the Ripes model.</p>",
+  "example": "# Mission 2: find the load-use hazard\n.data\nvalues: .word 7, 5\n.text\n    la   t0, values\n    lw   t1, 0(t0)      # load first value\n    add  t2, t1, t1     # uses t1 immediately: load-use hazard\n    lw   t3, 4(t0)      # load second value\n    addi t4, x0, 1\n    add  t5, t3, t4     # t3 was loaded two instructions earlier\n",
+  "steps": [
+    {
+      "title": "Load the program on the 5-stage processor",
+      "instruction": "Click <b>Load example</b> and <b>Select processor</b> (5-stage processor with forwarding and hazard detection).",
+      "checks": [
+        {
+          "kind": "processor_is"
+        },
+        {
+          "kind": "program_matches_example"
+        }
+      ]
+    },
+    {
+      "title": "Find the stall",
+      "instruction": "Run the program. In the Explorer tab, look for the cycle where <code>add t2, t1, t1</code> is <i>held</i> and a stall bubble enters EX. Click the instruction: its explanation names the load it depends on.",
+      "checks": [
+        {
+          "kind": "finished"
+        },
+        {
+          "kind": "trace_complete"
+        },
+        {
+          "kind": "stall_cycles_at_least",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "title": "Remove the forwarding unit",
+      "instruction": "Select the <b>5-stage processor without forwarding unit</b> (RV32_5S_NO_FW) via the processor selection dialog and run the same program again. Every dependency on a recent result now has to wait for write-back. Compare the stall count and CPI.",
+      "checks": [
+        {
+          "kind": "processor_is",
+          "any_of": [
+            "RV32_5S_NO_FW"
+          ]
+        },
+        {
+          "kind": "finished"
+        },
+        {
+          "kind": "trace_complete"
+        },
+        {
+          "kind": "stall_cycles_at_least",
+          "count": 4
+        }
+      ]
+    }
+  ],
+  "challenge": {
+    "text": "Switch back to the 5-stage processor (RV32_5S). Reorder the instructions so that <code>t2 = 14</code> and <code>t5 = 6</code> still hold, but the program runs with <b>zero stall cycles</b>.",
+    "hint": "Give the first load more time: move an independent instruction between lw t1 and its use.",
+    "checks": [
+      {
+        "kind": "processor_is",
+        "any_of": [
+          "RV32_5S"
+        ]
+      },
+      {
+        "kind": "finished"
+      },
+      {
+        "kind": "trace_complete"
+      },
+      {
+        "kind": "register_equals",
+        "register": "t2",
+        "value": 14
+      },
+      {
+        "kind": "register_equals",
+        "register": "t5",
+        "value": 6
+      },
+      {
+        "kind": "stall_cycles_at_most",
+        "count": 0
+      }
+    ],
+    "reference_solution": ".data\nvalues: .word 7, 5\n.text\n    la   t0, values\n    lw   t1, 0(t0)\n    lw   t3, 4(t0)\n    add  t2, t1, t1\n    addi t4, x0, 1\n    add  t5, t3, t4\n"
+  },
+  "completion": "You used the trace to locate a load-use stall, saw how much forwarding saves, and removed the stall by scheduling instructions - exactly what compilers do for in-order pipelines."
+}

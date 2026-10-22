@@ -1,0 +1,92 @@
+{
+  "id": "m3-branch-and-flush",
+  "number": 3,
+  "title": "Branch and Flush",
+  "learn": [
+    "Branch condition",
+    "PC update",
+    "Pipeline flush"
+  ],
+  "processor": "RV32_5S",
+  "objective": "Watch a taken branch flush younger instructions from the 5-stage pipeline, then restructure a loop so that fewer instruction slots are wasted.",
+  "explanation": "<p>A conditional branch such as <code>bne rs1, rs2, label</code> compares two registers. If the condition holds, the next PC is the branch target; otherwise it is PC + 4.</p><p>Ripes' 5-stage processor keeps fetching sequentially (it effectively predicts <i>not taken</i>) and evaluates branches in the <b>EX</b> stage. When a branch turns out to be taken, the two younger instructions already in IF and ID were fetched from the wrong path. They are <b>squashed</b> (flushed): they never write registers or memory, but they wasted two cycles of pipeline capacity.</p><p>The trace records every squashed instruction and links it to the branch that caused it. A loop that branches back on every iteration pays this penalty every time; <b>loop unrolling</b> does more work per iteration and takes fewer branches.</p>",
+  "example": "# Mission 3: sum 10 + 9 + ... + 1 with a loop\n    addi a0, x0, 0      # sum\n    addi a1, x0, 10     # counter\nloop:\n    add  a0, a0, a1\n    addi a1, a1, -1\n    bne  a1, x0, loop   # taken 9 times\n    addi a2, x0, 1      # code after the loop\n    addi a3, x0, 2\n",
+  "steps": [
+    {
+      "title": "Load the loop",
+      "instruction": "Click <b>Load example</b> and <b>Select processor</b>.",
+      "checks": [
+        {
+          "kind": "processor_is"
+        },
+        {
+          "kind": "program_matches_example"
+        }
+      ]
+    },
+    {
+      "title": "Catch the first flush",
+      "instruction": "Clock the processor until the first <code>bne</code> reaches EX and is taken (around cycle 7). The two younger instructions disappear from IF and ID: in the Explorer timeline they are marked as squashed, with the branch as cause.",
+      "checks": [
+        {
+          "kind": "squashed_at_least",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "title": "Count the cost",
+      "instruction": "Run to the end. Check that <code>a0 = 55</code> and look at the statistics: how many instructions were squashed, and how many branches were taken?",
+      "checks": [
+        {
+          "kind": "finished"
+        },
+        {
+          "kind": "trace_complete"
+        },
+        {
+          "kind": "register_equals",
+          "register": "a0",
+          "value": 55
+        },
+        {
+          "kind": "squashed_at_least",
+          "count": 18
+        }
+      ]
+    }
+  ],
+  "challenge": {
+    "text": "Compute the same sum (<code>a0 = 55</code>) with a loop that still executes at least two conditional branches, but wastes <b>at most 8</b> instruction slots on flushes (squashed instructions) on the 5-stage processor.",
+    "hint": "Unroll the loop: add two counter values per iteration, so the branch is taken half as often.",
+    "checks": [
+      {
+        "kind": "processor_is",
+        "any_of": [
+          "RV32_5S"
+        ]
+      },
+      {
+        "kind": "finished"
+      },
+      {
+        "kind": "trace_complete"
+      },
+      {
+        "kind": "register_equals",
+        "register": "a0",
+        "value": 55
+      },
+      {
+        "kind": "retired_branches_at_least",
+        "count": 2
+      },
+      {
+        "kind": "squashed_at_most",
+        "count": 8
+      }
+    ],
+    "reference_solution": "    addi a0, x0, 0\n    addi a1, x0, 10\nloop:\n    add  a0, a0, a1\n    addi a1, a1, -1\n    add  a0, a0, a1\n    addi a1, a1, -1\n    bne  a1, x0, loop\n    addi a2, x0, 1\n    addi a3, x0, 2\n"
+  },
+  "completion": "You measured the cost of taken branches in a pipeline with static not-taken fetching and reduced it with loop unrolling. Real processors add branch predictors to avoid most of these flushes."
+}

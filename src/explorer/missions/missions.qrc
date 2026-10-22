@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/missions">
+        <file alias="01_first_program.json">01_first_program.json</file>
+        <file alias="02_pipeline_hazards.json">02_pipeline_hazards.json</file>
+        <file alias="03_branch_and_flush.json">03_branch_and_flush.json</file>
+    </qresource>
+</RCC>
