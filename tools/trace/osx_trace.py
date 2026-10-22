@@ -93,6 +93,9 @@ def validate(header, events, footer):
 
         time = ev.get("time", {})
         cycle = time.get("cycle")
+        tick = time.get("tick")
+        if tick is not None and not isinstance(tick, int):
+            problems.append(f"{where}: time.tick must be an integer or null")
         if "domain" not in time or not isinstance(cycle, int):
             problems.append(f"{where}: missing time.domain/time.cycle")
         elif last_cycle is not None and cycle < last_cycle:
@@ -123,6 +126,18 @@ def validate(header, events, footer):
                 body.get("component") not in stages:
             problems.append(f"{where}: unknown stage component "
                             f"'{body.get('component')}'")
+    system = header.get("system", [])
+    paths = {c.get("path") for c in system}
+    for comp in system:
+        for key in ("path", "type", "role"):
+            if not comp.get(key):
+                problems.append(f"system component {comp.get('path')}: "
+                                f"missing '{key}'")
+        for target in comp.get("connections", []):
+            if target not in paths:
+                problems.append(f"system component {comp.get('path')}: "
+                                f"connection to unknown component "
+                                f"'{target}'")
     if footer is None:
         problems.append("missing footer record (trace incomplete)")
     else:
@@ -187,6 +202,9 @@ def summary(header, events, footer):
         ("model", src["model"]),
         ("fidelity", src["fidelity"]),
         ("complete", bool(footer and footer["completeness"]["complete"])),
+        ("ticks_per_cycle", (header.get("time_domains") or [{}])[0].get(
+            "ticks_per_cycle")),
+        ("system_components", len(header.get("system", []))),
         ("cycles", cycles),
         ("instructions_retired", retired),
         ("cpi", round(cycles / retired, 4) if retired else None),

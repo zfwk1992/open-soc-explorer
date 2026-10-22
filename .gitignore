@@ -17,3 +17,7 @@ qrc_*
 Ripes
 RipesTest
 libRipesLib.a
+# Open SoC Explorer: gem5 tooling
+!tools/gem5/workloads/Makefile
+tools/gem5/workloads/*.elf
+__pycache__/
