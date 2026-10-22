@@ -14,7 +14,7 @@ What is converted, and how it is labelled (docs/TRACE_PROTOCOL.md):
   * O3CPU: per dynamic instruction (gem5 sequence number) the fetch, decode,
     rename, dispatch, issue and complete ticks and the commit tick from
     O3PipeView -> instruction.fetch / pipeline.stage_enter /
-    instruction.retire (observability "direct"). Instructions with a commit
+    instruction.decode / instruction.retire (observability "direct"). Instructions with a commit
     tick of 0 never committed -> pipeline.flush kind=squash, placed one cycle
     after their last recorded stage (observability "inferred": O3PipeView
     does not record the squash time).
@@ -43,6 +43,7 @@ import datetime
 import gzip
 import hashlib
 import json
+import math
 import os
 import re
 import struct
@@ -181,9 +182,14 @@ def parse_trace_file(path):
     return execs, o3
 
 
-def parse_stats(path):
-    """Returns {stat name: value} of the first statistics dump."""
-    stats = OrderedDict()
+def parse_stats(path, with_descriptions=False):
+    """Returns {stat name: value} of the first statistics dump.
+
+    With with_descriptions, returns ({name: value}, {name: description}),
+    the description being gem5's comment for the statistic. Values that are
+    not finite numbers (gem5 prints "nan" for 0/0) are left out.
+    """
+    stats, descriptions = OrderedDict(), OrderedDict()
     with open_text(path) as f:
         started = False
         for line in f:
@@ -195,12 +201,18 @@ def parse_stats(path):
             if line.startswith("---------- End Simulation Statistics"):
                 break
             parts = line.split()
-            if len(parts) >= 2 and not line.startswith(" "):
-                try:
-                    stats[parts[0]] = float(parts[1])
-                except ValueError:
-                    continue
-    return stats
+            if len(parts) < 2 or line.startswith(" "):
+                continue
+            try:
+                value = float(parts[1])
+            except ValueError:
+                continue
+            if not math.isfinite(value):
+                continue
+            stats[parts[0]] = int(value) if value.is_integer() else value
+            if "#" in line:
+                descriptions[parts[0]] = line.split("#", 1)[1].strip()
+    return (stats, descriptions) if with_descriptions else stats
 
 
 def read_elf_text(path):
@@ -279,6 +291,7 @@ def clock_period(objects, cpu):
 
 ROLE_BY_TYPE = [
     (re.compile(r"CPU$"), "cpu"),
+    (re.compile(r"Prefetcher$"), "prefetcher"),
     (re.compile(r"Cache$"), "cache"),
     (re.compile(r"XBar$|Bus$"), "interconnect"),
     (re.compile(r"MemCtrl$"), "memory-controller"),
@@ -297,10 +310,60 @@ PARAMETER_KEYS = {
                           "mem_sched_policy"],
     "memory": ["device_size", "ranks_per_channel", "banks_per_rank", "tCK",
                "tCL", "tRCD", "tRP", "range"],
+    "prefetcher": ["degree", "distance", "latency", "table_entries",
+                   "queue_size", "on_miss", "on_read", "on_write"],
 }
 
 # End-of-simulation statistics reported per role, as names relative to the
 # component (gem5 stats.txt "<path>.<name>").
+# Meaning and unit of the reported parameters (gem5 config.json stores
+# Latency/Clock parameters in ticks, Cycles parameters in cycles of the
+# object's clock domain, MemorySize parameters in bytes).
+PARAMETER_INFO = {
+    "fetchWidth": "instructions fetched per cycle",
+    "decodeWidth": "instructions decoded per cycle",
+    "renameWidth": "instructions renamed per cycle",
+    "dispatchWidth": "instructions dispatched per cycle",
+    "issueWidth": "instructions issued per cycle",
+    "commitWidth": "instructions committed per cycle",
+    "numROBEntries": "reorder buffer entries",
+    "numIQEntries": "instruction queue entries",
+    "LQEntries": "load queue entries",
+    "SQEntries": "store queue entries",
+    "numPhysIntRegs": "physical integer registers",
+    "size": "capacity in bytes",
+    "assoc": "associativity (ways)",
+    "tag_latency": "tag lookup latency in cycles",
+    "data_latency": "data access latency in cycles",
+    "response_latency": "latency in cycles",
+    "mshrs": "miss status holding registers (outstanding misses)",
+    "tgts_per_mshr": "requests that can wait on one MSHR",
+    "writeback_clean": "clean lines are written back on eviction",
+    "width": "bytes transferred per cycle",
+    "frontend_latency": "request front-end latency in cycles",
+    "forward_latency": "forwarding latency in cycles",
+    "write_buffer_size": "write queue entries",
+    "read_buffer_size": "read queue entries",
+    "mem_sched_policy": "scheduling policy (frfcfs: first-ready, "
+                        "first-come-first-served)",
+    "device_size": "size of one DRAM device in bytes",
+    "ranks_per_channel": "ranks per channel",
+    "banks_per_rank": "banks per rank",
+    "tCK": "clock period in ps (gem5 ticks)",
+    "tCL": "CAS latency in ps",
+    "tRCD": "RAS-to-CAS delay in ps",
+    "tRP": "row precharge time in ps",
+    "range": "address range (bytes)",
+    "degree": "prefetches issued per detected stride",
+    "distance": "how many strides ahead the first prefetch is",
+    "latency": "latency in cycles",
+    "table_entries": "entries of the stride detection table",
+    "queue_size": "prefetch queue entries",
+    "on_miss": "trains only on cache misses",
+    "on_read": "trains on reads",
+    "on_write": "trains on writes",
+}
+
 STAT_PATTERNS = {
     "cpu": re.compile(r"numCycles|ipc|cpi|committedInsts|numInsts|numOps|"
                       r"commitStats0\.(numInsts|numOps|ipc|cpi)|"
@@ -317,6 +380,7 @@ STAT_PATTERNS = {
     "memory": re.compile(r"(bytesRead|bytesWritten)::total|avgRdBW|avgWrBW|"
                          r"readRowHits|writeRowHits|readRowHitRate|"
                          r"writeRowHitRate"),
+    "prefetcher": re.compile(r"pfIssued|pfUseful|pfLate|accuracy|coverage"),
 }
 
 ROLE_DESCRIPTIONS = {
@@ -327,6 +391,8 @@ ROLE_DESCRIPTIONS = {
     "memory-controller": "Memory controller simulated by gem5 (request "
                          "queues, scheduling, DRAM timing).",
     "memory": "Memory device/interface simulated by gem5.",
+    "prefetcher": "Hardware prefetcher simulated by gem5; it issues "
+                  "prefetch requests into the cache it belongs to.",
 }
 
 
@@ -345,7 +411,7 @@ def owner_component(port_path, paths):
     return owner
 
 
-def describe_system(objects, stats):
+def describe_system(objects, stats, descriptions=None):
     """Simulated components with parameters, statistics and connections.
 
     Only objects with a hardware role (CPU, cache, crossbar, memory
@@ -354,6 +420,7 @@ def describe_system(objects, stats):
     objects without a role (e.g. a CPU's MMU walkers) are attributed to the
     nearest reported ancestor.
     """
+    descriptions = descriptions or {}
     by_path = {o["path"]: o for o in objects}
     roles = {path: role_of(obj) for path, obj in by_path.items()}
     reported = {path for path, role in roles.items() if role is not None}
@@ -380,6 +447,11 @@ def describe_system(objects, stats):
                                                            by_path))
                 if target and target != source:
                     connections[source].add(target)
+        # A prefetcher is a child of its cache and issues requests into it.
+        if roles.get(obj["path"]) == "prefetcher":
+            parent = reported_ancestor(obj["path"].rsplit(".", 1)[0])
+            if parent:
+                connections[obj["path"]].add(parent)
 
     components = []
     for path in sorted(reported):
@@ -399,7 +471,14 @@ def describe_system(objects, stats):
         components.append(OrderedDict([
             ("path", path), ("type", obj["type"]), ("role", role),
             ("description", ROLE_DESCRIPTIONS.get(role, "")),
-            ("parameters", params), ("statistics", component_stats),
+            ("parameters", params),
+            ("parameter_info", OrderedDict(
+                (k, PARAMETER_INFO[k]) for k in params
+                if k in PARAMETER_INFO)),
+            ("statistics", component_stats),
+            ("statistic_info", OrderedDict(
+                (k, descriptions[prefix + k]) for k in component_stats
+                if prefix + k in descriptions)),
             ("connections", sorted(connections[path]))]))
     return components
 
@@ -476,14 +555,18 @@ def convert(trace_path, m5out, binary=None, gem5_version="unknown",
     with open_text(find_input(m5out, "config.json")) as f:
         config = json.load(f)
     objects = walk_objects(config, [])
-    stats = parse_stats(find_input(m5out, "stats.txt"))
+    stats, stat_descriptions = parse_stats(find_input(m5out, "stats.txt"),
+                                           with_descriptions=True)
     cpu = find_cpu(objects)
     cpu_type = cpu["type"]
     period, domain_path = clock_period(objects, cpu)
     sections = read_elf_text(binary) if binary else []
     cpu_path = cpu["path"]
 
+    # gem5 v26 type names: BaseO3CPU, BaseTimingSimpleCPU,
+    # BaseAtomicSimpleCPU, BaseMinorCPU.
     is_o3 = "O3" in cpu_type
+    is_atomic = "Atomic" in cpu_type
     if "Minor" in cpu_type:
         raise ConversionError(
             "MinorCPU is not supported yet: its Exec records carry the decode "
@@ -552,6 +635,11 @@ def convert(trace_path, m5out, binary=None, gem5_version="unknown",
                             f"soc.cpu0.o3.{name}", seq, pc, asm,
                             {"stage": short}, source_ref=ref_cpu["o3"])
                     last_tick = max(last_tick, tick)
+                    if name == "decode":
+                        b.event(tick, "instruction.decode",
+                                "soc.cpu0.o3.decode", seq, pc, asm,
+                                dict(stage=short, **word_payload(pc)),
+                                source_ref=ref_cpu["o3"])
             retire = r.get("retire", 0)
             if retire:
                 payload = {"stage": "commit"}
@@ -606,7 +694,10 @@ def convert(trace_path, m5out, binary=None, gem5_version="unknown",
     order = sorted(range(len(b.events)),
                    key=lambda i: (b.events[i]["tick"], i))
     new_seq = {old: new for new, old in enumerate(order)}
-    first_cycle = b.events[order[0]]["tick"] // period
+    # gem5 starts simulating at tick 0; the time before the first event
+    # (e.g. the first instruction fetch missing in the caches) belongs to
+    # the run.
+    first_cycle = 0
     last_tick = max(e["tick"] for e in b.events)
     sim_ticks = max(sim_ticks, last_tick)
 
@@ -620,14 +711,15 @@ def convert(trace_path, m5out, binary=None, gem5_version="unknown",
 
     run_id = "run-gem5-" + file_sha256(trace_path)[:16]
     source_short = {"engine": "gem5", "model": cpu_type,
-                    "fidelity": "cycle-level-simulator"}
+                    "fidelity": "functional-iss" if is_atomic
+                    else "cycle-level-simulator"}
     fidelity_note = (
         f"gem5 {cpu_type} in syscall-emulation mode with the configuration "
         "recorded in config.json (see the System view). gem5 is a "
         "cycle-level architectural simulator; this CPU model is not "
         "validated against a specific silicon implementation."
-        if cpu_type != "AtomicSimpleCPU" else
-        "gem5 AtomicSimpleCPU: atomic memory accesses, no pipeline or "
+        if not is_atomic else
+        f"gem5 {cpu_type}: atomic memory accesses, no pipeline or "
         "memory timing.")
 
     header = OrderedDict([
@@ -642,7 +734,7 @@ def convert(trace_path, m5out, binary=None, gem5_version="unknown",
             ("model", cpu_type), ("model_name", f"gem5 {cpu_type}"),
             ("isa", "RV64"), ("extensions", []),
             ("fidelity", "cycle-level-simulator"
-             if cpu_type != "AtomicSimpleCPU" else "functional-iss"),
+             if not is_atomic else "functional-iss"),
             ("fidelity_note", fidelity_note),
             ("source_file", "gem5: src/cpu/o3/" if is_o3 else
              "gem5: src/cpu/simple/")])),
@@ -667,7 +759,7 @@ def convert(trace_path, m5out, binary=None, gem5_version="unknown",
             ("pc", hexs(execs[0]["pc"] if execs else
                         min(r["pc"] for r in o3))),
             ("registers", {})])),
-        ("system", describe_system(objects, stats)),
+        ("system", describe_system(objects, stats, stat_descriptions)),
     ])
 
     events_out = []

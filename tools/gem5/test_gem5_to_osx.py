@@ -44,6 +44,11 @@ def retired_pcs(events):
                                                        "instruction.retire")]
 
 
+def ripes_events_assembly(events):
+    return [e["event"]["assembly"]
+            for e in of_type(events, "instruction.retire")]
+
+
 def final_registers(events):
     regs = {}
     for e in of_type(events, "register.write"):
@@ -111,7 +116,7 @@ class O3TraceTest(unittest.TestCase):
         src = self.header["source"]
         self.assertEqual(src["engine"], "gem5")
         self.assertEqual(src["engine_version"], "v26.0.0.0")
-        self.assertEqual(src["model"], "O3CPU")
+        self.assertEqual(src["model"], "BaseO3CPU")  # gem5 v26 type name
         self.assertEqual(src["fidelity"], "cycle-level-simulator")
         domain = self.header["time_domains"][0]
         self.assertEqual(domain["ticks_per_cycle"], 1000)  # 1 GHz
@@ -121,9 +126,11 @@ class O3TraceTest(unittest.TestCase):
                          ["F", "DEC", "REN", "DIS", "ISS", "CMP"])
         self.assertEqual(self.header["initial_state"]["registers"], {})
 
-    def test_architectural_result_matches_ripes(self):
-        # Same program as Mission 3: 36 instructions retire, a0 = 55.
-        self.assertEqual(len(retired_pcs(self.events)), 36)
+    def test_architectural_result(self):
+        # Same program as Mission 3. gem5 commits 35 instructions
+        # (stats.txt: commitStats0.numInsts 35): the exit ecall ends the
+        # simulation and is not counted. Ripes also retires the ecall (36).
+        self.assertEqual(len(retired_pcs(self.events)), 35)
         regs = final_registers(self.events)
         self.assertEqual(regs["x10"], 55)
         self.assertEqual(regs["x11"], 0)
@@ -169,14 +176,26 @@ class O3TraceTest(unittest.TestCase):
         roles = sorted(c["role"] for c in system.values())
         self.assertIn("cpu", roles)
         self.assertEqual(roles.count("cache"), 3)  # L1I, L1D, L2
+        # gem5's stdlib hierarchy gives every cache a stride prefetcher.
+        self.assertEqual(roles.count("prefetcher"), 3)
         self.assertIn("interconnect", roles)
         self.assertIn("memory-controller", roles)
         for comp in system.values():
             for target in comp["connections"]:
                 self.assertIn(target, system)
         cpu = next(c for c in system.values() if c["role"] == "cpu")
-        self.assertEqual(cpu["type"], "O3CPU")
-        self.assertIn("numROBEntries", cpu["parameters"])
+        self.assertEqual(cpu["type"], "BaseO3CPU")
+        self.assertEqual(cpu["parameters"]["numROBEntries"], 192)
+        self.assertEqual(cpu["statistics"]["commitStats0.numInsts"], 35)
+        self.assertIn("committed", cpu["statistic_info"]["commitStats0.numInsts"])
+        l1i = system["board.cache_hierarchy.l1i-cache-0"]
+        self.assertEqual(l1i["parameters"]["size"], 16384)
+        self.assertEqual(l1i["connections"], ["board.cache_hierarchy.l2buses"])
+        self.assertEqual(
+            system["board.cache_hierarchy.l1i-cache-0.prefetcher"]
+            ["connections"], ["board.cache_hierarchy.l1i-cache-0"])
+        # No statistic is "nan" (gem5 prints it for 0/0); JSON has no NaN.
+        json.dumps(self.header, allow_nan=False)
 
     def test_statistics_come_from_stats_txt(self):
         stats = gem5_to_osx.parse_stats(
@@ -219,7 +238,7 @@ class TimingTraceTest(unittest.TestCase):
         self.assertEqual(len(set(cycles)), len(cycles))
 
     def test_fidelity(self):
-        self.assertEqual(self.header["source"]["model"], "TimingSimpleCPU")
+        self.assertEqual(self.header["source"]["model"], "BaseTimingSimpleCPU")
         self.assertEqual(self.header["source"]["fidelity"],
                          "cycle-level-simulator")
 
@@ -265,8 +284,11 @@ class RipesComparisonTest(unittest.TestCase):
         _, gem5_events, _ = convert("loop_sum_o3_l1l2")
         ripes = retired_pcs(ripes_events)
         gem5 = retired_pcs(gem5_events)
+        # Ripes also retires the final exit ecall, gem5 does not count it.
+        self.assertEqual(len(ripes), len(gem5) + 1)
+        self.assertEqual(ripes_events_assembly(ripes_events)[-1], "ecall")
         # Ripes places .text at 0, the ELF at its link address.
-        self.assertEqual([pc - ripes[0] for pc in ripes],
+        self.assertEqual([pc - ripes[0] for pc in ripes[:-1]],
                          [pc - gem5[0] for pc in gem5])
         ripes_regs = final_registers(ripes_events)
         for name in ("x10", "x11", "x12", "x13", "x17"):

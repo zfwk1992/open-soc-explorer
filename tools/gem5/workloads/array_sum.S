@@ -20,7 +20,7 @@ array:
     .text
     .globl _start
 _start:
-    la   t0, array          # base
+    lla  t0, array          # base (lla: no GOT load)
     li   t1, 2048           # words
     li   t2, 0              # index
     li   a0, 0              # sum
