@@ -58,6 +58,9 @@ const std::map<QString, QVariant> s_defaultSettings = {
     {RIPES_SETTING_OSX_TRACE_ENABLED, true},
     {RIPES_SETTING_OSX_TRACE_MAXCYCLES, 5000},
     {RIPES_SETTING_OSX_MISSIONS_COMPLETED, QStringList()},
+    {RIPES_SETTING_OSX_MISSION_STEPS, QStringList()},
+    {RIPES_SETTING_OSX_THEME, 0},
+    {RIPES_SETTING_OSX_REDUCED_MOTION, false},
 
     // Program state preserving settings
     {RIPES_GLOBALSIGNAL_QUIT, 0},
@@ -175,7 +178,10 @@ bool ThemeManager::eventFilter(QObject *obj, QEvent *event) {
 }
 
 bool appInDarkMode() {
-  return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+  // Decided by the effective palette: it follows the color scheme, and also
+  // covers themes that set their own palette (Open SoC Explorer's game
+  // theme) and platforms that cannot switch the scheme.
+  return QGuiApplication::palette().color(QPalette::Window).lightness() < 128;
 }
 
 } // namespace Ripes

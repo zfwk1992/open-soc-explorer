@@ -17,6 +17,7 @@
 #include "settingsdialog.h"
 #include "syscall/syscallviewer.h"
 #include "syscall/systemio.h"
+#include "theme/theme.h"
 #include "version/version.h"
 #include "wasmSupport.h"
 
@@ -53,6 +54,10 @@ MainWindow::MainWindow(QWidget *parent)
   setWindowTitle("Open SoC Explorer (based on Ripes)");
   setWindowIcon(QIcon(":/icons/logo.svg"));
   m_ui->actionOpen_wiki->setIcon(QIcon(":/icons/info.svg"));
+
+  // Open SoC Explorer: application theme (palette and style sheet) and its
+  // View menu entries. Applied before the tabs are created.
+  Theme::install(m_ui->menuView);
 
   // Initialize processor handler
   ProcessorHandler::get();

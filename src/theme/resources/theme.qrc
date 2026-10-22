@@ -1,0 +1,9 @@
+<!-- SPDX-License-Identifier: MIT. Part of Open SoC Explorer: original drawings. -->
+<RCC>
+    <qresource prefix="/theme">
+        <file>chevron-down-dark.svg</file>
+        <file>chevron-down-light.svg</file>
+        <file>chevron-up-dark.svg</file>
+        <file>chevron-up-light.svg</file>
+    </qresource>
+</RCC>

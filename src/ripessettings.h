@@ -40,6 +40,12 @@ namespace Ripes {
 #define RIPES_SETTING_OSX_TRACE_ENABLED ("osx_trace_enabled")
 #define RIPES_SETTING_OSX_TRACE_MAXCYCLES ("osx_trace_maxcycles")
 #define RIPES_SETTING_OSX_MISSIONS_COMPLETED ("osx_missions_completed")
+// Guided mission steps verified live, as "<mission id>/<step number>".
+#define RIPES_SETTING_OSX_MISSION_STEPS ("osx_mission_steps")
+// GUI theme: 0 = Open SoC Explorer game theme, 1 = classic Ripes look.
+#define RIPES_SETTING_OSX_THEME ("osx_theme")
+// Disables the short UI animations of the game theme.
+#define RIPES_SETTING_OSX_REDUCED_MOTION ("osx_reduced_motion")
 
 // This is not really a setting, but instead a method to leverage the static
 // observer objects that are generated for a setting. Used for other objects to
