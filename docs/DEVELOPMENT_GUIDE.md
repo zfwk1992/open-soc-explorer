@@ -68,7 +68,7 @@ OSX_SCREENSHOT_DIR=/tmp/shots ./build/test/tst_explorergui
 |---|---|
 | `tst_riscv`, `tst_assembler`, `tst_expreval`, `tst_cosimulate`, `tst_reverse`, `tst_stall` | upstream Ripes |
 | `tst_trace` | schema, decoder, recorder on all models, replay vs. live model, JSON round trip, determinism, reverse, truncation, system description, multi-occupancy and same-cycle commit, a real gem5 O3 trace |
-| `tst_missions` | mission catalogue, solvability, measured numbers, explainer, existence of cited source files |
+| `tst_missions` | mission catalogue, solvability, measured numbers, explainer, existence of cited source files, cache model (incl. equality with Ripes' cache simulator) |
 | `tst_explorergui` | main window end to end: missions, explorer, component inspector, System view, a gem5 trace in the Explorer |
 | `tools/trace/test_osx_trace.py` | Python trace tool |
 | `tools/gem5/test_gem5_to_osx.py` | gem5 converter on recorded gem5 output; comparison with Ripes |
@@ -77,8 +77,8 @@ The tests that use gem5 data run `tools/gem5/gem5_to_osx.py` on the
 recorded output in `tools/gem5/testdata` (gem5 itself is not needed) and
 skip if no Python interpreter is found.
 
-Results at the time of writing: 9 suites, 106 test functions, all passing
-(56 upstream + 50 Open SoC Explorer, one of them opt-in), plus 7 Python
+Results at the time of writing: 9 suites, 110 test functions, all passing
+(56 upstream + 54 Open SoC Explorer, one of them opt-in), plus 7 Python
 trace-tool tests and 20 gem5 converter tests.
 
 ### gem5

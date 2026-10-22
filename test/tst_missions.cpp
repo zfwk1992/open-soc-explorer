@@ -4,6 +4,9 @@
 #include <QFileInfo>
 #include <QtTest/QTest>
 
+#include "cachesim/cachesim.h"
+#include "cachesim/l1cacheshim.h"
+#include "explorer/cachemodel.h"
 #include "explorer/componentinfo.h"
 #include "explorer/instructionexplainer.h"
 #include "explorer/mission.h"
@@ -41,6 +44,9 @@ private slots:
   void tst_mission1();
   void tst_mission2();
   void tst_mission3();
+  void tst_mission4();
+  void tst_cacheModel();
+  void tst_cacheModelMatchesRipes();
   void tst_missionStepsProgressLive();
   void tst_explainerFirstProgram();
   void tst_explainerLoadUseHazard();
@@ -95,8 +101,8 @@ QString tst_missions::failures(const CheckReport &report) {
 }
 
 void tst_missions::tst_catalog() {
-  QCOMPARE(m_missions.size(), size_t(3));
-  for (int i = 0; i < 3; ++i) {
+  QCOMPARE(m_missions.size(), size_t(4));
+  for (int i = 0; i < 4; ++i) {
     const auto &m = m_missions[i];
     QCOMPARE(m.number, i + 1);
     QVERIFY(!m.title.isEmpty());
@@ -219,6 +225,108 @@ void tst_missions::tst_mission3() {
   report = evaluateChecks(m.challengeChecks, state, m);
   QVERIFY2(report.passed, qPrintable(failures(report)));
   QCOMPARE(state.stats.squashed, quint64(8));
+}
+
+void tst_missions::tst_mission4() {
+  const auto &m = mission(4);
+  QVERIFY(m.dataCache.has_value());
+  QCOMPARE(m.dataCache->sizeBytes(4), quint64(256));
+  auto state = run(m.processor, m.example);
+  for (const auto &step : m.steps) {
+    const auto report = evaluateChecks(step.checks, state, m);
+    QVERIFY2(report.passed, qPrintable(step.title + ": " + failures(report)));
+  }
+  // Column by column: every one of the 256 loads misses (16 lines of a
+  // column compete for 4 sets and are evicted before the next column).
+  QCOMPARE(state.dataAccesses.size(), size_t(256));
+  auto counts = simulateCache(*m.dataCache, state.dataAccesses, 4);
+  QCOMPARE(counts.misses, quint64(256));
+  QCOMPARE(counts.hits, quint64(0));
+  auto report = evaluateChecks(m.challengeChecks, state, m);
+  QVERIFY(!report.passed);
+  QVERIFY(failures(report).contains("hit rate 0.0 %"));
+
+  // Avoiding the loads (summing a constant) is rejected.
+  state = run(m.processor, "li a0, 32896");
+  QVERIFY(!evaluateChecks(m.challengeChecks, state, m).passed);
+
+  // Row by row: one miss per 16-byte line, the next three words hit.
+  state = run(m.processor, m.referenceSolution);
+  report = evaluateChecks(m.challengeChecks, state, m);
+  QVERIFY2(report.passed, qPrintable(failures(report)));
+  counts = simulateCache(*m.dataCache, state.dataAccesses, 4);
+  QCOMPARE(counts.misses, quint64(64));
+  QCOMPARE(counts.hits, quint64(192));
+}
+
+void tst_missions::tst_cacheModel() {
+  // 2-way set-associative, 2 sets, 1-word lines: blocks 0, lines 1, ways 1.
+  CacheGeometry g;
+  g.lines = 1;
+  g.ways = 1;
+  // Set 0 receives word addresses 0x0, 0x8, 0x10 (tags 0, 1, 2).
+  const std::vector<DataAccess> a = {
+      {0x0, false},  // miss, fill way
+      {0x8, false},  // miss, fill second way
+      {0x0, false},  // hit, 0x8 becomes least recently used
+      {0x10, false}, // miss, evicts 0x8
+      {0x0, false},  // hit
+      {0x8, false},  // miss
+      {0x3, false},  // hit: the two low bits are ignored, as in Ripes
+  };
+  auto c = simulateCache(g, a, 4);
+  QCOMPARE(c.hits, quint64(3));
+  QCOMPARE(c.misses, quint64(4));
+  // Without write allocation, a write miss does not fill the cache.
+  g.writeAllocate = false;
+  c = simulateCache(g, {{0x20, true}, {0x20, false}}, 4);
+  QCOMPARE(c.misses, quint64(2));
+  QCOMPARE(g.describe(4), QString("16-byte 2-way set-associative cache, 4 "
+                                  "line(s) of 4 bytes in 2 set(s)"));
+}
+
+void tst_missions::tst_cacheModelMatchesRipes() {
+  // The mission's cache model must give the same counts as Ripes' own cache
+  // simulator (as wired by the CLI's --cache options) for the same accesses.
+  const auto &m = mission(4);
+  const std::vector<CacheGeometry> geometries = {
+      *m.dataCache, [] {
+        CacheGeometry g; // 2-way, 8 sets, 2-word lines: exercises LRU
+        g.blocks = 1;
+        g.lines = 3;
+        g.ways = 1;
+        return g;
+      }()};
+  for (const QString &program : {m.example, m.referenceSolution}) {
+    for (const auto &g : geometries) {
+      const auto id = processorId(m.processor);
+      ProcessorHandler::selectProcessor(
+          id, ProcessorRegistry::getDescription(id).isaInfo().defaultExtensions,
+          ProcessorRegistry::getDescription(id).defaultRegisterVals);
+      auto cache = std::make_shared<CacheSim>(nullptr);
+      CachePreset preset;
+      preset.name = "test";
+      preset.blocks = g.blocks;
+      preset.lines = g.lines;
+      preset.ways = g.ways;
+      preset.wrPolicy = WritePolicy::WriteBack;
+      preset.wrAllocPolicy = WriteAllocPolicy::WriteAllocate;
+      preset.replPolicy = ReplPolicy::LRU;
+      cache->setPreset(preset);
+      L1CacheShim shim(L1CacheShim::CacheType::DataCache, nullptr);
+      shim.setRequireCacheInterface(false);
+      shim.setNextLevelCache(cache);
+      RipesSettings::getObserver(RIPES_GLOBALSIGNAL_REQRESET)->trigger();
+      m_loader->loadTest(program);
+      auto *proc = ProcessorHandler::getProcessorNonConst();
+      while (!proc->finished() && proc->getCycleCount() < 5000)
+        proc->clock();
+      const auto state = captureMissionState(m_recorder->trace(), program);
+      const auto counts = simulateCache(g, state.dataAccesses, 4);
+      QCOMPARE(counts.hits, quint64(cache->getHits()));
+      QCOMPARE(counts.misses, quint64(cache->getMisses()));
+    }
+  }
 }
 
 void tst_missions::tst_missionStepsProgressLive() {

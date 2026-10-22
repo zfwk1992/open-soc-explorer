@@ -1,0 +1,100 @@
+{
+  "id": "m4-cache-locality",
+  "number": 4,
+  "title": "Cache Locality",
+  "learn": [
+    "Cache lines and sets",
+    "Spatial locality",
+    "Conflict misses"
+  ],
+  "processor": "RV32_5S",
+  "data_cache": {
+    "blocks": 2,
+    "lines": 4,
+    "ways": 0
+  },
+  "objective": "Measure how the order of memory accesses changes the hit rate of a small data cache, then reorder a loop so that it uses the data the cache fetches.",
+  "explanation": "<p>A cache keeps copies of recently used memory in <b>lines</b> of several consecutive bytes. On a <b>miss</b> it fetches a whole line, so the neighbouring words are already there for the next accesses (<i>spatial locality</i>). Which <b>set</b> a line goes to is decided by address bits: in a direct-mapped cache, two lines with the same set bits evict each other (<i>conflict misses</i>).</p><p>This mission's data cache: <b>256 bytes, direct-mapped, 16 lines of 16 bytes</b> (4 words). The address bits are: bits 1–0 byte, bits 3–2 word in the line, bits 7–4 set, the rest tag.</p><p>The matrix is stored <b>row by row</b>: <code>m[r][c]</code> is at <code>matrix + (16r + c) · 4</code>. Walking down a column jumps 64 bytes per step, so every access lands in a different line, and only 4 of the 16 sets are used for the 16 rows of a column.</p><p><b>Fidelity.</b> The hit and miss counts come from the data accesses recorded in the trace, run through the same cache rules as Ripes' cache simulator; you can watch the same cache in the <b>Cache</b> tab (data cache: 2<sup>N</sup> Ways = 0, 2<sup>N</sup> Sets = 4, 2<sup>N</sup> Words per Line = 2, LRU, write-back, write-allocate). Ripes' processors use ideal memory, so in Ripes a miss costs <b>no</b> cycles. On a timing model it does: the same kind of experiment on gem5's out-of-order CPU (4 KiB L1 data cache, 2048 loads, tools/gem5/README.md) took 6,939 cycles with 2,030 L1 misses for strided accesses and 2,601 cycles with 119 misses for sequential accesses.</p>",
+  "example": "# Mission 4: sum a 16 x 16 matrix, column by column\n.data\nmatrix:              # 16 x 16 words, row by row: m[r][c] = 16r + c + 1\n    .word 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16\n    .word 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32\n    .word 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48\n    .word 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64\n    .word 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80\n    .word 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96\n    .word 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112\n    .word 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128\n    .word 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144\n    .word 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160\n    .word 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176\n    .word 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192\n    .word 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208\n    .word 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224\n    .word 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240\n    .word 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256\n.text\n    la   t0, matrix      # base address\n    addi t1, x0, 16      # N\n    addi a0, x0, 0       # sum\n    addi t2, x0, 0       # column c\ncol_loop:\n    addi t3, x0, 0       # row r\nrow_loop:\n    slli t4, t3, 4       # r * 16\n    add  t4, t4, t2      # r * 16 + c\n    slli t4, t4, 2       # * 4 bytes\n    add  t4, t0, t4      # address of m[r][c]\n    lw   t5, 0(t4)\n    add  a0, a0, t5\n    addi t3, t3, 1       # next row: 64 bytes further in memory\n    blt  t3, t1, row_loop\n    addi t2, t2, 1       # next column\n    blt  t2, t1, col_loop\n",
+  "steps": [
+    {
+      "title": "Load the program",
+      "instruction": "Click <b>Load example</b> and <b>Select processor</b>. The program sums a 16 × 16 matrix column by column.",
+      "checks": [
+        {
+          "kind": "processor_is"
+        },
+        {
+          "kind": "program_matches_example"
+        }
+      ]
+    },
+    {
+      "title": "Run it and check the sum",
+      "instruction": "Run to the end. The sum of 1 … 256 is <code>a0 = 32896</code>. In the Explorer, look at the <code>lw</code> instructions: their addresses grow by 64 bytes from one row to the next.",
+      "checks": [
+        {
+          "kind": "finished"
+        },
+        {
+          "kind": "trace_complete"
+        },
+        {
+          "kind": "register_equals",
+          "register": "a0",
+          "value": 32896
+        },
+        {
+          "kind": "memory_reads_at_least",
+          "count": 256
+        }
+      ]
+    },
+    {
+      "title": "Measure the data cache",
+      "instruction": "Each of the 256 loads misses: a column touches 16 different lines that compete for 4 sets, and by the time the next column needs a line again, it has been evicted. Compare with the <b>Cache</b> tab configured as described above.",
+      "checks": [
+        {
+          "kind": "dcache_misses_at_least",
+          "count": 200
+        }
+      ]
+    }
+  ],
+  "challenge": {
+    "text": "Compute the same sum (<code>a0 = 32896</code>) with all 256 loads, reaching a data cache hit rate of <b>at least 70 %</b> on this mission's cache.",
+    "hint": "Visit the matrix in the order it is stored in memory: swap the two loops so that consecutive loads are 4 bytes apart.",
+    "reference_solution": "# Mission 4 solution: sum the matrix row by row\n.data\nmatrix:              # 16 x 16 words, row by row: m[r][c] = 16r + c + 1\n    .word 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16\n    .word 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32\n    .word 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48\n    .word 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64\n    .word 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80\n    .word 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96\n    .word 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112\n    .word 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128\n    .word 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144\n    .word 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160\n    .word 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176\n    .word 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192\n    .word 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208\n    .word 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224\n    .word 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240\n    .word 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256\n.text\n    la   t0, matrix      # base address\n    addi t1, x0, 16      # N\n    addi a0, x0, 0       # sum\n    addi t3, x0, 0       # row r\nrow_loop:\n    addi t2, x0, 0       # column c\ncol_loop:\n    slli t4, t3, 4       # r * 16\n    add  t4, t4, t2      # r * 16 + c\n    slli t4, t4, 2       # * 4 bytes\n    add  t4, t0, t4      # address of m[r][c]\n    lw   t5, 0(t4)\n    add  a0, a0, t5\n    addi t2, t2, 1       # next column: the next word in memory\n    blt  t2, t1, col_loop\n    addi t3, t3, 1       # next row\n    blt  t3, t1, row_loop\n",
+    "checks": [
+      {
+        "kind": "processor_is",
+        "any_of": [
+          "RV32_5S"
+        ]
+      },
+      {
+        "kind": "source_differs_from_example"
+      },
+      {
+        "kind": "finished"
+      },
+      {
+        "kind": "trace_complete"
+      },
+      {
+        "kind": "register_equals",
+        "register": "a0",
+        "value": 32896
+      },
+      {
+        "kind": "memory_reads_at_least",
+        "count": 256
+      },
+      {
+        "kind": "dcache_hit_rate_at_least",
+        "percent": 70
+      }
+    ]
+  },
+  "completion": "Row by row, each miss brings in a line of four words and the next three loads hit: 64 misses and 192 hits (75 %). Column by column, every load missed. Same instructions, same result, very different memory behaviour; on a processor with a real memory system that difference becomes time."
+}

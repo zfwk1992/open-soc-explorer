@@ -76,6 +76,7 @@ offline replay…*. Things to look at:
 | 1 | Execute Your First RISC-V Program | single-cycle (`RV32_SS`) | PC, register file, ADDI, ADD, write-back |
 | 2 | Pipeline Hazards | 5-stage (`RV32_5S`), then `RV32_5S_NO_FW` | data dependencies, forwarding, stalls, CPI |
 | 3 | Branch and Flush | 5-stage (`RV32_5S`) | branch condition, PC update, pipeline flush, loop unrolling |
+| 4 | Cache Locality | 5-stage (`RV32_5S`) + a 256-byte direct-mapped data cache | cache lines and sets, spatial locality, conflict misses, loop order |
 
 Each mission has an objective, an explanation, an example program, guided
 steps (each step shows its conditions and turns ✓ when the simulator state
@@ -89,6 +90,12 @@ Numbers measured on the models for the examples (asserted by the tests):
   reordered solution has 0 stalls.
 * Mission 3: the first flush happens in cycle 7; the loop squashes 18
   instructions (9 taken branches × 2); a 2× unrolled loop squashes 8.
+* Mission 4: summing the 16 × 16 matrix column by column, all 256 loads
+  miss in the mission's cache (16 lines of 16 bytes); row by row there are
+  64 misses and 192 hits (75 %). These counts equal those of Ripes' own
+  cache simulator for the same configuration (`tst_cacheModelMatchesRipes`).
+  Ripes' memory is ideal, so the misses cost no cycles there; the measured
+  timing effect on gem5 is quoted in the mission.
 
 Challenges are scored only on a **complete** trace: recorded from reset, not
 truncated, program finished. If a challenge says "run the program to
@@ -107,6 +114,7 @@ Missions are JSON files in `src/explorer/missions/` listed in
 | `objective`, `explanation` (HTML), `example` (assembly), `completion` | Texts |
 | `steps[]` | `title`, `instruction` (HTML), `checks[]` |
 | `challenge` | `text` (HTML), `hint`, `checks[]`, `reference_solution` (not shown in the GUI; used by the tests to prove the mission is solvable) |
+| `data_cache` | Optional: `blocks`, `lines`, `ways` (log2 values, as in Ripes' Cache tab: words per line, sets, ways), `write_allocate` (default true). Required by the `dcache_*` criteria |
 
 Criteria (`checks[]` entries have a `kind` and parameters; an optional
 `label` overrides the generated description):
@@ -129,6 +137,14 @@ Criteria (`checks[]` entries have a `kind` and parameters; an optional
 | `squashed_at_least` / `_at_most` | `count` | squashed instructions; `_at_most` needs a complete trace |
 | `cycles_at_most` | `cycles` | total cycles (complete trace) |
 | `cpi_at_most` | `value` | cycles / retired (complete trace) |
+| `memory_reads_at_least` | `count` | data memory reads ≥ count (complete trace) |
+| `dcache_misses_at_least` | `count` | misses of the mission's `data_cache` on the recorded data accesses ≥ count (complete trace) |
+| `dcache_hit_rate_at_least` | `percent` | hit rate of the mission's `data_cache` ≥ percent (complete trace) |
+
+The `dcache_*` criteria run the data accesses of the trace through
+`Explorer::simulateCache()` (`src/explorer/cachemodel.cpp`, LRU), which
+follows the rules of Ripes' cache simulator; a test checks that both give
+the same counts.
 
 When adding a mission, add a test to `test/tst_missions.cpp` that runs the
 example and the reference solution on the simulator and checks that the

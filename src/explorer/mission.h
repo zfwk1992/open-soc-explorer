@@ -11,6 +11,7 @@
 #include <set>
 #include <vector>
 
+#include "cachemodel.h"
 #include "tracereplay.h"
 #include "tracetypes.h"
 
@@ -50,6 +51,8 @@ struct Mission {
   /// Known-good challenge solution, used by the automated tests to verify
   /// that each mission is solvable. Not shown in the GUI.
   QString referenceSolution;
+  /// Data cache that the dcache_* criteria simulate (JSON "data_cache").
+  std::optional<CacheGeometry> dataCache;
 };
 
 /// Facts about the current simulation that missions are verified against.
@@ -69,6 +72,8 @@ struct MissionState {
   TraceReplay::Stats stats;
   /// Mnemonic of the instruction that last wrote each GPR (by index).
   std::map<int, QString> lastWriter;
+  /// Data memory accesses of the recorded trace, in order.
+  std::vector<DataAccess> dataAccesses;
 };
 
 struct CriterionResult {

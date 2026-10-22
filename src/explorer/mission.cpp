@@ -41,7 +41,10 @@ const QStringList &kinds() {
                                 "squashed_at_least",
                                 "squashed_at_most",
                                 "cycles_at_most",
-                                "cpi_at_most"};
+                                "cpi_at_most",
+                                "memory_reads_at_least",
+                                "dcache_misses_at_least",
+                                "dcache_hit_rate_at_least"};
   return k;
 }
 
@@ -172,6 +175,31 @@ std::optional<Mission> parseMission(const QJsonObject &o, QString *error) {
     return std::nullopt;
   if (m.challengeChecks.empty())
     return fail("Mission '" + m.id + "' has no challenge checks");
+
+  if (o.contains("data_cache")) {
+    const auto dc = o["data_cache"].toObject();
+    CacheGeometry g;
+    g.blocks = dc["blocks"].toInt(-1);
+    g.lines = dc["lines"].toInt(-1);
+    g.ways = dc["ways"].toInt(-1);
+    g.writeAllocate = dc["write_allocate"].toBool(true);
+    if (g.blocks < 0 || g.lines < 0 || g.ways < 0 || g.blocks > 8 ||
+        g.lines > 16 || g.ways > 8)
+      return fail("Mission '" + m.id +
+                  "': data_cache needs blocks, lines and ways (log2 values)");
+    m.dataCache = g;
+  }
+  auto needsCache = [](const std::vector<MissionCriterion> &checks) {
+    return std::any_of(checks.begin(), checks.end(), [](const auto &c) {
+      return c.kind.startsWith("dcache_");
+    });
+  };
+  bool usesCache = needsCache(m.challengeChecks);
+  for (const auto &step : m.steps)
+    usesCache |= needsCache(step.checks);
+  if (usesCache && !m.dataCache)
+    return fail("Mission '" + m.id +
+                "' uses dcache_* criteria without a data_cache");
   return m;
 }
 
@@ -232,11 +260,17 @@ MissionState captureMissionState(const Trace::Trace &trace,
     s.stats = replay.stats();
     s.traceStartsAtReset = trace.completeness.startsAtReset;
     s.traceTruncated = trace.completeness.truncated;
-    for (const auto &ev : replay.trace().events)
+    for (const auto &ev : replay.trace().events) {
       if (ev.type == Trace::EventType::RegisterWrite &&
           ev.payload.value("regfile").toString() == "gpr")
         s.lastWriter[ev.payload.value("index").toInt()] =
             ev.instance >= 0 ? replay.mnemonicOf(ev.instance) : QString();
+      if (ev.type == Trace::EventType::MemoryRequest)
+        if (const auto address =
+                Trace::fromHex(ev.payload.value("address").toString()))
+          s.dataAccesses.push_back(
+              {*address, ev.payload.value("access").toString() == "write"});
+    }
   } else {
     s.traceTruncated = true;
   }
@@ -384,6 +418,37 @@ CriterionResult evaluateCriterion(const MissionCriterion &c,
     r.passed = runComplete(s) && s.stats.retired > 0 && s.stats.cpi <= v;
     r.detail = runComplete(s)
                    ? QString("measured: %1").arg(s.stats.cpi, 0, 'f', 2)
+                   : needRun;
+  } else if (c.kind == "memory_reads_at_least") {
+    r.description = "At least " + plural(count, "data memory read");
+    r.passed = runComplete(s) && s.stats.memoryReads >= quint64(count);
+    r.detail = runComplete(s) ? QString("measured: %1").arg(s.stats.memoryReads)
+                              : needRun;
+  } else if (c.kind == "dcache_misses_at_least" ||
+             c.kind == "dcache_hit_rate_at_least") {
+    const unsigned wordBytes = s.xlen / 8;
+    const auto counts =
+        mission.dataCache
+            ? simulateCache(*mission.dataCache, s.dataAccesses, wordBytes)
+            : CacheCounts();
+    if (c.kind == "dcache_misses_at_least") {
+      r.description = QString("At least %1 data cache miss%2")
+                          .arg(count)
+                          .arg(count == 1 ? "" : "es");
+      r.passed = runComplete(s) && counts.misses >= quint64(count);
+    } else {
+      const double percent = p.value("percent").toDouble();
+      r.description = QString("Data cache hit rate ≥ %1 %").arg(percent);
+      r.passed = runComplete(s) && counts.accesses() > 0 &&
+                 counts.hitRatePercent() >= percent;
+    }
+    if (mission.dataCache)
+      r.description += " (" + mission.dataCache->describe(wordBytes) + ")";
+    r.detail = runComplete(s)
+                   ? QString("measured: %1 hits, %2 misses, hit rate %3 %")
+                         .arg(counts.hits)
+                         .arg(counts.misses)
+                         .arg(counts.hitRatePercent(), 0, 'f', 1)
                    : needRun;
   } else {
     r.description = "Unknown criterion '" + c.kind + "'";

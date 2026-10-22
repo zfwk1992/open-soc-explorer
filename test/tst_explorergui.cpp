@@ -47,6 +47,7 @@ private:
   void waitForNewProgram(const Program *previous);
   void loadMission(int row);
   void runToEnd();
+  void runFast();
   QStringList stepStatuses() const;
   void screenshot(const QString &name);
 
@@ -61,6 +62,7 @@ private slots:
   void tst_explorerReplaysTrace();
   void tst_componentInspector();
   void tst_mission3ChallengeSolved();
+  void tst_mission4CacheChallenge();
   void tst_systemViewRipes();
   void tst_gem5TraceInExplorer();
   void cleanupTestCase();
@@ -76,7 +78,7 @@ void tst_explorergui::initTestCase() {
   m_explorer = m_window->findChild<ExplorerTab *>();
   QVERIFY(m_missions && m_explorer);
   m_catalog = Explorer::loadBuiltinMissions();
-  QCOMPARE(m_catalog.size(), size_t(3));
+  QCOMPARE(m_catalog.size(), size_t(4));
 }
 
 void tst_explorergui::cleanupTestCase() { delete m_window; }
@@ -114,6 +116,14 @@ void tst_explorergui::loadMission(int row) {
   QTest::qWait(200);
   QCOMPARE(enumToString<ProcessorID>(ProcessorHandler::getID()),
            m_catalog[row].processor);
+}
+
+void tst_explorergui::runFast() {
+  // Like the toolbar's Run button: simulates without per-cycle GUI updates.
+  ProcessorHandler::run();
+  QTRY_VERIFY_WITH_TIMEOUT(!ProcessorHandler::isRunning(), 60000);
+  QTRY_VERIFY_WITH_TIMEOUT(ProcessorHandler::getProcessor()->finished(), 5000);
+  QTest::qWait(250);
 }
 
 void tst_explorergui::runToEnd() {
@@ -251,8 +261,32 @@ void tst_explorergui::tst_mission3ChallengeSolved() {
   screenshot("missions-mission3-solved");
 }
 
+void tst_explorergui::tst_mission4CacheChallenge() {
+  loadMission(3);
+  runFast();
+  activateTab(kMissionsTab);
+  QTRY_COMPARE_WITH_TIMEOUT(stepStatuses(), QStringList({"✓", "✓", "✓"}), 2000);
+  click(m_missions, "Check challenge");
+  const QString result =
+      m_missions->findChild<QLabel *>("missionResult")->text();
+  QVERIFY(result.contains("Not solved yet"));
+
+  activateTab(kEditorTab);
+  const auto *previous = ProcessorHandler::getProgram().get();
+  m_window->findChild<EditTab *>()->loadSourceText(
+      m_catalog[3].referenceSolution);
+  waitForNewProgram(previous);
+  runFast();
+  activateTab(kMissionsTab);
+  click(m_missions, "Check challenge");
+  QVERIFY(m_missions->findChild<QLabel *>("missionResult")
+              ->text()
+              .contains("Challenge solved"));
+  screenshot("missions-mission4-solved");
+}
+
 void tst_explorergui::tst_systemViewRipes() {
-  // Live trace of the Mission 3 solution on RV32_5S (previous test).
+  // Live trace of the Mission 4 solution on RV32_5S (previous test).
   activateTab(kExplorerTab);
   m_explorer->findChild<QTabWidget *>("explorerSideTabs")->setCurrentIndex(4);
   auto *view = m_explorer->findChild<QGraphicsView *>("systemTopology");

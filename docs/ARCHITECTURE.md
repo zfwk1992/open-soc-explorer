@@ -164,6 +164,7 @@ signals) and accelerator models, see [ROADMAP.md](ROADMAP.md).
 | `src/explorer/instructionexplainer.{h,cpp}` | Explanations + HTML rendering |
 | `src/explorer/componentinfo.{h,cpp}` | Datapath component descriptions |
 | `src/explorer/mission.{h,cpp}`, `missions/*.json` | Mission format, loader, criteria evaluation |
+| `src/explorer/cachemodel.{h,cpp}` | Cache model for mission criteria (same rules as Ripes' `CacheSim`) |
 | `src/explorertab.{h,cpp}` | Explorer tab GUI |
 | `src/missionstab.{h,cpp}` | Missions tab GUI |
 | `src/systemview.{h,cpp}` | System view: simulated components, connections, parameters, statistics |

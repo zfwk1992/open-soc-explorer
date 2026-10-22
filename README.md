@@ -35,11 +35,11 @@ squashed instruction's journey. Every value comes from the recorded trace.*
 | **CPU Explorer** tab: pipeline strip, instruction timeline, per-cycle events and registers, statistics (CPI, stalls, squashes, memory operations) | ✅ |
 | **Instruction explanations**: encoding, semantics, architectural operands, observed result checked against the ISA, data hazards, journey, implementing source files | ✅ |
 | **CPU component inspector**: purpose, live input/output signal values and wiring of datapath components (VSRTL models), instruction in the component's stage | ✅ |
-| **Learning missions 1–3** (first program, pipeline hazards, branch & flush) with live-verified steps and scored challenges | ✅ |
+| **Learning missions 1–4** (first program, pipeline hazards, branch & flush, cache locality) with live-verified steps and scored challenges | ✅ |
 | **System view**: the components the engine simulated (Ripes: CPU, ideal memory, I/O; gem5: caches, prefetchers, crossbars, memory controller, DRAM), their connections, parameters and statistics; non-simulated SoC blocks clearly marked | ✅ |
 | **gem5 (offline)**: run RISC-V programs on gem5's O3, TimingSimple or AtomicSimple CPU with configurable caches and replay them in the Explorer (`tools/gem5`); validated against real gem5 v26 output and against Ripes | ✅ |
 | Python trace tool (`tools/trace/osx_trace.py`: validate, summary, ASCII pipeline) | ✅ |
-| Cache mission on gem5 data, Ibex/Verilator RTL adapter, AI-accelerator lab, Physical-AI workloads, VHDL/FPGA lab, classic-console architecture research track (Neo Geo, PS3 Cell), missions 4–10 | 🗺️ planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Ibex/Verilator RTL adapter, AI-accelerator lab, Physical-AI workloads, VHDL/FPGA lab, classic-console architecture research track (Neo Geo, PS3 Cell), missions 5–10 | 🗺️ planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 <p align="center">
   <img src="docs/images/missions-mission1.png" width="49%" alt="Missions tab">
@@ -105,7 +105,7 @@ cd ../.. && OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools
 OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools/gem5
 ```
 
-9 QtTest suites (106 test functions: 56 upstream, 50 Open SoC Explorer) and
+9 QtTest suites (110 test functions: 56 upstream, 54 Open SoC Explorer) and
 27 Python tests (trace tool and gem5 converter, using recorded gem5 output).
 CI runs the QtTest suites on Ubuntu, macOS and Windows.
 
