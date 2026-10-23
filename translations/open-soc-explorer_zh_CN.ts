@@ -2633,6 +2633,528 @@
     </message>
 </context>
 <context>
+    <name>Ripes::Mobile::ExplainPage</name>
+    <message>
+        <source>No instruction selected</source>
+        <translation>未选择指令</translation>
+    </message>
+    <message>
+        <source>Tap an instruction on the Pipeline page, or use ◀ ▶ above to walk through the recorded instructions. The explanation shows what the instruction does, its operand and result values as recorded by the simulator, its hazards and its journey through the pipeline.</source>
+        <translation>在“流水线”页面点按一条指令，或用上方的 ◀ ▶ 逐条浏览已记录的指令。说明会展示该指令的作用、模拟器记录的操作数与结果值、它的冒险以及它在流水线中的经历。</translation>
+    </message>
+    <message>
+        <source>No instructions have been recorded yet.</source>
+        <translation>尚未记录任何指令。</translation>
+    </message>
+</context>
+<context>
+    <name>Ripes::Mobile::MissionCard</name>
+    <message>
+        <source>Mission %1: %2</source>
+        <translation>任务 %1：%2</translation>
+    </message>
+    <message>
+        <source>MISSION %1</source>
+        <translation>任务 %1</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>下一个</translation>
+    </message>
+    <message>
+        <source>%1/%2 steps</source>
+        <translation>%1/%2 步</translation>
+    </message>
+</context>
+<context>
+    <name>Ripes::Mobile::MissionsPage</name>
+    <message>
+        <source>No missions available: %1</source>
+        <translation>没有可用的任务：%1</translation>
+    </message>
+    <message>
+        <source>MISSION MAP</source>
+        <translation>任务地图</translation>
+    </message>
+    <message>
+        <source>Missions</source>
+        <translation>任务</translation>
+    </message>
+    <message>
+        <source>Load example</source>
+        <translation>加载示例</translation>
+    </message>
+    <message>
+        <source>Select processor</source>
+        <translation>选择处理器</translation>
+    </message>
+    <message>
+        <source>Go to Run ▶</source>
+        <translation>前往运行 ▶</translation>
+    </message>
+    <message>
+        <source>Guided steps (verified live)</source>
+        <translation>引导步骤（实时验证）</translation>
+    </message>
+    <message>
+        <source>Challenge</source>
+        <translation>挑战</translation>
+    </message>
+    <message>
+        <source>Briefing: concepts</source>
+        <translation>任务简报：概念</translation>
+    </message>
+    <message>
+        <source>Example program</source>
+        <translation>示例程序</translation>
+    </message>
+    <message>
+        <source>Objective</source>
+        <translation>目标</translation>
+    </message>
+    <message>
+        <source>Show hint</source>
+        <translation>显示提示</translation>
+    </message>
+    <message>
+        <source>Check challenge</source>
+        <translation>检查挑战</translation>
+    </message>
+    <message>
+        <source>Missions are verified against the simulator: steps tick off when the live processor state and the recorded trace meet their conditions. Stars and XP only come from verified steps and solved challenges.</source>
+        <translation>任务由模拟器验证：当实时处理器状态和记录的轨迹满足条件时，步骤会自动勾选。星星和经验值只来自已验证的步骤和已解决的挑战。</translation>
+    </message>
+    <message>
+        <source>MISSION %1 · %2</source>
+        <translation>任务 %1 · %2</translation>
+    </message>
+    <message>
+        <source>%1 of %2 guided steps verified · challenge solved</source>
+        <translation>已验证 %1/%2 个引导步骤 · 挑战已解决</translation>
+    </message>
+    <message>
+        <source>%1 of %2 guided steps verified · challenge open</source>
+        <translation>已验证 %1/%2 个引导步骤 · 挑战未解决</translation>
+    </message>
+    <message>
+        <source>Processor: %1 (%2)</source>
+        <translation>处理器：%1（%2）</translation>
+    </message>
+    <message>
+        <source>Mission %1</source>
+        <translation>任务 %1</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Locked&lt;/b&gt; – recommended after Mission %1: verify its guided steps (or solve its challenge) to unlock it on the map. You can still play it now.</source>
+        <translation>&lt;b&gt;未解锁&lt;/b&gt; – 建议在任务 %1 之后进行：验证其引导步骤（或解决其挑战）即可在地图上解锁本任务。你现在也可以直接游玩。</translation>
+    </message>
+    <message>
+        <source>You will learn: %1</source>
+        <translation>你将学到：%1</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Step %1: %2&lt;/b&gt;&lt;br&gt;%3</source>
+        <translation>&lt;b&gt;步骤 %1：%2&lt;/b&gt;&lt;br&gt;%3</translation>
+    </message>
+    <message>
+        <source>Hint:</source>
+        <translation>提示：</translation>
+    </message>
+    <message>
+        <source>Completed.</source>
+        <translation>已完成。</translation>
+    </message>
+    <message>
+        <source>Completed earlier. Live state now:</source>
+        <translation>之前已完成。当前实时状态：</translation>
+    </message>
+    <message>
+        <source>Mission %1: step %2 verified · +%3 XP</source>
+        <translation>任务 %1：步骤 %2 已验证 · +%3 XP</translation>
+    </message>
+    <message>
+        <source>Challenge solved!</source>
+        <translation>挑战成功！</translation>
+    </message>
+    <message>
+        <source>Verified against the simulator state and the recorded trace.</source>
+        <translation>已根据模拟器状态和记录的轨迹验证。</translation>
+    </message>
+    <message>
+        <source>+%1 XP · ★ challenge star</source>
+        <translation>+%1 XP · ★ 挑战之星</translation>
+    </message>
+    <message>
+        <source>(already counted)</source>
+        <translation>（已计入）</translation>
+    </message>
+    <message>
+        <source>Mission %1: challenge solved · +%2 XP</source>
+        <translation>任务 %1：挑战已解决 · +%2 XP</translation>
+    </message>
+    <message>
+        <source>Not solved yet.</source>
+        <translation>尚未解决。</translation>
+    </message>
+    <message>
+        <source>The failing conditions are marked below.</source>
+        <translation>未满足的条件已在下方标出。</translation>
+    </message>
+</context>
+<context>
+    <name>Ripes::Mobile::MobileShell</name>
+    <message>
+        <source>Missions</source>
+        <translation>任务</translation>
+    </message>
+    <message>
+        <source>Run</source>
+        <translation>运行</translation>
+    </message>
+    <message>
+        <source>Pipeline</source>
+        <translation>流水线</translation>
+    </message>
+    <message>
+        <source>Explain</source>
+        <translation>解释</translation>
+    </message>
+    <message>
+        <source>Registers</source>
+        <translation>寄存器</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation>设置</translation>
+    </message>
+    <message>
+        <source>Open SoC Explorer (based on Ripes)</source>
+        <translation>Open SoC Explorer（基于 Ripes）</translation>
+    </message>
+    <message>
+        <source>Example program loaded</source>
+        <translation>已加载示例程序</translation>
+    </message>
+    <message>
+        <source>Processor: %1</source>
+        <translation>处理器：%1</translation>
+    </message>
+    <message>
+        <source>Mission progress reset</source>
+        <translation>任务进度已重置</translation>
+    </message>
+    <message>
+        <source>truncated (%1)</source>
+        <translation>已截断（%1）</translation>
+    </message>
+    <message>
+        <source>complete</source>
+        <translation>完整</translation>
+    </message>
+    <message>
+        <source>finished, started mid-run</source>
+        <translation>已结束，但从运行中途开始记录</translation>
+    </message>
+    <message>
+        <source>in progress</source>
+        <translation>进行中</translation>
+    </message>
+    <message>
+        <source>Live trace</source>
+        <translation>实时轨迹</translation>
+    </message>
+    <message>
+        <source>Recording disabled</source>
+        <translation>记录已关闭</translation>
+    </message>
+    <message>
+        <source>Engine</source>
+        <translation>引擎</translation>
+    </message>
+    <message>
+        <source>Model</source>
+        <translation>模型</translation>
+    </message>
+    <message>
+        <source>Fidelity</source>
+        <translation>保真度</translation>
+    </message>
+    <message>
+        <source>Clock domain</source>
+        <translation>时钟域</translation>
+    </message>
+    <message>
+        <source>Trace</source>
+        <translation>轨迹</translation>
+    </message>
+    <message>
+        <source>no stage information</source>
+        <translation>无流水线级信息</translation>
+    </message>
+    <message>
+        <source>Cycle</source>
+        <translation>周期</translation>
+    </message>
+    <message>
+        <source>cycle %1</source>
+        <translation>周期 %1</translation>
+    </message>
+</context>
+<context>
+    <name>Ripes::Mobile::PipelinePage</name>
+    <message>
+        <source>Recorded in this cycle</source>
+        <translation>本周期记录的事件</translation>
+    </message>
+    <message>
+        <source>Tap an instruction to see its explanation. Use ◀ ▶ or the slider to move through the recorded cycles; the simulator is not changed.</source>
+        <translation>点按一条指令查看其解释。用 ◀ ▶ 或滑块在已记录的周期之间移动；模拟器本身不会改变。</translation>
+    </message>
+    <message>
+        <source>No trace recorded yet</source>
+        <translation>尚未记录轨迹</translation>
+    </message>
+    <message>
+        <source>Load a program (Missions or Run page) and press Clock or Run: every cycle is recorded and can be replayed here.</source>
+        <translation>加载一个程序（在“任务”或“运行”页面），然后按“时钟”或“运行”：每个周期都会被记录，并可在这里回放。</translation>
+    </message>
+    <message>
+        <source>Cycle %1 of %2–%3</source>
+        <translation>周期 %1（范围 %2–%3）</translation>
+    </message>
+    <message>
+        <source>Whole trace: %1 retired · CPI %2 · %3 stall cycles · %4 squashed</source>
+        <translation>整个轨迹：退休 %1 条 · CPI %2 · 停顿周期 %3 · 被冲刷 %4 条</translation>
+    </message>
+    <message>
+        <source>lane %1</source>
+        <translation>通道 %1</translation>
+    </message>
+    <message>
+        <source>This trace has no pipeline stage information (the model is not pipelined). The instructions recorded in this cycle are listed below.</source>
+        <translation>此轨迹没有流水线级信息（该模型不是流水线模型）。本周期记录的指令列在下方。</translation>
+    </message>
+    <message>
+        <source>No events in this cycle.</source>
+        <translation>本周期没有事件。</translation>
+    </message>
+</context>
+<context>
+    <name>Ripes::Mobile::PlayerHud</name>
+    <message>
+        <source>LEVEL %1</source>
+        <translation>等级 %1</translation>
+    </message>
+    <message>
+        <source>%1 / %2 XP to level %3</source>
+        <translation>%1 / %2 XP，距等级 %3</translation>
+    </message>
+    <message>
+        <source>%1 XP</source>
+        <translation>%1 XP</translation>
+    </message>
+</context>
+<context>
+    <name>Ripes::Mobile::RegistersPage</name>
+    <message>
+        <source>Register</source>
+        <translation>寄存器</translation>
+    </message>
+    <message>
+        <source>Value (hex)</source>
+        <translation>值（十六进制）</translation>
+    </message>
+    <message>
+        <source>Decimal</source>
+        <translation>十进制</translation>
+    </message>
+    <message>
+        <source>No trace recorded yet: registers are shown for the recorded cycles.</source>
+        <translation>尚未记录轨迹：寄存器按已记录的周期显示。</translation>
+    </message>
+    <message>
+        <source>Registers at cycle %1 (replayed from the recorded trace). Values written in this cycle are highlighted.</source>
+        <translation>周期 %1 的寄存器（由记录的轨迹回放）。本周期写入的值已高亮。</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation>未知</translation>
+    </message>
+</context>
+<context>
+    <name>Ripes::Mobile::RunPage</name>
+    <message>
+        <source>Load example</source>
+        <translation>加载示例</translation>
+    </message>
+    <message>
+        <source>Select processor</source>
+        <translation>选择处理器</translation>
+    </message>
+    <message>
+        <source>Simulator</source>
+        <translation>模拟器</translation>
+    </message>
+    <message>
+        <source>Processor model</source>
+        <translation>处理器模型</translation>
+    </message>
+    <message>
+        <source>Program (RISC-V assembly)</source>
+        <translation>程序（RISC-V 汇编）</translation>
+    </message>
+    <message>
+        <source>Type RISC-V assembly here, or load an example.</source>
+        <translation>在此输入 RISC-V 汇编，或加载一个示例。</translation>
+    </message>
+    <message>
+        <source>Reset</source>
+        <translation>复位</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>后退</translation>
+    </message>
+    <message>
+        <source>Clock</source>
+        <translation>时钟</translation>
+    </message>
+    <message>
+        <source>Load an example program…</source>
+        <translation>加载示例程序…</translation>
+    </message>
+    <message>
+        <source>Assembled and loaded: %1 bytes of code.</source>
+        <translation>已汇编并加载：%1 字节代码。</translation>
+    </message>
+    <message>
+        <source>line %1: %2</source>
+        <translation>第 %1 行：%2</translation>
+    </message>
+    <message>
+        <source>… and %1 more</source>
+        <translation>… 另有 %1 条</translation>
+    </message>
+    <message>
+        <source>Not assembled – the previous program stays loaded:</source>
+        <translation>未能汇编 – 仍保留之前加载的程序：</translation>
+    </message>
+    <message>
+        <source>Mission %1</source>
+        <translation>任务 %1</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message>
+        <source>Run</source>
+        <translation>运行</translation>
+    </message>
+    <message>
+        <source>running…</source>
+        <translation>运行中…</translation>
+    </message>
+    <message>
+        <source>finished</source>
+        <translation>已结束</translation>
+    </message>
+    <message>
+        <source>ready (reset)</source>
+        <translation>就绪（已复位）</translation>
+    </message>
+    <message>
+        <source>paused</source>
+        <translation>已暂停</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;%1&lt;/b&gt; · cycle %2 · %3 instructions retired · CPI %4</source>
+        <translation>&lt;b&gt;%1&lt;/b&gt; · 周期 %2 · 已退休 %3 条指令 · CPI %4</translation>
+    </message>
+</context>
+<context>
+    <name>Ripes::Mobile::SettingsPage</name>
+    <message>
+        <source>Tap again to forget all mission progress</source>
+        <translation>再点一次以清除全部任务进度</translation>
+    </message>
+    <message>
+        <source>Language</source>
+        <translation>语言</translation>
+    </message>
+    <message>
+        <source>Appearance</source>
+        <translation>外观</translation>
+    </message>
+    <message>
+        <source>Game theme (Open SoC Explorer)</source>
+        <translation>游戏主题（Open SoC Explorer）</translation>
+    </message>
+    <message>
+        <source>Classic theme (Ripes)</source>
+        <translation>经典主题（Ripes）</translation>
+    </message>
+    <message>
+        <source>COLOR SCHEME</source>
+        <translation>配色方案</translation>
+    </message>
+    <message>
+        <source>Follow the system</source>
+        <translation>跟随系统</translation>
+    </message>
+    <message>
+        <source>Dark</source>
+        <translation>深色</translation>
+    </message>
+    <message>
+        <source>Light</source>
+        <translation>浅色</translation>
+    </message>
+    <message>
+        <source>Reduce motion</source>
+        <translation>减少动效</translation>
+    </message>
+    <message>
+        <source>Phone version</source>
+        <translation>手机版</translation>
+    </message>
+    <message>
+        <source>This is the phone layout of Open SoC Explorer, made for touch. The desktop version has every view of Ripes and the Explorer (editor, datapath, memory, cache, system view); it needs a large screen.</source>
+        <translation>这是 Open SoC Explorer 的手机界面，专为触控设计。桌面版包含 Ripes 与探索器的全部视图（编辑器、数据通路、内存、缓存、系统视图），需要较大的屏幕。</translation>
+    </message>
+    <message>
+        <source>Switch to the desktop version</source>
+        <translation>切换到桌面版</translation>
+    </message>
+    <message>
+        <source>Mission progress</source>
+        <translation>任务进度</translation>
+    </message>
+    <message>
+        <source>Verified steps and solved challenges are stored in this browser (or on this computer) and shared with the desktop version.</source>
+        <translation>已验证的步骤和已解决的挑战保存在此浏览器（或此电脑）中，并与桌面版共享。</translation>
+    </message>
+    <message>
+        <source>Reset mission progress</source>
+        <translation>重置任务进度</translation>
+    </message>
+    <message>
+        <source>About</source>
+        <translation>关于</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;Open SoC Explorer&lt;/b&gt;, based on Ripes %1 by Morten Borup Petersen and contributors (MIT License).&lt;br&gt;Ripes&apos; processors are educational datapath models with ideal memories: their cycle counts describe these models, not any real core.</source>
+        <translation>&lt;b&gt;Open SoC Explorer&lt;/b&gt;，基于 Morten Borup Petersen 及贡献者开发的 Ripes %1（MIT 许可证）。&lt;br&gt;Ripes 的处理器是带理想存储器的教学数据通路模型：其周期数描述的是这些模型，而不是任何真实的处理器核。</translation>
+    </message>
+</context>
+<context>
+    <name>Ripes::Mobile::StarsRow</name>
+    <message>
+        <source>%1 / %2 XP</source>
+        <translation>%1 / %2 XP</translation>
+    </message>
+</context>
+<context>
     <name>Ripes::PipelineDiagramWidget</name>
     <message>
         <source>Pipeline diagram</source>

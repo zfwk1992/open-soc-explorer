@@ -32,6 +32,7 @@ add_definitions(-DOSX_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 create_qtest(tst_trace)
 create_qtest(tst_missions)
 create_qtest(tst_explorergui)
+create_qtest(tst_mobilegui)
 # The GUI test constructs the main window, which needs the resources that are
 # otherwise only compiled into the application executable.
 qt6_add_resources(GUI_TEST_RESOURCES
@@ -40,3 +41,4 @@ qt6_add_resources(GUI_TEST_RESOURCES
     ${CMAKE_SOURCE_DIR}/src/processors/layouts.qrc
     ${CMAKE_SOURCE_DIR}/resources/fonts/fonts.qrc)
 target_sources(tst_explorergui PRIVATE ${GUI_TEST_RESOURCES})
+target_sources(tst_mobilegui PRIVATE ${GUI_TEST_RESOURCES})

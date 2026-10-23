@@ -81,6 +81,8 @@ add_subdirectory(cli)
 add_subdirectory(explorer)
 add_subdirectory(i18n)
 add_subdirectory(theme)
+add_subdirectory(platform)
+add_subdirectory(mobile)
 
 # Also link Qt and VSRTL libraries.
 target_link_libraries(${RIPES_LIB} PUBLIC

@@ -15,6 +15,12 @@ generated loader page (Ripes.html) into index.html:
   pixels and can be zoomed; landscape works best);
 * a title and a short loading note in English and Chinese.
 
+It also writes mobile.html, the phone version: Qt's loader page with the head
+fragment web/pages/mobile.head.html (coi-serviceworker first, a device-width
+viewport without zoom, a page that does not scroll itself) and the optional
+body fragment web/pages/mobile.body.html. The application shows its phone
+user interface for the URL parameter ?ui=mobile (src/platform/uimode.cpp).
+
 Qt's own loader code in the page is kept unchanged, so the page follows the
 qtloader.js API of the Qt version used for the build.
 """
@@ -46,6 +52,34 @@ best on phones &middot; 正在加载模拟器，首次打开较慢；手机横�
 """
 
 
+def mobile_page(page):
+    """mobile.html from Qt's loader page (see the module documentation)."""
+    with open(os.path.join(HERE, "pages", "mobile.head.html"),
+              encoding="utf-8") as f:
+        head = f.read()
+    body_path = os.path.join(HERE, "pages", "mobile.body.html")
+    body = ""
+    if os.path.exists(body_path):
+        with open(body_path, encoding="utf-8") as f:
+            body = f.read()
+    # Our viewport replaces Qt's; the charset is declared by the fragment.
+    page = re.sub(r"<meta[^>]*name=[\"']viewport[\"'][^>]*>", "", page,
+                  flags=re.IGNORECASE)
+    page = re.sub(r"<meta[^>]*charset[^>]*>", "", page, flags=re.IGNORECASE)
+    page, n = re.subn(r"<head>", lambda m: "<head>\n" + head, page, count=1,
+                      flags=re.IGNORECASE)
+    if n != 1:
+        return None
+    page = re.sub(r"<title>.*?</title>",
+                  "<title>Open SoC Explorer &middot; phone</title>", page,
+                  count=1, flags=re.IGNORECASE | re.DOTALL)
+    page, n = re.subn(r"(<body[^>]*>)", lambda m: m.group(1) + body, page,
+                      count=1, flags=re.IGNORECASE)
+    if n != 1:
+        return None
+    return page
+
+
 def main(argv):
     if len(argv) != 3:
         print(__doc__)
@@ -64,6 +98,12 @@ def main(argv):
 
     with open(os.path.join(build, "Ripes.html"), encoding="utf-8") as f:
         page = f.read()
+    mobile = mobile_page(page)
+    if mobile is None:
+        print("error: no <head> or <body> in Ripes.html", file=sys.stderr)
+        return 1
+    with open(os.path.join(out, "mobile.html"), "w", encoding="utf-8") as f:
+        f.write(mobile)
     # Our head additions go first so that the service worker is registered
     # before anything else runs.
     page, n = re.subn(r"<head>", "<head>" + HEAD, page, count=1,
