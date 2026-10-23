@@ -358,7 +358,7 @@ void RunPage::updateControls() {
   const bool running = ProcessorHandler::isRunning();
   const bool finished = ProcessorHandler::getProcessor()->finished();
   auto *design = reversibleDesign();
-  m_run->setText(running ? "■ " + tr("Stop") : tr("Run") + " ⏩");
+  m_run->setText(running ? "■ " + tr("Stop") : tr("Run") + " ▶▶");
   m_clock->setEnabled(!running && !finished);
   m_run->setEnabled(running || !finished);
   m_reset->setEnabled(!running);

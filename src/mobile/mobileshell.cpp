@@ -582,7 +582,7 @@ void MobileShell::updateHeader() {
     full = compact;
   }
   m_badgeStrip->setBadges(compact);
-  m_run->setBadges(full, note.isEmpty() ? QString() : "ⓘ " + note);
+  m_run->setBadges(full, note.isEmpty() ? QString() : "ℹ " + note);
 }
 
 ScrollPage *MobileShell::scrollPageOf(int page) const {

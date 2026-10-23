@@ -127,10 +127,11 @@ CycleBar::CycleBar(QWidget *parent) : QWidget(parent) {
   auto *l = new QHBoxLayout(this);
   l->setContentsMargins(8, 6, 8, 6);
   l->setSpacing(6);
-  m_first = navButton("⏮", this);
+  // Only characters of Qt for WebAssembly's DejaVu fonts (no ⏮ ⏭).
+  m_first = navButton("⇤", this);
   m_previous = navButton("◀", this);
   m_next = navButton("▶", this);
-  m_last = navButton("⏭", this);
+  m_last = navButton("⇥", this);
   m_first->setAutoRepeat(false);
   m_last->setAutoRepeat(false);
   m_first->setObjectName("mobileFirstCycle");

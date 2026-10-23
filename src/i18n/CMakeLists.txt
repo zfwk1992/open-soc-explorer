@@ -38,6 +38,26 @@ if(Qt6LinguistTools_FOUND)
         COMMENT "Updating translations/open-soc-explorer_zh_CN.ts"
         VERBATIM)
 else()
-    message(WARNING "Qt LinguistTools not found: building without the "
-                    "Chinese translation.")
+    # Cross builds (WebAssembly): the target Qt has no LinguistTools package,
+    # but the host Qt (QT_HOST_PATH) has lrelease.
+    find_program(OSX_LRELEASE NAMES lrelease lrelease-qt6
+        HINTS ${QT_HOST_PATH}/bin ${QT_HOST_PATH}/libexec
+              ${QT_HOST_PATH}/lib/qt6/bin
+        NO_CMAKE_FIND_ROOT_PATH)
+    if(OSX_LRELEASE)
+        set(OSX_QM_FILE ${CMAKE_CURRENT_BINARY_DIR}/open-soc-explorer_zh_CN.qm)
+        add_custom_command(OUTPUT ${OSX_QM_FILE}
+            COMMAND ${OSX_LRELEASE} -silent ${OSX_TS_FILES} -qm ${OSX_QM_FILE}
+            DEPENDS ${OSX_TS_FILES}
+            COMMENT "Compiling the Chinese translation with ${OSX_LRELEASE}"
+            VERBATIM)
+        qt_add_resources(i18n_lib "osx_translations"
+            PREFIX "/i18n"
+            BASE ${CMAKE_CURRENT_BINARY_DIR}
+            FILES ${OSX_QM_FILE})
+        message(STATUS "Chinese translation compiled with ${OSX_LRELEASE}")
+    else()
+        message(WARNING "Qt LinguistTools not found: building without the "
+                        "Chinese translation.")
+    endif()
 endif()
