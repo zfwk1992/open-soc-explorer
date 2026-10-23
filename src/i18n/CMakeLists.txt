@@ -43,9 +43,11 @@ elseif(QT_HOST_PATH)
     # Qt's lrelease (and lconvert to add Qt's own qtbase catalogue).
     find_program(OSX_HOST_LRELEASE NAMES lrelease lrelease-qt6
         PATHS ${QT_HOST_PATH}/bin ${QT_HOST_PATH}/libexec
+              ${QT_HOST_PATH}/lib/qt6/bin
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
     find_program(OSX_HOST_LCONVERT NAMES lconvert lconvert-qt6
         PATHS ${QT_HOST_PATH}/bin ${QT_HOST_PATH}/libexec
+              ${QT_HOST_PATH}/lib/qt6/bin
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
     if(OSX_HOST_LRELEASE)
         set(OSX_QM ${CMAKE_CURRENT_BINARY_DIR}/open-soc-explorer_zh_CN.qm)

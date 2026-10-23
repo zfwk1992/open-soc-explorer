@@ -1,0 +1,18 @@
+<!-- Open SoC Explorer: loading note of mobile.html (removed when the
+     application shows its screen). -->
+<div id="osx-mobile-loading"><b>Open SoC Explorer</b> &middot; phone version<br>
+Loading the simulator&hellip; the first start can take a while.<br>
+正在加载模拟器，首次打开较慢，请稍候。</div>
+<script>
+  (function () {
+    var timer = setInterval(function () {
+      var screen = document.getElementById("screen");
+      var note = document.getElementById("osx-mobile-loading");
+      if (!note) { clearInterval(timer); return; }
+      if (screen && screen.style.display === "block") {
+        note.remove();
+        clearInterval(timer);
+      }
+    }, 300);
+  })();
+</script>

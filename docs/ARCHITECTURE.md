@@ -172,6 +172,8 @@ signals) and accelerator models, see [ROADMAP.md](ROADMAP.md).
 | `src/systemview.{h,cpp}` | System view: simulated components as chips on a die, routed connections, parameters, statistics |
 | `src/explorerwidgets.{h,cpp}` | Explorer widgets: HUD banner, stage tiles and trace-driven transitions, legend, timeline and chip delegates |
 | `src/explorer/missionprogress.{h,cpp}` | Verified steps / solved challenges → stars, XP, levels, unlock status |
+| `src/platform/uimode.{h,cpp}` | User interface mode (desktop / phone) from `?ui=` or `--ui` |
+| `src/mobile/*` | Phone user interface: shell and navigation, touch helpers, Missions, Run, Pipeline, Explain, Registers and Settings pages |
 | `src/theme/theme.{h,cpp}`, `painting.{h,cpp}`, `resources/` | Game/Classic theme: palettes, style sheet, semantic colors, QPainter helpers (installed by `MainWindow`) |
 | `tools/demo/make_video.sh` | Records the demo video (opt-in `tst_explorergui::tst_demoVideo`) and encodes it with ffmpeg |
 | `src/cli/clioptions.*`, `src/cli/clirunner.*` | `--trace-out`, `--trace-max-cycles` |
@@ -182,6 +184,7 @@ signals) and accelerator models, see [ROADMAP.md](ROADMAP.md).
 | `test/tst_trace.cpp`, `test/tst_missions.cpp`, `test/tst_explorergui.cpp` | Tests |
 
 Upstream files touched (kept minimal to ease syncing with Ripes):
+`main.cpp` (`--ui` option, phone shell instead of the main window),
 `src/CMakeLists.txt`, `src/mainwindow.{h,cpp}` (tabs, one `Theme::install()`
 call), `src/processortab.{h,cpp}` (`selectProcessor()` factored out),
 `src/ripessettings.{h,cpp}` (six settings; `appInDarkMode()` follows the
