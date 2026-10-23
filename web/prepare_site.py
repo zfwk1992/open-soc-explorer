@@ -93,6 +93,10 @@ def build_page(template, head, body, values):
                           page, count=1, flags=re.IGNORECASE)
         if n != 1:
             raise SiteError("no <body> in Ripes.html")
+    if len(re.findall(r"<script\b[^>]*coi-serviceworker", page,
+                      flags=re.IGNORECASE)) != 1:
+        raise SiteError("coi-serviceworker.min.js must be included exactly "
+                        "once (prepare_site.py adds it; fragments must not)")
     first_script = re.search(r"<script\b[^>]*>", page, flags=re.IGNORECASE)
     if not first_script or "coi-serviceworker" not in first_script.group(0):
         raise SiteError("coi-serviceworker.min.js is not the first script")

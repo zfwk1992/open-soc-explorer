@@ -111,6 +111,17 @@ class PrepareSiteTest(unittest.TestCase):
         self.assertTrue(page.index("coi-serviceworker") <
                         page.index("<style>"))
 
+    def test_fragment_must_not_include_the_service_worker(self):
+        # It would be loaded twice ("Identifier 'coepCredentialless' has
+        # already been declared" in the browser).
+        head = '<script src="coi-serviceworker.min.js"></script>'
+        with self.assertRaises(prepare_site.SiteError):
+            prepare_site.build_page(QT_PAGE, head, None, {})
+        # Mentioning it in a comment is fine.
+        page = prepare_site.build_page(
+            QT_PAGE, "<!-- after coi-serviceworker.min.js -->", None, {})
+        self.assertIn("coi-serviceworker", page)
+
     def test_missing_build_file(self):
         os.remove(os.path.join(self.build, "Ripes.wasm"))
         with self.assertRaises(prepare_site.SiteError):

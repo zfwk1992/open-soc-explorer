@@ -1,8 +1,7 @@
 <meta charset="utf-8">
 <!-- Open SoC Explorer: head of mobile.html, the phone version (added by
-     web/prepare_site.py to Qt's loader page). coi-serviceworker comes first:
-     the multithreaded WebAssembly build needs a cross-origin isolated page. -->
-<script src="coi-serviceworker.min.js"></script>
+     web/prepare_site.py to Qt's loader page, after coi-serviceworker, which
+     prepare_site.py inserts as the first script: do not include it here). -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0d1220">
 <meta name="mobile-web-app-capable" content="yes">
