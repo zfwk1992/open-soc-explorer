@@ -7,6 +7,7 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QDir>
+#include <QFontDatabase>
 #include <QHeaderView>
 #include <QJsonArray>
 #include <QLabel>
@@ -29,6 +30,7 @@
 #include "mobile/mobileviews.h"
 #include "mobile/touch.h"
 #include "platform/uimode.h"
+#include "platform/webfonts.h"
 #include "processorhandler.h"
 #include "ripessettings.h"
 #include "theme/theme.h"
@@ -68,6 +70,7 @@ private:
 private slots:
   void initTestCase();
   void tst_uiModeSelection();
+  void tst_webFonts();
   void tst_kineticScrolling();
   void tst_layoutFitsPortrait();
   void tst_navigationByTouch();
@@ -235,6 +238,19 @@ void tst_mobilegui::tst_uiModeSelection() {
   QCOMPARE(currentUiMode(), UiMode::Mobile);
   QCOMPARE(uiModeName(UiMode::Mobile), QString("mobile"));
   QVERIFY(!canOpenUiModePage()); // native build: no browser page to open
+}
+
+void tst_mobilegui::tst_webFonts() {
+  // Built with OSX_EMBED_CJK_FONT (default for WebAssembly): the Chinese
+  // font is registered and covers the translated texts.
+  const QString family = installWebFonts();
+  if (family.isEmpty())
+    QSKIP("no embedded Chinese font in this build");
+  QVERIFY(QFontDatabase::families().contains(family));
+  const QFontMetrics fm{QFont(family)};
+  for (const QChar c : QString("任务流水线寄存器设置运行解释挑战简体中文"))
+    QVERIFY2(fm.inFont(c), qPrintable(QString(c)));
+  QCOMPARE(QFont::substitute("DejaVu Sans").toLower(), family.toLower());
 }
 
 void tst_mobilegui::tst_kineticScrolling() {

@@ -1,0 +1,7 @@
+<RCC>
+    <!-- Open SoC Explorer: Chinese font of the WebAssembly build
+         (tools/fonts/subset_cjk.py, SIL Open Font License 1.1). -->
+    <qresource prefix="/webfonts">
+        <file>NotoSansSC/NotoSansSC-OSX-Subset.otf</file>
+    </qresource>
+</RCC>

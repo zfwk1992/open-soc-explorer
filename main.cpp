@@ -10,6 +10,7 @@
 #include "src/mainwindow.h"
 #include "src/mobile/mobileshell.h"
 #include "src/platform/uimode.h"
+#include "src/platform/webfonts.h"
 #include "src/ripessettings.h"
 
 using namespace std;
@@ -67,6 +68,8 @@ int guiMode(QApplication &app) {
   // application proper light/dark theming.
   QApplication::setStyle("Fusion");
   Ripes::applyColorScheme();
+  // Open SoC Explorer: Chinese font of the WebAssembly build.
+  Ripes::installWebFonts();
 
   // Open SoC Explorer: the phone user interface instead of the main window.
   if (Ripes::currentUiMode() == Ripes::UiMode::Mobile)
