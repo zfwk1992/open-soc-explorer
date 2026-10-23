@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - feature/web
+      - 'feature/web*'
   workflow_dispatch:
 
 jobs:
@@ -47,7 +47,8 @@ jobs:
         path: smoke-*.png
 
     - name: Publish to the gh-pages branch
-      if: github.event_name != 'pull_request'
+      # Only these branches publish; feature/web-* branches are tested only.
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/feature/web' || github.ref == 'refs/heads/main')
       uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}

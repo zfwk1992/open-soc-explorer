@@ -44,6 +44,21 @@ def picture_spread(png):
     return ImageStat.Stat(image).stddev[0]
 
 
+def log_thumbnail(png, label, width=480):
+    """Prints a small JPEG of the screenshot as base64 between markers, so the
+    picture can be recovered from the CI log (artifacts may be unreachable)."""
+    import base64
+    import io
+    from PIL import Image
+    image = Image.open(io.BytesIO(png)).convert("RGB")
+    image.thumbnail((width, width * 4))
+    out = io.BytesIO()
+    image.save(out, "JPEG", quality=70)
+    print(f"OSX-THUMBNAIL-BEGIN {label}")
+    print(base64.b64encode(out.getvalue()).decode())
+    print(f"OSX-THUMBNAIL-END {label}")
+
+
 def run(site, shot):
     socketserver.TCPServer.allow_reuse_address = True
     server = socketserver.ThreadingTCPServer(
@@ -90,6 +105,7 @@ def run(site, shot):
                 failures.append(f"{label}: no Qt canvas after 3 minutes")
             png = page.screenshot(path=shot.replace(".png", f"-{label}.png"))
             spread = picture_spread(png)
+            log_thumbnail(png, label)
             print(f"[{label}] crossOriginIsolated={isolated} "
                   f"picture stddev={spread:.1f} errors={len(errors)}")
             if not isolated:
