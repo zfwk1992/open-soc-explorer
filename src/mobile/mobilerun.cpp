@@ -86,6 +86,11 @@ RunPage::RunPage(QWidget *parent) : QWidget(parent) {
   m_processor->setObjectName("mobileProcessorChoice");
   m_processor->setMinimumHeight(kTouchTarget + 4);
   m_processor->setFocusPolicy(Qt::NoFocus);
+  // Long entries must not widen the page beyond the screen.
+  m_processor->setSizeAdjustPolicy(
+      QComboBox::AdjustToMinimumContentsLengthWithIcon);
+  m_processor->setMinimumContentsLength(8);
+  m_processor->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   for (const auto &[id, desc] : ProcessorRegistry::getAvailableProcessors())
     m_processor->addItem(desc->name + " (" + enumToString(id) + ")",
                          static_cast<int>(id));
@@ -108,6 +113,11 @@ RunPage::RunPage(QWidget *parent) : QWidget(parent) {
   m_examples->setObjectName("mobileExampleChoice");
   m_examples->setMinimumHeight(kTouchTarget + 4);
   m_examples->setFocusPolicy(Qt::NoFocus);
+  // Long entries must not widen the page beyond the screen.
+  m_examples->setSizeAdjustPolicy(
+      QComboBox::AdjustToMinimumContentsLengthWithIcon);
+  m_examples->setMinimumContentsLength(8);
+  m_examples->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   m_programCard->body()->addWidget(m_examples);
   connect(m_examples, qOverload<int>(&QComboBox::activated), this,
           [this](int index) {

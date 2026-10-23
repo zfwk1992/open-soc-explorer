@@ -78,6 +78,8 @@ public:
   void setContent(QWidget *w) {
     setWidget(w);
     w->installEventFilter(this);
+    // The viewport also narrows when the scroll bar appears.
+    viewport()->installEventFilter(this);
   }
   void fit() {
     QWidget *w = widget();
@@ -100,7 +102,8 @@ protected:
     fit();
   }
   bool eventFilter(QObject *o, QEvent *e) override {
-    if (o == widget() && e->type() == QEvent::LayoutRequest)
+    if ((o == widget() && e->type() == QEvent::LayoutRequest) ||
+        (o == viewport() && e->type() == QEvent::Resize))
       fit();
     return QScrollArea::eventFilter(o, e);
   }
