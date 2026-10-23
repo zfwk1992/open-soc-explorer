@@ -109,7 +109,8 @@ interface mode from the `ui` query parameter (default: desktop).
   loading screen gone, canvas filling the window at device resolution,
   picture drawn, no page scrolling, resize to 1280×720 and back, the gem5
   example (Ctrl+Shift+G), mouse-wheel scrolling of the Explorer timeline,
-  typing in the editor, and the language setting across a reload. Small
+  typing in the editor, Load Program (Ctrl+O, browser file chooser) and
+  Save File (Ctrl+S, download), and the language setting across a reload. Small
   JPEG thumbnails of the screenshots are printed to the log between
   `OSX-THUMBNAIL-BEGIN`/`END` markers.
 * `web/smoke_mobile.py`: the phone version (run by the workflow if

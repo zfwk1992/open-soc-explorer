@@ -21,7 +21,9 @@ them (and reloads the page once). In headless Chromium (Playwright) it checks
   follows a window resize;
 * the example gem5 trace opens with its shortcut (Ctrl+Shift+G), the mouse
   wheel scrolls the Explorer's instruction timeline, typing reaches the
-  editor, and settings persist in the browser's storage across a reload.
+  editor, Load Program (Ctrl+O) reads a file from the browser's file
+  chooser, Save File (Ctrl+S) downloads it, and settings persist in the
+  browser's storage across a reload.
 
 Small JPEG thumbnails of the screenshots are printed to the log
 (log_thumbnail). The phone version is tested by smoke_mobile.py.
@@ -95,6 +97,14 @@ def picture_change(before, after, box=None):
     if box:
         a, b = a.crop(box), b.crop(box)
     return ImageStat.Stat(ImageChops.difference(a, b)).mean[0]
+
+
+def crop_png(png, box):
+    """The region box = (left, top, right, bottom) of a screenshot, as PNG."""
+    from PIL import Image
+    out = io.BytesIO()
+    Image.open(io.BytesIO(png)).crop(box).save(out, "PNG")
+    return out.getvalue()
 
 
 def log_thumbnail(png, label, width=480):
@@ -353,9 +363,43 @@ def desktop_interactions(run, page, label, size):
     page.keyboard.type("addi a0, a0, 42\n", delay=30)
     page.wait_for_timeout(1500)
     typed = run.screenshot(page, f"{label}-editor-typed")
+    log_thumbnail(crop_png(typed, (0, 0, 480, 240)),
+                  f"{label}-editor-typed-detail")
     change = picture_change(before, typed)
     run.check(change > 0.3, f"{label}: typing changed the editor "
               f"(change {change:.2f})")
+
+    # Load Program (Ctrl+O) opens the browser's file chooser; Save File
+    # (Ctrl+S) downloads the program.
+    program = "# loaded in the browser\nli a0, 7\nli a1, 35\nadd a2, a0, a1\n"
+    before = page.screenshot()
+    try:
+        with page.expect_file_chooser(timeout=10000) as chooser:
+            page.keyboard.press("Control+O")
+        chooser.value.set_files(files=[{"name": "browser.s",
+                                        "mimeType": "text/plain",
+                                        "buffer": program.encode()}])
+        page.wait_for_timeout(2500)
+        loaded = run.screenshot(page, f"{label}-load-program")
+        log_thumbnail(crop_png(loaded, (0, 0, 480, 240)),
+                      f"{label}-load-program-detail")
+        change = picture_change(before, loaded)
+        run.check(change > 0.3, f"{label}: Load Program read the chosen "
+                  f"file (change {change:.2f})")
+    except Exception as e:
+        run.check(False, f"{label}: Load Program file chooser: {e}")
+    try:
+        with page.expect_download(timeout=10000) as download:
+            page.keyboard.press("Control+S")
+        with open(download.value.path(), encoding="utf-8") as f:
+            saved = f.read()
+        print(f"[{label}] downloaded {download.value.suggested_filename}: "
+              f"{saved!r}")
+        run.check("loaded in the browser" in saved,
+                  f"{label}: Save File downloaded the program "
+                  f"({download.value.suggested_filename})")
+    except Exception as e:
+        run.check(False, f"{label}: Save File download: {e}")
 
     # The window follows a resize of the browser window.
     small = (1280, 720)
@@ -383,6 +427,9 @@ def desktop_interactions(run, page, label, size):
                   "after a reload")
         page.wait_for_timeout(8000)
         zh = run.screenshot(page, f"{label}-reloaded-zh")
+        # Full resolution detail: the Chinese menu and tab texts.
+        log_thumbnail(crop_png(zh, (0, 0, 480, 360)),
+                      f"{label}-reloaded-zh-detail")
         stored = page.evaluate(f"localStorage.getItem({language[0]!r})")
         run.check(stored == "zh_CN" and picture_spread(zh) >= 8,
                   f"{label}: language setting kept after the reload "
