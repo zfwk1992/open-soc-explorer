@@ -37,6 +37,40 @@ if(Qt6LinguistTools_FOUND)
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Updating translations/open-soc-explorer_zh_CN.ts"
         VERBATIM)
+elseif(QT_HOST_PATH)
+    # Cross builds (WebAssembly): the target Qt may come without the
+    # translation tools, which run on the build machine anyway; use the host
+    # Qt's lrelease (and lconvert to add Qt's own qtbase catalogue).
+    find_program(OSX_HOST_LRELEASE NAMES lrelease lrelease-qt6
+        PATHS ${QT_HOST_PATH}/bin ${QT_HOST_PATH}/libexec
+        NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    find_program(OSX_HOST_LCONVERT NAMES lconvert lconvert-qt6
+        PATHS ${QT_HOST_PATH}/bin ${QT_HOST_PATH}/libexec
+        NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    if(OSX_HOST_LRELEASE)
+        set(OSX_QM ${CMAKE_CURRENT_BINARY_DIR}/open-soc-explorer_zh_CN.qm)
+        set(OSX_QT_QM ${QT_HOST_PATH}/translations/qtbase_zh_CN.qm)
+        if(OSX_HOST_LCONVERT AND EXISTS ${OSX_QT_QM})
+            set(OSX_MERGE_QT_QM
+                COMMAND ${OSX_HOST_LCONVERT} -o ${OSX_QM} ${OSX_QM}
+                        ${OSX_QT_QM})
+        endif()
+        add_custom_command(
+            OUTPUT ${OSX_QM}
+            COMMAND ${OSX_HOST_LRELEASE} -silent ${OSX_TS_FILES} -qm ${OSX_QM}
+            ${OSX_MERGE_QT_QM}
+            DEPENDS ${OSX_TS_FILES}
+            COMMENT "Compiling the Chinese translation (host lrelease)"
+            VERBATIM)
+        qt_add_resources(i18n_lib "osx_translations"
+            PREFIX "/i18n"
+            BASE ${CMAKE_CURRENT_BINARY_DIR}
+            FILES ${OSX_QM})
+        message(STATUS "Translation compiled with ${OSX_HOST_LRELEASE}")
+    else()
+        message(WARNING "lrelease not found in ${QT_HOST_PATH}: building "
+                        "without the Chinese translation.")
+    endif()
 else()
     message(WARNING "Qt LinguistTools not found: building without the "
                     "Chinese translation.")
