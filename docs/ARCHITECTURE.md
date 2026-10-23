@@ -21,6 +21,8 @@ Open SoC Explorer
 │   ├── System view ................ SystemView (src/systemview.*)     [new]
 │   │     components and connections the engine simulated, parameters,
 │   │     engine statistics; absent SoC blocks drawn as "not simulated"
+│   ├── Languages .................. src/i18n, translations/*.ts       [new]
+│   │     English / 简体中文 at run time; trace texts translated on display
 │   └── Accelerator explorer ....... —                                  [planned]
 │
 ├── Simulation control ............. Ripes ProcessorHandler + toolbar   [Ripes]
@@ -164,9 +166,16 @@ signals) and accelerator models, see [ROADMAP.md](ROADMAP.md).
 | `src/explorer/instructionexplainer.{h,cpp}` | Explanations + HTML rendering |
 | `src/explorer/componentinfo.{h,cpp}` | Datapath component descriptions |
 | `src/explorer/mission.{h,cpp}`, `missions/*.json` | Mission format, loader, criteria evaluation |
+| `src/explorer/cachemodel.{h,cpp}` | Cache model for mission criteria (same rules as Ripes' `CacheSim`) |
 | `src/explorertab.{h,cpp}` | Explorer tab GUI |
 | `src/missionstab.{h,cpp}` | Missions tab GUI |
-| `src/systemview.{h,cpp}` | System view: simulated components, connections, parameters, statistics |
+| `src/systemview.{h,cpp}` | System view: simulated components as chips on a die, routed connections, parameters, statistics |
+| `src/explorerwidgets.{h,cpp}` | Explorer widgets: HUD banner, stage tiles and trace-driven transitions, legend, timeline and chip delegates |
+| `src/explorer/missionprogress.{h,cpp}` | Verified steps / solved challenges → stars, XP, levels, unlock status |
+| `src/platform/uimode.{h,cpp}` | User interface mode (desktop / phone) from `?ui=` or `--ui` |
+| `src/mobile/*` | Phone user interface: shell and navigation, touch helpers, Missions, Run, Pipeline, Explain, Registers and Settings pages |
+| `src/theme/theme.{h,cpp}`, `painting.{h,cpp}`, `resources/` | Game/Classic theme: palettes, style sheet, semantic colors, QPainter helpers (installed by `MainWindow`) |
+| `tools/demo/make_video.sh` | Records the demo video (opt-in `tst_explorergui::tst_demoVideo`) and encodes it with ffmpeg |
 | `src/cli/clioptions.*`, `src/cli/clirunner.*` | `--trace-out`, `--trace-max-cycles` |
 | `tools/trace/osx_trace.py` | Python validate/summary/replay |
 | `tools/gem5/se_trace.py` | gem5 configuration (stdlib board, CPU model and cache options) |
@@ -175,6 +184,8 @@ signals) and accelerator models, see [ROADMAP.md](ROADMAP.md).
 | `test/tst_trace.cpp`, `test/tst_missions.cpp`, `test/tst_explorergui.cpp` | Tests |
 
 Upstream files touched (kept minimal to ease syncing with Ripes):
-`src/CMakeLists.txt`, `src/mainwindow.{h,cpp}`, `src/processortab.{h,cpp}`
-(`selectProcessor()` factored out), `src/ripessettings.{h,cpp}` (three
-settings), `src/cli/*` (trace options), `test/CMakeLists.txt`.
+`main.cpp` (`--ui` option, phone shell instead of the main window),
+`src/CMakeLists.txt`, `src/mainwindow.{h,cpp}` (tabs, one `Theme::install()`
+call), `src/processortab.{h,cpp}` (`selectProcessor()` factored out),
+`src/ripessettings.{h,cpp}` (six settings; `appInDarkMode()` follows the
+effective palette), `src/cli/*` (trace options), `test/CMakeLists.txt`.

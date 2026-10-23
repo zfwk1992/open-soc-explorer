@@ -17,10 +17,12 @@
 #include "settingsdialog.h"
 #include "syscall/syscallviewer.h"
 #include "syscall/systemio.h"
+#include "theme/theme.h"
 #include "version/version.h"
 #include "wasmSupport.h"
 
 #include "fancytabbar/fancytabbar.h"
+#include "i18n/language.h"
 
 #include <QCloseEvent>
 #include <QDesktopServices>
@@ -30,17 +32,30 @@
 #include <QIcon>
 #include <QLabel>
 #include <QMessageBox>
+#include <QPointer>
 #include <QPushButton>
 #include <QShowEvent>
 #include <QStackedWidget>
 #include <QStatusBar>
 #include <QStyle>
 #include <QStyleHints>
+#include <QTemporaryDir>
 #include <QTemporaryFile>
 #include <QTextStream>
 #include <QTimer>
 
 namespace Ripes {
+
+// Open SoC Explorer: names of the tabs (in TabIndex order), translated in
+// retranslate().
+static const char *const kTabNames[] = {
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Editor"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Processor"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Cache"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Memory"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "I/O"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Explorer"),
+    QT_TRANSLATE_NOOP("Ripes::MainWindow", "Missions")};
 
 static void clearSaveFile() {
   RipesSettings::setValue(RIPES_SETTING_HAS_SAVEFILE, false);
@@ -50,9 +65,15 @@ static void clearSaveFile() {
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_ui(new Ui::MainWindow) {
   m_ui->setupUi(this);
-  setWindowTitle("Open SoC Explorer (based on Ripes)");
+  setWindowTitle(tr("Open SoC Explorer (based on Ripes)"));
   setWindowIcon(QIcon(":/icons/logo.svg"));
   m_ui->actionOpen_wiki->setIcon(QIcon(":/icons/info.svg"));
+
+  // Open SoC Explorer: application theme (palette and style sheet) and its
+  // View menu entries. Applied before the tabs are created.
+  Theme::install(m_ui->menuView);
+  // Open SoC Explorer: user interface language and its View menu entry.
+  I18n::install(m_ui->menuView);
 
   // Initialize processor handler
   ProcessorHandler::get();
@@ -122,13 +143,18 @@ MainWindow::MainWindow(QWidget *parent)
 
   // Setup tab bar.
   m_ui->tabbar->addFancyTab(style()->standardIcon(QStyle::SP_FileIcon),
-                            "Editor");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/cpu.svg"), "Processor");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/server.svg"), "Cache");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/ram-memory.svg"), "Memory");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/led.svg"), "I/O");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/trace.svg"), "Explorer");
-  m_ui->tabbar->addFancyTab(QIcon(":/icons/compass.svg"), "Missions");
+                            tr(kTabNames[EditTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/cpu.svg"),
+                            tr(kTabNames[ProcessorTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/server.svg"),
+                            tr(kTabNames[CacheTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/ram-memory.svg"),
+                            tr(kTabNames[MemoryTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/led.svg"), tr(kTabNames[IOTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/trace.svg"),
+                            tr(kTabNames[ExplorerTabID]));
+  m_ui->tabbar->addFancyTab(QIcon(":/icons/compass.svg"),
+                            tr(kTabNames[MissionsTabID]));
   connect(m_ui->tabbar, &FancyTabBar::activeIndexChanged, this,
           &MainWindow::tabChanged);
   connect(m_ui->tabbar, &FancyTabBar::activeIndexChanged, m_stackedTabs,
@@ -191,6 +217,25 @@ MainWindow::MainWindow(QWidget *parent)
 
   m_currentTabID = ProcessorTabID;
   m_ui->tabbar->setActiveIndex(m_currentTabID);
+  // Texts set before the language was installed (.ui, upstream literals).
+  if (I18n::isChinese())
+    retranslate();
+}
+
+void MainWindow::changeEvent(QEvent *event) {
+  QMainWindow::changeEvent(event);
+  if (event->type() == QEvent::LanguageChange)
+    retranslate();
+}
+
+void MainWindow::retranslate() {
+  m_ui->retranslateUi(this);
+  setWindowTitle(tr("Open SoC Explorer (based on Ripes)"));
+  for (int i = 0; i < NTabsID; ++i)
+    m_ui->tabbar->setTabText(i, tr(kTabNames[i]));
+  I18n::retranslateUpstream(this);
+  m_gem5ExampleAction->setText(
+      tr("gem5 trace (O3CPU, loop_sum) in the Explorer"));
 }
 
 #define _setupStatusWidget(name, _permanent)                                   \
@@ -283,8 +328,13 @@ void MainWindow::setupMenus() {
   const QIcon loadIcon = QIcon(":/icons/loadfile.svg");
   auto *loadAction = new QAction(loadIcon, "Load Program", this);
   loadAction->setShortcut(QKeySequence::Open);
+#ifdef Q_OS_WASM
+  connect(loadAction, &QAction::triggered, this,
+          &MainWindow::loadFileFromBrowser);
+#else
   connect(loadAction, &QAction::triggered, this,
           [this] { this->loadFileTriggered(); });
+#endif
   m_ui->menuFile->addAction(loadAction);
   m_ui->menuFile->addSeparator();
 
@@ -296,8 +346,13 @@ void MainWindow::setupMenus() {
   const QIcon saveIcon = QIcon(":/icons/save.svg");
   auto *saveAction = new QAction(saveIcon, "Save File", this);
   saveAction->setShortcut(QKeySequence::Save);
+#ifdef Q_OS_WASM
+  connect(saveAction, &QAction::triggered, this,
+          &MainWindow::saveFileToBrowser);
+#else
   connect(saveAction, &QAction::triggered, this,
           &MainWindow::saveFilesTriggered);
+#endif
   connect(static_cast<EditTab *>(m_tabWidgets.at(EditTabID).tab),
           &EditTab::editorStateChanged, saveAction,
           [saveAction](bool enabled) { saveAction->setEnabled(enabled); });
@@ -306,8 +361,13 @@ void MainWindow::setupMenus() {
   const QIcon saveAsIcon = QIcon(":/icons/saveas.svg");
   auto *saveAsAction = new QAction(saveAsIcon, "Save File As...", this);
   saveAsAction->setShortcut(QKeySequence::SaveAs);
+#ifdef Q_OS_WASM
+  connect(saveAsAction, &QAction::triggered, this,
+          &MainWindow::saveFileToBrowser);
+#else
   connect(saveAsAction, &QAction::triggered, this,
           &MainWindow::saveFilesAsTriggered);
+#endif
   connect(static_cast<EditTab *>(m_tabWidgets.at(EditTabID).tab),
           &EditTab::editorStateChanged, saveAction,
           [saveAsAction](bool enabled) { saveAsAction->setEnabled(enabled); });
@@ -324,8 +384,10 @@ void MainWindow::setupMenus() {
       static_cast<ProcessorTab *>(m_tabWidgets.at(ProcessorTabID).tab)
           ->m_displayValuesAction);
 
-  // File I/O is not yet supported on WASM due to sandboxing.
-  disableIfWasm(QList{loadAction, saveAction, saveAsAction, exitAction});
+  // Open SoC Explorer: on WebAssembly, programs are loaded through the
+  // browser's file chooser and saved as downloads; a browser tab cannot be
+  // closed by the application.
+  disableIfWasm(exitAction);
 }
 
 MainWindow::~MainWindow() { delete m_ui; }
@@ -387,6 +449,74 @@ void MainWindow::setupExamplesMenu(QMenu *parent) {
       });
     }
   }
+
+  // Open SoC Explorer: the example gem5 trace, replayed in the Explorer
+  // (also in the web version, where no files are needed).
+  parent->addSeparator();
+  m_gem5ExampleAction =
+      parent->addAction(QIcon(":/icons/trace.svg"), QString());
+  m_gem5ExampleAction->setText(
+      tr("gem5 trace (O3CPU, loop_sum) in the Explorer"));
+  m_gem5ExampleAction->setShortcut(QKeySequence("Ctrl+Shift+G"));
+  m_gem5ExampleAction->setEnabled(
+      !ExplorerTab::exampleGem5TracePath().isEmpty());
+  connect(m_gem5ExampleAction, &QAction::triggered, this,
+          &MainWindow::openExampleGem5Trace);
+}
+
+bool MainWindow::openExampleGem5Trace() {
+  m_ui->tabbar->setActiveIndex(ExplorerTabID);
+  return static_cast<ExplorerTab *>(m_tabWidgets.at(ExplorerTabID).tab)
+      ->openExampleGem5Trace();
+}
+
+bool MainWindow::loadProgramData(const QString &fileName,
+                                 const QByteArray &content) {
+  static_cast<ProcessorTab *>(m_tabWidgets.at(ProcessorTabID).tab)->pause();
+  // The editor loads programs from files: write the contents to a temporary
+  // file (in memory on WebAssembly) that keeps the file's name.
+  QTemporaryDir dir;
+  const QString name = QFileInfo(fileName).fileName();
+  QFile file(dir.filePath(name.isEmpty() ? QString("program") : name));
+  if (!dir.isValid() || !file.open(QIODevice::WriteOnly) ||
+      file.write(content) != content.size()) {
+    QMessageBox::warning(this, tr("Load Program"),
+                         tr("Could not store '%1' for loading.").arg(name));
+    return false;
+  }
+  file.close();
+  LoadFileParams params;
+  params.filepath = file.fileName();
+  const bool elf = content.startsWith(QByteArray::fromHex("7f454c46"));
+  params.type = elf ? SourceType::ExternalELF : SourceType::Assembly;
+  params.binaryEntryPoint = 0;
+  params.binaryLoadAt = 0;
+  if (!static_cast<EditTab *>(m_tabWidgets.at(EditTabID).tab)
+           ->loadExternalFile(params))
+    return false;
+  clearSaveFile();
+  m_ui->tabbar->setActiveIndex(EditTabID);
+  return true;
+}
+
+void MainWindow::loadFileFromBrowser() {
+  QPointer<MainWindow> self(this);
+  QFileDialog::getOpenFileContent(
+      tr("Programs (*.s *.asm *.S *.elf *.out *.o);;All files (*)"),
+      [self](const QString &fileName, const QByteArray &content) {
+        if (self && !fileName.isEmpty())
+          self->loadProgramData(fileName, content);
+      },
+      this);
+}
+
+void MainWindow::saveFileToBrowser() {
+  auto *editTab = static_cast<EditTab *>(m_tabWidgets.at(EditTabID).tab);
+  emit prepareSave();
+  const QString name = editTab->getSourceType() == SourceType::C
+                           ? QString("program.c")
+                           : QString("program.s");
+  QFileDialog::saveFileContent(editTab->getAssemblyText().toUtf8(), name, this);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {

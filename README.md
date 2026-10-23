@@ -35,11 +35,12 @@ squashed instruction's journey. Every value comes from the recorded trace.*
 | **CPU Explorer** tab: pipeline strip, instruction timeline, per-cycle events and registers, statistics (CPI, stalls, squashes, memory operations) | ✅ |
 | **Instruction explanations**: encoding, semantics, architectural operands, observed result checked against the ISA, data hazards, journey, implementing source files | ✅ |
 | **CPU component inspector**: purpose, live input/output signal values and wiring of datapath components (VSRTL models), instruction in the component's stage | ✅ |
-| **Learning missions 1–3** (first program, pipeline hazards, branch & flush) with live-verified steps and scored challenges | ✅ |
+| **Learning missions 1–4** (first program, pipeline hazards, branch & flush, cache locality) with live-verified steps and scored challenges | ✅ |
 | **System view**: the components the engine simulated (Ripes: CPU, ideal memory, I/O; gem5: caches, prefetchers, crossbars, memory controller, DRAM), their connections, parameters and statistics; non-simulated SoC blocks clearly marked | ✅ |
 | **gem5 (offline)**: run RISC-V programs on gem5's O3, TimingSimple or AtomicSimple CPU with configurable caches and replay them in the Explorer (`tools/gem5`); validated against real gem5 v26 output and against Ripes | ✅ |
 | Python trace tool (`tools/trace/osx_trace.py`: validate, summary, ASCII pipeline) | ✅ |
-| Cache mission on gem5 data, Ibex/Verilator RTL adapter, AI-accelerator lab, Physical-AI workloads, VHDL/FPGA lab, classic-console architecture research track (Neo Geo, PS3 Cell), missions 4–10 | 🗺️ planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
+| **English / 简体中文** user interface, switchable at run time (*View → Language*); missions 1–4 fully translated | ✅ (some upstream Ripes texts stay English, see [LEARNING_GUIDE.md §3.3](docs/LEARNING_GUIDE.md)) |
+| Ibex/Verilator RTL adapter, AI-accelerator lab, Physical-AI workloads, VHDL/FPGA lab, classic-console architecture research track (Neo Geo, PS3 Cell), missions 5–10 | 🗺️ planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 <p align="center">
   <img src="docs/images/missions-mission1.png" width="49%" alt="Missions tab">
@@ -76,7 +77,14 @@ ninja -C build
 ./build/Ripes            # the executable keeps its upstream name
 ```
 
-1. *Missions* tab → pick Mission 1 → *Load example* → *Select processor*.
+The default **game theme** (dark or light, following the color scheme)
+can be switched to the original Ripes look with *View → Theme → Classic*;
+*View → Reduce motion* turns its short transitions off.
+*View → Language* switches between English and 简体中文 (Simplified Chinese)
+while the application runs; by default the language follows the system
+locale.
+
+1. *Missions* tab → pick Mission 1 on the mission map → *Load example* → *Select processor*.
 2. Press *Clock* / *Run* in the toolbar; the guided steps tick off as the
    simulator reaches them.
 3. *Explorer* tab → click any instruction or cycle.
@@ -97,6 +105,20 @@ GEM5=/path/to/gem5 tools/gem5/run_gem5.sh loop_sum o3 l1l2 out/loop_o3
 # Explorer tab → "Open a trace file for offline replay…" → out/loop_o3/trace.jsonl
 ```
 
+### In the browser
+
+The WebAssembly build runs in the browser:
+**https://zfwk1992.github.io/open-soc-explorer/**. The entry page sends
+phones to the touch version (`mobile.html`) and computers and tablets to the
+desktop version (`desktop.html`, the full application filling the browser
+window); both links are offered on `index.html?choose`, and the choice is
+remembered (`?ui=auto` detects again). In the desktop version *File → Load
+Program* / *Save File* and the Explorer's trace open/export use the
+browser's file chooser and downloads, settings and mission progress stay in
+the browser's storage, and *File → Load Example → gem5 trace* (Ctrl+Shift+G)
+shows a recorded gem5 O3CPU run without any file. Details:
+[docs/webassembly.md](docs/webassembly.md).
+
 ### Test
 
 ```bash
@@ -105,9 +127,11 @@ cd ../.. && OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools
 OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools/gem5
 ```
 
-9 QtTest suites (106 test functions: 56 upstream, 50 Open SoC Explorer) and
-27 Python tests (trace tool and gem5 converter, using recorded gem5 output).
-CI runs the QtTest suites on Ubuntu, macOS and Windows.
+9 QtTest suites (123 test functions: 56 upstream, 67 Open SoC Explorer, three of them opt-in),
+27 Python tests (trace tool and gem5 converter, using recorded gem5 output)
+and 5 tests of the web site assembly (`python3 -m unittest discover -s web`).
+CI runs the QtTest suites on Ubuntu, macOS and Windows, and tests the
+WebAssembly build in headless Chromium (`web/smoke_test.py`).
 
 ## Documentation
 
@@ -125,6 +149,19 @@ CI runs the QtTest suites on Ubuntu, macOS and Windows.
 | [LICENSING.md](docs/LICENSING.md) | Licenses and attribution |
 | [RIPES_README.md](docs/RIPES_README.md) and the other files in `docs/` | Upstream Ripes documentation |
 
+## 简体中文简介
+
+Open SoC Explorer 是一个基于 [Ripes](https://github.com/mortbopet/Ripes)
+的交互式 RISC-V 与 SoC 模拟学习平台。它记录模拟器的执行轨迹，在 CPU
+探索器中逐周期回放流水线（取指、译码、执行、访存、写回），解释每条指令的
+操作数、结果、冒险与停顿，并提供由模拟器实时验证的学习任务（流水线冒险、
+分支与冲刷、缓存局部性等）。界面可在运行时通过 *视图 → 语言* 在 English 与
+简体中文之间切换，默认跟随系统语言。网页版：
+https://zfwk1992.github.io/open-soc-explorer/ ——手机自动打开手机版，电脑和平板
+打开电脑版（`index.html?choose` 可手动选择，选择会被记住）。所有显示的数值都来自模拟器或 ISA
+规范；Ripes 的处理器是教学用的数据通路模型，其周期数不代表任何真实处理器核
+（见 [SIMULATION_FIDELITY.md](docs/SIMULATION_FIDELITY.md)）。
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The most important rule: never
@@ -136,7 +173,7 @@ simulator output, a recorded trace or the ISA specification.
 `origin` is this repository, `upstream` is `mortbopet/Ripes`. Merge
 `upstream/master` into a sync branch (no rebase, no force-push), rebuild and
 run all tests; see
-[DEVELOPMENT_GUIDE.md §7](docs/DEVELOPMENT_GUIDE.md#7-syncing-with-upstream-ripes).
+[DEVELOPMENT_GUIDE.md §8](docs/DEVELOPMENT_GUIDE.md#8-syncing-with-upstream-ripes).
 
 ## License and credits
 

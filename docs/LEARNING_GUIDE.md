@@ -29,12 +29,20 @@ core.
 
 ## 2. Reading the Explorer
 
-* **Pipeline at the selected cycle**: one box per stage. Blue = instruction,
-  amber = held (stalled) instruction or stall bubble, red = flushed bubble or
-  an instruction that will be squashed (wrong path).
+* **Banner (HUD)**: badges for the engine, model, fidelity class, clock
+  domain (and time base for gem5) and the trace status; hover a badge for
+  details such as the full fidelity note.
+* **Pipeline at the selected cycle**: one tile per stage, its header in the
+  stage's color. Amber stripes = held (stalled) instruction, dashed amber =
+  stall bubble, red = flushed bubble or an instruction that will be squashed
+  (wrong path). When you step one recorded cycle, the cards move between
+  the stages the trace reports for the two cycles, fetched instructions
+  appear and retired (✓) or squashed (✕) ones leave. Nothing else moves:
+  the transition is built only from the recording.
 * **Instruction timeline**: one row per *dynamic* instruction (the same
   instruction executed in a loop appears once per iteration), one column per
-  cycle. `*` = held in that stage, `✓` = retired, `✕` = squashed.
+  cycle, cells in the stage colors. `*` and stripes = held in that stage,
+  `✓` = retired, `✕` = squashed; red rows were squashed.
 * **Events**: everything recorded in that cycle, with its *observability*
   (how it was obtained – see [TRACE_PROTOCOL.md](TRACE_PROTOCOL.md) §5).
 * **Instruction explanation**: what the instruction does, its encoding, the
@@ -76,11 +84,39 @@ offline replay…*. Things to look at:
 | 1 | Execute Your First RISC-V Program | single-cycle (`RV32_SS`) | PC, register file, ADDI, ADD, write-back |
 | 2 | Pipeline Hazards | 5-stage (`RV32_5S`), then `RV32_5S_NO_FW` | data dependencies, forwarding, stalls, CPI |
 | 3 | Branch and Flush | 5-stage (`RV32_5S`) | branch condition, PC update, pipeline flush, loop unrolling |
+| 4 | Cache Locality | 5-stage (`RV32_5S`) + a 256-byte direct-mapped data cache | cache lines and sets, spatial locality, conflict misses, loop order |
 
 Each mission has an objective, an explanation, an example program, guided
 steps (each step shows its conditions and turns ✓ when the simulator state
 satisfies them; completed steps stay completed), a challenge with a hint, and
 completion feedback. Progress is stored in the application settings.
+
+### 3.1 Mission map, stars and experience points
+
+The Missions tab shows a mission map and a player header. Only two facts
+are scored, and both come from the mission checks on the simulator: a
+guided step that was verified live, and a solved challenge
+(`src/explorer/missionprogress.cpp`, tested in `tst_missions`):
+
+* **XP**: 100 per verified step, 300 per solved challenge (each counted
+  once). **Level** = 1 + XP / 500, named after pipeline stages (Fetch,
+  Decode, Execute, Memory, Write-back, ...).
+* **Stars** (3 per mission): half of the guided steps verified (rounded up),
+  all guided steps verified, challenge solved.
+* **Map status**: solved, in progress (a step verified), available, or
+  locked until the previous mission's steps are verified or its challenge
+  solved. Locks only recommend an order; locked missions can still be
+  played.
+* *Reset progress* clears the verified steps and solved challenges.
+
+### 3.2 Themes
+
+*View → Theme* switches between **Game** (default: Open SoC Explorer's
+theme, dark or light following *Edit → Settings* color scheme; a platform
+without a color scheme gets the dark variant) and **Classic** (the
+original Ripes look). *View → Reduce motion* turns off the short (≤ 300 ms)
+transitions; they are also skipped while the processor runs and when
+cycles change faster than a transition.
 
 Numbers measured on the models for the examples (asserted by the tests):
 
@@ -89,10 +125,34 @@ Numbers measured on the models for the examples (asserted by the tests):
   reordered solution has 0 stalls.
 * Mission 3: the first flush happens in cycle 7; the loop squashes 18
   instructions (9 taken branches × 2); a 2× unrolled loop squashes 8.
+* Mission 4: summing the 16 × 16 matrix column by column, all 256 loads
+  miss in the mission's cache (16 lines of 16 bytes); row by row there are
+  64 misses and 192 hits (75 %). These counts equal those of Ripes' own
+  cache simulator for the same configuration (`tst_cacheModelMatchesRipes`).
+  Ripes' memory is ideal, so the misses cost no cycles there; the measured
+  timing effect on gem5 is quoted in the mission.
 
 Challenges are scored only on a **complete** trace: recorded from reset, not
 truncated, program finished. If a challenge says "run the program to
 completion", reset and run again with recording enabled.
+
+### 3.3 Language
+
+*View → Language* switches the user interface between **English** and
+**简体中文** (Simplified Chinese) while the application runs; the setting is
+stored (`osx_language`, default: Chinese if the system locale is Chinese,
+otherwise English). Translated: the Explorer, Missions and System views,
+instruction explanations, mission texts and criteria, datapath component
+and instruction descriptions, the descriptive texts of traces (fidelity
+notes, caveats, gem5 parameter meanings), and Ripes' menus, tool bars and
+dialog labels. Kept as they are: identifiers (register names, stage
+names, engine and model names such as `RV32_5S` or `BaseO3CPU`, fidelity
+classes such as `educational-model`, event types such as `pipeline.stall`,
+trace field and statistic names), the example programs, gem5's own
+statistic descriptions, and some upstream Ripes texts built at run time
+(processor names and descriptions, the status bar, register table
+headers, VSRTL datapath labels). Exported traces are always English, so
+they do not depend on the language.
 
 ## 4. Writing a mission
 
@@ -107,6 +167,8 @@ Missions are JSON files in `src/explorer/missions/` listed in
 | `objective`, `explanation` (HTML), `example` (assembly), `completion` | Texts |
 | `steps[]` | `title`, `instruction` (HTML), `checks[]` |
 | `challenge` | `text` (HTML), `hint`, `checks[]`, `reference_solution` (not shown in the GUI; used by the tests to prove the mission is solvable) |
+| `i18n` | Optional: translations per language, e.g. `{"zh_CN": {"title", "objective", "explanation", "learn", "completion", "steps": [{"title", "instruction"}], "challenge": {"text", "hint"}}}`; missing texts fall back to English (see [DEVELOPMENT_GUIDE.md §5](DEVELOPMENT_GUIDE.md#5-translations)) |
+| `data_cache` | Optional: `blocks`, `lines`, `ways` (log2 values, as in Ripes' Cache tab: words per line, sets, ways), `write_allocate` (default true). Required by the `dcache_*` criteria |
 
 Criteria (`checks[]` entries have a `kind` and parameters; an optional
 `label` overrides the generated description):
@@ -129,6 +191,14 @@ Criteria (`checks[]` entries have a `kind` and parameters; an optional
 | `squashed_at_least` / `_at_most` | `count` | squashed instructions; `_at_most` needs a complete trace |
 | `cycles_at_most` | `cycles` | total cycles (complete trace) |
 | `cpi_at_most` | `value` | cycles / retired (complete trace) |
+| `memory_reads_at_least` | `count` | data memory reads ≥ count (complete trace) |
+| `dcache_misses_at_least` | `count` | misses of the mission's `data_cache` on the recorded data accesses ≥ count (complete trace) |
+| `dcache_hit_rate_at_least` | `percent` | hit rate of the mission's `data_cache` ≥ percent (complete trace) |
+
+The `dcache_*` criteria run the data accesses of the trace through
+`Explorer::simulateCache()` (`src/explorer/cachemodel.cpp`, LRU), which
+follows the rules of Ripes' cache simulator; a test checks that both give
+the same counts.
 
 When adding a mission, add a test to `test/tst_missions.cpp` that runs the
 example and the reference solution on the simulator and checks that the

@@ -16,10 +16,13 @@ namespace Ripes {
 /**
  * @brief The SystemView class
  * SoC topology of a trace: draws the hardware components that the producing
- * engine reported as simulated (Trace::TraceHeader::system), the connections
- * the engine reported, and - clearly marked - typical SoC components that
- * the engine does not simulate. Clicking a component shows its parameters
- * and end-of-simulation statistics. Ctrl + mouse wheel zooms.
+ * engine reported as simulated (Trace::TraceHeader::system) as chips on a
+ * die, the connections the engine reported as arrows, and - clearly marked,
+ * outside the die - typical SoC components that the engine does not
+ * simulate. Components whose path lies below another component's path (e.g.
+ * a cache's prefetcher) are drawn inside their parent. Clicking a component
+ * shows its parameters and end-of-simulation statistics. Ctrl + mouse wheel
+ * zooms.
  */
 class SystemView : public QWidget {
   Q_OBJECT
@@ -33,11 +36,13 @@ public:
 
 protected:
   bool eventFilter(QObject *watched, QEvent *event) override;
+  void changeEvent(QEvent *event) override;
 
 private:
   void rebuild();
   void showDetails();
   void fitTopology();
+  void setAutoFit(bool on);
 
   Trace::TraceHeader m_header;
   QString m_selected;

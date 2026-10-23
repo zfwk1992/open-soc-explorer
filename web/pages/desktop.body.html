@@ -1,0 +1,15 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Part of Open SoC Explorer: loading screen of desktop.html (driven by the
+     script in desktop.head.html). -->
+<div id="osx-loader" class="busy" role="status" aria-live="polite">
+  <div class="card">
+    <h1>Open SoC Explorer</h1>
+    <p class="sub">RISC-V &amp; SoC simulator · based on Ripes · 基于 Ripes 的 RISC-V 与 SoC 模拟器</p>
+    <div class="bar"><div class="fill" id="osx-fill"></div></div>
+    <div class="status"><span id="osx-status-en">Loading…</span><span class="zh" id="osx-status-zh">正在加载…</span></div>
+    <button type="button" id="osx-reload" hidden onclick="location.reload()">Reload · 刷新</button>
+    <div class="links">The first start downloads about @OSX_WASM_MB@ MB · 首次启动约需下载 @OSX_WASM_MB@ MB<br>
+      <a href="index.html?ui=mobile">手机版 / Mobile version</a></div>
+    <noscript>JavaScript is required · 需要启用 JavaScript</noscript>
+  </div>
+</div>

@@ -64,9 +64,10 @@ Done (tested):
 
 Next:
 
-1. **Mission 4 (cache optimization) on gem5 data**: precomputed, recorded
-   gem5 runs of the cache experiment (no gem5 needed by the learner), scored
-   on the measured statistics; optionally a "run it yourself" path.
+1. **Mission 4 follow-up**: Mission 4 (cache locality) is done on Ripes with
+   live-verified cache criteria and quotes the measured gem5 timing effect;
+   a follow-up could let learners open the recorded gem5 runs of the same
+   experiment in the Explorer (they are large: ~80 MB per trace).
 2. **Comparison view** for two traces of the same program (e.g. strided vs.
    sequential): cycles, misses, prefetches side by side, from the engine's
    statistics.
@@ -210,7 +211,7 @@ Rules for this track (in addition to the general rules):
 | 1 Execute your first RISC-V program | Done |
 | 2 Pipeline hazards | Done |
 | 3 Branch and flush | Done |
-| 4 Cache optimization | Planned – the measured gem5 cache experiment (Milestone 4) is the basis; Ripes' cache simulator is an alternative that does not change processor timing |
+| 4 Cache locality | Done – live-verified data-cache criteria (same counts as Ripes' cache simulator); the gem5 measurement shows the timing effect |
 | 5 SoC data transfer | Planned – needs Milestone 4 |
 | 6 AI accelerator | Planned – needs Milestone 6 |
 | 7 Physical AI real-time challenge | Planned – needs Milestone 7 |

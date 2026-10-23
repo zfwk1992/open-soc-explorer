@@ -31,6 +31,19 @@ qint32 FancyTabBar::addFancyTab(QIcon icon, QString text) {
   return tabVector.size() - 1;
 }
 
+QString FancyTabBar::tabText(qint32 index) const {
+  return index >= 0 && index < tabVector.size() ? tabVector[index]->m_text
+                                                : QString();
+}
+
+FancyTabBar::Error FancyTabBar::setTabText(qint32 index, const QString &text) {
+  if (index >= tabVector.size() || index < 0)
+    return INDEX_OUT_OF_RANGE;
+  tabVector[index]->m_text = text;
+  update();
+  return SUCESS;
+}
+
 qint32 FancyTabBar::getActiveIndex() const { return activeIndex; }
 
 FancyTabBar::Error FancyTabBar::setActiveIndex(qint32 index) {

@@ -85,5 +85,38 @@
     ],
     "reference_solution": "addi x6, x0, 60\naddi x7, x0, 40\nadd  x5, x6, x7\n"
   },
-  "completion": "You executed RISC-V instructions and verified, from the simulator's own trace, how the PC and the register file change. Next: what happens when instructions overlap in a pipeline."
+  "completion": "You executed RISC-V instructions and verified, from the simulator's own trace, how the PC and the register file change. Next: what happens when instructions overlap in a pipeline.",
+  "i18n": {
+    "zh_CN": {
+      "title": "运行你的第一个 RISC-V 程序",
+      "learn": [
+        "程序计数器（PC）",
+        "寄存器堆",
+        "ADDI",
+        "ADD",
+        "写回"
+      ],
+      "objective": "在单周期处理器上运行三条指令，观察程序计数器和寄存器堆的变化：每个时钟周期执行一条指令。",
+      "explanation": "<p>RISC-V 程序是内存中的一串 32 位指令。<b>程序计数器（PC）</b>保存要执行的指令的地址。每个周期，处理器在 PC 处<b>取指</b>，对指令<b>译码</b>，<b>执行</b>它，并把结果<b>写回</b>到<b>寄存器堆</b>（寄存器 <code>x0</code>&ndash;<code>x31</code>；<code>x0</code> 恒为零）。然后 PC 前进 4 个字节。</p><p><code>addi rd, rs1, imm</code> 计算 <code>rs1 + imm</code>。当 <code>rs1 = x0</code> 时，它只是加载一个小常数。<code>add rd, rs1, rs2</code> 把两个寄存器相加。</p><p>本任务使用 Ripes 的<b>单周期处理器</b>：一个时钟周期恰好执行一条指令，因此你可以一步一步地跟踪 PC 和寄存器。它是教学用的数据通路模型，而不是某个特定商业处理器核的模型。</p>",
+      "steps": [
+        {
+          "title": "加载程序",
+          "instruction": "点击<b>加载示例</b>和<b>选择处理器</b>。编辑器中现在是示例程序，单周期处理器已被选中。"
+        },
+        {
+          "title": "执行一条指令",
+          "instruction": "在工具栏中按一次<b>时钟</b>（或在运行时钟后，于探索器选项卡的时间线中向前单步）。在单周期处理器中，第一条指令在周期 1 完成：PC 从 0x0 变为 0x4，<code>x1</code> 变为 10。"
+        },
+        {
+          "title": "运行到结束",
+          "instruction": "按<b>运行</b>（或继续按时钟）。打开<b>探索器</b>选项卡，在时间线中点击 <code>add</code> 指令：解释中会显示操作数的值 10 和 20，并对照 ISA 检查结果。"
+        }
+      ],
+      "challenge": {
+        "text": "编写你自己的程序，使寄存器 <code>x5</code>（<code>t0</code>）最终保存 <b>100</b>，并且 <code>x5</code> 的最终值必须由一条 <code>add</code> 指令产生。把程序运行到结束，然后按<b>检查挑战</b>。",
+        "hint": "先用 addi 把两个常数加载到另外两个寄存器中，再用 add 把它们相加到 x5。"
+      },
+      "completion": "你执行了 RISC-V 指令，并根据模拟器自己的轨迹验证了 PC 和寄存器堆是如何变化的。下一步：当指令在流水线中重叠执行时会发生什么。"
+    }
+  }
 }

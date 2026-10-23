@@ -34,6 +34,10 @@ public:
   ~FancyTabBar() override;
 
   qint32 addFancyTab(QIcon icon, QString text);
+  /// Text of tab @p index (empty if out of range).
+  QString tabText(qint32 index) const;
+  /// Changes the text of tab @p index (e.g. after a language change).
+  Error setTabText(qint32 index, const QString &text);
 
   qint32 getActiveIndex() const;
   Error setActiveIndex(qint32 index);

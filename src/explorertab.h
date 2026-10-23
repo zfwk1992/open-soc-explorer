@@ -3,6 +3,7 @@
 #pragma once
 
 #include <QAbstractTableModel>
+#include <QElapsedTimer>
 #include <QTimer>
 
 #include <memory>
@@ -12,6 +13,7 @@
 
 class QAction;
 class QComboBox;
+class QGroupBox;
 class QLabel;
 class QSlider;
 class QSpinBox;
@@ -28,6 +30,9 @@ class QVBoxLayout;
 namespace Ripes {
 
 class SystemView;
+class HudBanner;
+class PipelineStrip;
+class StripLegend;
 namespace Explorer {
 class TraceRecorder;
 }
@@ -48,6 +53,8 @@ public:
   qint64 cycleForColumn(int column) const;
   int columnForCycle(qint64 cycle) const;
   void setCurrentCycle(qint64 cycle);
+  /// Re-reads the texts (tool tips) after a language change.
+  void refreshTexts();
 
   int rowCount(const QModelIndex &parent = QModelIndex()) const override;
   int columnCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -78,13 +85,33 @@ public:
   ~ExplorerTab() override;
 
   void tabVisibilityChanged(bool visible) override;
+  /// The banner's word-wrapped height is handled by the tab's own layout.
+  /// Reporting height-for-width to the main window's stacked layout would
+  /// make the tab's preferred height its minimum height, which is taller
+  /// than many browser windows (and clipped there).
+  bool hasHeightForWidth() const override { return false; }
 
+protected:
+  bool eventFilter(QObject *watched, QEvent *event) override;
+  void changeEvent(QEvent *event) override;
+
+public:
   /// Loads a trace file (e.g. converted from gem5) for offline replay.
   bool openTraceFile(const QString &path, QString *error = nullptr);
+  /// Loads a trace from memory (e.g. a file chosen in the browser) for
+  /// offline replay; @p name is shown as its file name.
+  bool openTraceData(const QByteArray &data, const QString &name,
+                     QString *error = nullptr);
+  /// The example gem5 trace built into the application (a recorded gem5
+  /// O3CPU run, converted at build time), or an empty string if this build
+  /// has none.
+  static QString exampleGem5TracePath();
 
 public slots:
   void setCycle(qint64 cycle);
   void selectInstance(qint64 id);
+  /// Replays the example gem5 trace (see exampleGem5TracePath()).
+  bool openExampleGem5Trace();
 
 private slots:
   void refreshFromRecorder();
@@ -98,7 +125,13 @@ private slots:
 private:
   void setupToolbar();
   void setupUi();
+  /// Sets the static texts in the current language.
+  void retranslateUi();
+  void updateCycleLabel();
   void loadReplay(Trace::Trace trace);
+  void loadOffline(Trace::Trace trace, const QString &name, bool example);
+  /// Name of the offline trace in the current language.
+  QString offlineName() const;
   void updateBanner();
   void updateCycleViews();
   void updatePipelineStrip();
@@ -107,6 +140,7 @@ private:
   void updateExplanation();
   void updateStatistics();
   void rebuildComponentTree();
+  void applyTheme();
   bool isDark() const;
 
   Explorer::TraceRecorder *m_recorder = nullptr;
@@ -114,22 +148,35 @@ private:
   quint64 m_revision = ~quint64(0);
   bool m_offline = false;
   QString m_offlineFile;
+  bool m_offlineExample = false;
   bool m_visible = false;
   bool m_dirty = true;
   qint64 m_cycle = 0;
   qint64 m_selected = -1;
+  /// Cycle shown before the last change, for the strip transition.
+  qint64 m_previousCycle = -1;
+  /// Time since the last cycle change; transitions are skipped when cycles
+  /// change faster than a transition takes.
+  QElapsedTimer m_sinceCycleChange;
 
-  QLabel *m_banner = nullptr;
+  HudBanner *m_banner = nullptr;
   QLabel *m_cycleLabel = nullptr;
+  QToolButton *m_firstButton = nullptr;
+  QToolButton *m_previousButton = nullptr;
+  QToolButton *m_nextButton = nullptr;
+  QToolButton *m_lastButton = nullptr;
+  QGroupBox *m_stripGroup = nullptr;
+  QGroupBox *m_timelineGroup = nullptr;
+  QGroupBox *m_eventsGroup = nullptr;
   QSlider *m_slider = nullptr;
+  std::vector<std::pair<QToolButton *, int>> m_controlButtons;
   QToolButton *m_playButton = nullptr;
   QComboBox *m_speed = nullptr;
   QToolButton *m_followButton = nullptr;
   QTimer m_playTimer;
 
-  QWidget *m_stripContainer = nullptr;
-  QVBoxLayout *m_stripLayout = nullptr;
-  std::vector<QToolButton *> m_stageButtons;
+  PipelineStrip *m_strip = nullptr;
+  StripLegend *m_legend = nullptr;
 
   QTableView *m_timeline = nullptr;
   InstructionTimelineModel *m_timelineModel = nullptr;
@@ -145,7 +192,11 @@ private:
   const void *m_componentDesign = nullptr;
 
   QAction *m_recordAction = nullptr;
+  QLabel *m_maxCyclesLabel = nullptr;
   QSpinBox *m_maxCycles = nullptr;
+  QAction *m_exportAction = nullptr;
+  QAction *m_openAction = nullptr;
+  QAction *m_exampleAction = nullptr;
   QAction *m_liveAction = nullptr;
 };
 

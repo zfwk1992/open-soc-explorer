@@ -1,0 +1,113 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Part of Open SoC Explorer: entry page of the web version. It sends phones
+     to mobile.html and everything else to desktop.html before any of the
+     simulator's files are loaded (see docs/webassembly.md). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<meta name="description" content="Open SoC Explorer: interactive RISC-V and SoC simulator in the browser, based on Ripes.">
+<title>Open SoC Explorer</title>
+<script>
+(function () {
+  "use strict";
+  var KEY = "osx-ui";
+  var MODES = { desktop: "desktop.html", mobile: "mobile.html" };
+
+  function stored() {
+    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+  function store(mode) {
+    try {
+      if (mode) localStorage.setItem(KEY, mode); else localStorage.removeItem(KEY);
+    } catch (e) { /* storage blocked: the choice is not remembered */ }
+  }
+  function isPhone() {
+    var coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    var shortSide = Math.min(screen.width, screen.height);
+    return coarse && shortSide < 768;
+  }
+  function targetUrl(mode, params) {
+    var p = new URLSearchParams(params);
+    p.delete("choose");
+    p.set("ui", mode);
+    return MODES[mode] + "?" + p.toString() + location.hash;
+  }
+
+  // ?ui=desktop|mobile overrides and is remembered, ?ui=auto forgets the
+  // remembered choice, ?choose shows this page without redirecting.
+  var params = new URLSearchParams(location.search);
+  var requested = params.get("ui");
+  var mode = null, reason = null;
+  if (requested === "auto") {
+    store(null);
+  } else if (MODES.hasOwnProperty(requested)) {
+    store(requested);
+    mode = requested;
+    reason = "query";
+  }
+  if (!mode) {
+    var remembered = stored();
+    if (MODES.hasOwnProperty(remembered)) {
+      mode = remembered;
+      reason = "remembered";
+    }
+  }
+  if (!mode) {
+    mode = isPhone() ? "mobile" : "desktop";
+    reason = "detected";
+  }
+  var url = targetUrl(mode, params);
+  var stay = params.has("choose");
+  window.osxRoute = { mode: mode, reason: reason, url: url, redirect: !stay };
+
+  // Choosing a version on this page remembers it.
+  window.osxChoose = function (choice) { store(choice); };
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("to-desktop").href = targetUrl("desktop", params);
+    document.getElementById("to-mobile").href = targetUrl("mobile", params);
+    document.getElementById("status").textContent = stay
+      ? "Choose a version · 请选择版本"
+      : (mode === "mobile" ? "Opening the mobile version… · 正在打开手机版…"
+                           : "Opening the desktop version… · 正在打开电脑版…");
+  });
+  if (!stay)
+    location.replace(url);
+})();
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1220; color: #dbe4f3;
+               font: 16px/1.5 system-ui, -apple-system, "Segoe UI", "PingFang SC",
+               "Microsoft YaHei", sans-serif; }
+  main { min-height: 100%; display: flex; flex-direction: column;
+         align-items: center; justify-content: center; gap: 14px;
+         padding: 24px; box-sizing: border-box; text-align: center; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: .5px; }
+  p { margin: 0; color: #9fb0cc; }
+  .links { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  a.choice { display: inline-block; min-width: 150px; padding: 12px 18px;
+             border-radius: 10px; border: 1px solid #2c4a7a; background: #13223d;
+             color: #e8f0ff; text-decoration: none; font-weight: 600; }
+  a.choice:hover, a.choice:focus { background: #1b3157; border-color: #4f8cff; }
+  small { color: #6f82a3; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Open SoC Explorer</h1>
+  <p>RISC-V &amp; SoC simulator · based on Ripes · RISC-V 与 SoC 模拟器</p>
+  <p id="status">Choose a version · 请选择版本</p>
+  <div class="links">
+    <a class="choice" id="to-desktop" href="desktop.html?ui=desktop"
+       onclick="window.osxChoose &amp;&amp; osxChoose('desktop')">电脑版 / Desktop</a>
+    <a class="choice" id="to-mobile" href="mobile.html?ui=mobile"
+       onclick="window.osxChoose &amp;&amp; osxChoose('mobile')">手机版 / Mobile</a>
+  </div>
+  <small>Your choice is remembered · 选择会被记住 ·
+    <a href="index.html?ui=auto" style="color:#8fb4ff">detect again / 重新检测</a></small>
+  <noscript><p>JavaScript is required · 需要启用 JavaScript</p></noscript>
+</main>
+</body>
+</html>

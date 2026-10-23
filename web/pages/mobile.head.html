@@ -1,0 +1,49 @@
+<meta charset="utf-8">
+<!-- Open SoC Explorer: head of mobile.html, the phone version (added by
+     web/prepare_site.py to Qt's loader page, after coi-serviceworker, which
+     prepare_site.py inserts as the first script: do not include it here). -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>
+  // This page always runs the phone user interface: the application reads
+  // the "ui" query parameter (src/platform/uimode.cpp).
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get("ui") !== "mobile") {
+      params.set("ui", "mobile");
+      window.history.replaceState(null, "", window.location.pathname + "?" +
+                                  params.toString() + window.location.hash);
+    }
+  })();
+</script>
+<style>
+  /* The page itself never scrolls or zooms: the application fills the
+     screen and scrolls its own pages by touch. */
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    background: #0d1220; color: #e7edff;
+    touch-action: none; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  }
+  body { position: fixed; inset: 0; }
+  #screen {
+    position: fixed !important; left: 0; top: 0;
+    width: 100vw; height: 100vh; height: 100dvh;
+    touch-action: none; overscroll-behavior: none;
+  }
+  #qtspinner { margin: 0; padding-top: 10vh; color: #97a4c5;
+               font: 15px/1.5 system-ui, sans-serif; }
+  #qtspinner img { width: 160px; height: 100px; margin: 0 auto; }
+  #osx-mobile-loading {
+    position: fixed; left: 16px; right: 16px; bottom: 24px;
+    padding: 12px 14px; border-radius: 14px; border: 1px solid #2a3858;
+    background: #131a2d; color: #e7edff; text-align: center;
+    font: 15px/1.45 system-ui, sans-serif; pointer-events: none;
+  }
+  #osx-mobile-loading b { color: #38c6ff; }
+</style>

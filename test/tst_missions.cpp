@@ -1,15 +1,27 @@
 // SPDX-License-Identifier: MIT
 // Part of Open SoC Explorer: tests for the learning missions, the instruction
 // explainer and the component knowledge base.
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTranslator>
+#include <QXmlStreamReader>
 #include <QtTest/QTest>
 
+#include "cachesim/cachesim.h"
+#include "cachesim/l1cacheshim.h"
+#include "explorer/cachemodel.h"
 #include "explorer/componentinfo.h"
 #include "explorer/instructionexplainer.h"
 #include "explorer/mission.h"
+#include "explorer/missionprogress.h"
 #include "explorer/modelprofile.h"
 #include "explorer/tracerecorder.h"
 #include "explorer/tracereplay.h"
+#include "explorer/tracetext.h"
+#include "i18n/upstreamstrings.h"
 #include "processorhandler.h"
 #include "processorregistry.h"
 #include "programloader.h"
@@ -41,11 +53,19 @@ private slots:
   void tst_mission1();
   void tst_mission2();
   void tst_mission3();
+  void tst_mission4();
+  void tst_cacheModel();
+  void tst_cacheModelMatchesRipes();
   void tst_missionStepsProgressLive();
+  void tst_progressScoring();
+  void tst_progressFromVerifiedChecks();
   void tst_explainerFirstProgram();
   void tst_explainerLoadUseHazard();
   void tst_explainerDetectsUnresolvedHazard();
   void tst_explainerSquashedInstruction();
+  void tst_missionTranslations();
+  void tst_translationCatalogue();
+  void tst_translatedTexts();
 };
 
 void tst_missions::initTestCase() {
@@ -95,8 +115,8 @@ QString tst_missions::failures(const CheckReport &report) {
 }
 
 void tst_missions::tst_catalog() {
-  QCOMPARE(m_missions.size(), size_t(3));
-  for (int i = 0; i < 3; ++i) {
+  QCOMPARE(m_missions.size(), size_t(4));
+  for (int i = 0; i < 4; ++i) {
     const auto &m = m_missions[i];
     QCOMPARE(m.number, i + 1);
     QVERIFY(!m.title.isEmpty());
@@ -221,6 +241,108 @@ void tst_missions::tst_mission3() {
   QCOMPARE(state.stats.squashed, quint64(8));
 }
 
+void tst_missions::tst_mission4() {
+  const auto &m = mission(4);
+  QVERIFY(m.dataCache.has_value());
+  QCOMPARE(m.dataCache->sizeBytes(4), quint64(256));
+  auto state = run(m.processor, m.example);
+  for (const auto &step : m.steps) {
+    const auto report = evaluateChecks(step.checks, state, m);
+    QVERIFY2(report.passed, qPrintable(step.title + ": " + failures(report)));
+  }
+  // Column by column: every one of the 256 loads misses (16 lines of a
+  // column compete for 4 sets and are evicted before the next column).
+  QCOMPARE(state.dataAccesses.size(), size_t(256));
+  auto counts = simulateCache(*m.dataCache, state.dataAccesses, 4);
+  QCOMPARE(counts.misses, quint64(256));
+  QCOMPARE(counts.hits, quint64(0));
+  auto report = evaluateChecks(m.challengeChecks, state, m);
+  QVERIFY(!report.passed);
+  QVERIFY(failures(report).contains("hit rate 0.0 %"));
+
+  // Avoiding the loads (summing a constant) is rejected.
+  state = run(m.processor, "li a0, 32896");
+  QVERIFY(!evaluateChecks(m.challengeChecks, state, m).passed);
+
+  // Row by row: one miss per 16-byte line, the next three words hit.
+  state = run(m.processor, m.referenceSolution);
+  report = evaluateChecks(m.challengeChecks, state, m);
+  QVERIFY2(report.passed, qPrintable(failures(report)));
+  counts = simulateCache(*m.dataCache, state.dataAccesses, 4);
+  QCOMPARE(counts.misses, quint64(64));
+  QCOMPARE(counts.hits, quint64(192));
+}
+
+void tst_missions::tst_cacheModel() {
+  // 2-way set-associative, 2 sets, 1-word lines: blocks 0, lines 1, ways 1.
+  CacheGeometry g;
+  g.lines = 1;
+  g.ways = 1;
+  // Set 0 receives word addresses 0x0, 0x8, 0x10 (tags 0, 1, 2).
+  const std::vector<DataAccess> a = {
+      {0x0, false},  // miss, fill way
+      {0x8, false},  // miss, fill second way
+      {0x0, false},  // hit, 0x8 becomes least recently used
+      {0x10, false}, // miss, evicts 0x8
+      {0x0, false},  // hit
+      {0x8, false},  // miss
+      {0x3, false},  // hit: the two low bits are ignored, as in Ripes
+  };
+  auto c = simulateCache(g, a, 4);
+  QCOMPARE(c.hits, quint64(3));
+  QCOMPARE(c.misses, quint64(4));
+  // Without write allocation, a write miss does not fill the cache.
+  g.writeAllocate = false;
+  c = simulateCache(g, {{0x20, true}, {0x20, false}}, 4);
+  QCOMPARE(c.misses, quint64(2));
+  QCOMPARE(g.describe(4), QString("16-byte 2-way set-associative cache, 4 "
+                                  "line(s) of 4 bytes in 2 set(s)"));
+}
+
+void tst_missions::tst_cacheModelMatchesRipes() {
+  // The mission's cache model must give the same counts as Ripes' own cache
+  // simulator (as wired by the CLI's --cache options) for the same accesses.
+  const auto &m = mission(4);
+  const std::vector<CacheGeometry> geometries = {
+      *m.dataCache, [] {
+        CacheGeometry g; // 2-way, 8 sets, 2-word lines: exercises LRU
+        g.blocks = 1;
+        g.lines = 3;
+        g.ways = 1;
+        return g;
+      }()};
+  for (const QString &program : {m.example, m.referenceSolution}) {
+    for (const auto &g : geometries) {
+      const auto id = processorId(m.processor);
+      ProcessorHandler::selectProcessor(
+          id, ProcessorRegistry::getDescription(id).isaInfo().defaultExtensions,
+          ProcessorRegistry::getDescription(id).defaultRegisterVals);
+      auto cache = std::make_shared<CacheSim>(nullptr);
+      CachePreset preset;
+      preset.name = "test";
+      preset.blocks = g.blocks;
+      preset.lines = g.lines;
+      preset.ways = g.ways;
+      preset.wrPolicy = WritePolicy::WriteBack;
+      preset.wrAllocPolicy = WriteAllocPolicy::WriteAllocate;
+      preset.replPolicy = ReplPolicy::LRU;
+      cache->setPreset(preset);
+      L1CacheShim shim(L1CacheShim::CacheType::DataCache, nullptr);
+      shim.setRequireCacheInterface(false);
+      shim.setNextLevelCache(cache);
+      RipesSettings::getObserver(RIPES_GLOBALSIGNAL_REQRESET)->trigger();
+      m_loader->loadTest(program);
+      auto *proc = ProcessorHandler::getProcessorNonConst();
+      while (!proc->finished() && proc->getCycleCount() < 5000)
+        proc->clock();
+      const auto state = captureMissionState(m_recorder->trace(), program);
+      const auto counts = simulateCache(g, state.dataAccesses, 4);
+      QCOMPARE(counts.hits, quint64(cache->getHits()));
+      QCOMPARE(counts.misses, quint64(cache->getMisses()));
+    }
+  }
+}
+
 void tst_missions::tst_missionStepsProgressLive() {
   // Steps are verified against live state while the user clocks the
   // processor, not only at the end of a run.
@@ -247,6 +369,97 @@ void tst_missions::tst_missionStepsProgressLive() {
   // cycle 7, which squashes the instructions in IF and ID.
   QCOMPARE(firstFlushCycle, qint64(7));
   QVERIFY(!evaluateChecks(m.steps[2].checks, state, m).passed);
+}
+
+void tst_missions::tst_progressScoring() {
+  // Stars: half of the steps (rounded up), all steps, solved challenge.
+  QCOMPARE(missionStars({3, 0, false}), 0);
+  QCOMPARE(missionStars({3, 1, false}), 0);
+  QCOMPARE(missionStars({3, 2, false}), 1);
+  QCOMPARE(missionStars({3, 3, false}), 2);
+  QCOMPARE(missionStars({3, 3, true}), 3);
+  QCOMPARE(missionStars({3, 0, true}), 1);
+  QCOMPARE(missionStars({4, 2, false}), 1);
+  QCOMPARE(missionStars({1, 1, false}), 2);
+  QCOMPARE(missionStars({0, 0, true}), 1);
+
+  QCOMPARE(missionXp({3, 0, false}), 0);
+  QCOMPARE(missionXp({3, 2, false}), 2 * kXpPerStep);
+  QCOMPARE(missionXp({3, 3, true}), 3 * kXpPerStep + kXpPerChallenge);
+  QCOMPARE(missionXp({3, 7, false}), 3 * kXpPerStep); // clamped to the steps
+
+  QCOMPARE(playerLevel(0).level, 1);
+  QCOMPARE(playerLevel(0).title, QString("Fetch"));
+  QCOMPARE(playerLevel(kXpPerLevel - 1).level, 1);
+  QCOMPARE(playerLevel(kXpPerLevel).level, 2);
+  QCOMPARE(playerLevel(kXpPerLevel).title, QString("Decode"));
+  QCOMPARE(playerLevel(kXpPerLevel).xpIntoLevel, 0);
+  const auto all = playerLevel(4 * (3 * kXpPerStep + kXpPerChallenge));
+  QCOMPARE(all.level, 5);
+  QCOMPARE(all.title, QString("Write-back"));
+  QCOMPARE(all.xpIntoLevel, 400);
+
+  // Unlocks follow the catalog order; progress in a mission unlocks it.
+  const std::vector<MissionRecord> records = {
+      {3, 3, false}, {3, 1, false}, {3, 0, false}, {3, 0, true}, {3, 0, false}};
+  QCOMPARE(missionStatus(records, 0), MissionStatus::InProgress);
+  QCOMPARE(missionStatus(records, 1), MissionStatus::InProgress);
+  QCOMPARE(missionStatus(records, 2), MissionStatus::Locked);
+  QCOMPARE(missionStatus(records, 3), MissionStatus::Solved);
+  QCOMPARE(missionStatus(records, 4), MissionStatus::Available);
+  QCOMPARE(missionStatus({{3, 0, false}}, 0), MissionStatus::Available);
+  QCOMPARE(missionStatus(records, 9), MissionStatus::Locked);
+
+  // Persistent progress over the real catalog.
+  MissionProgress progress({"m1-first-program/1", "m1-first-program/1"}, {});
+  QCOMPARE(progress.verifiedSteps(), QStringList({"m1-first-program/1"}));
+  QVERIFY(progress.stepVerified("m1-first-program", 0));
+  QVERIFY(!progress.recordStep("m1-first-program", 0));
+  QVERIFY(progress.recordStep("m1-first-program", 1));
+  QVERIFY(progress.recordStep("m1-first-program", 2));
+  QVERIFY(progress.recordSolved("m3-branch-and-flush"));
+  QVERIFY(!progress.recordSolved("m3-branch-and-flush"));
+  QCOMPARE(MissionProgress::stepKey("m2-pipeline-hazards", 0),
+           QString("m2-pipeline-hazards/1"));
+  const auto totals = progress.totals(m_missions);
+  QCOMPARE(totals.missions, 4);
+  QCOMPARE(totals.steps, 12);
+  QCOMPARE(totals.verifiedSteps, 3);
+  QCOMPARE(totals.solved, 1);
+  QCOMPARE(totals.xp, 3 * kXpPerStep + kXpPerChallenge);
+  QCOMPARE(totals.stars, 3);
+  QCOMPARE(totals.maxStars, 12);
+  const auto recs = progress.records(m_missions);
+  QCOMPARE(missionStatus(recs, 0), MissionStatus::InProgress);
+  QCOMPARE(missionStatus(recs, 1), MissionStatus::Available);
+  QCOMPARE(missionStatus(recs, 2), MissionStatus::Solved);
+  QCOMPARE(missionStatus(recs, 3), MissionStatus::Available);
+}
+
+void tst_missions::tst_progressFromVerifiedChecks() {
+  // Scores only come from checks that passed on the simulator: run Mission
+  // 1's example, record the steps whose checks pass, then solve the
+  // challenge with the reference solution.
+  const auto &m = mission(1);
+  MissionProgress progress;
+  auto state = run(m.processor, m.example);
+  for (size_t i = 0; i < m.steps.size(); ++i)
+    if (evaluateChecks(m.steps[i].checks, state, m).passed)
+      progress.recordStep(m.id, i);
+  QVERIFY(!evaluateChecks(m.challengeChecks, state, m).passed);
+  QCOMPARE(progress.record(m).verifiedSteps, 3);
+  QCOMPARE(missionStars(progress.record(m)), 2);
+  QCOMPARE(progress.totals(m_missions).xp, 3 * kXpPerStep);
+
+  state = run(m.processor, m.referenceSolution);
+  QVERIFY(evaluateChecks(m.challengeChecks, state, m).passed);
+  progress.recordSolved(m.id);
+  QCOMPARE(missionStars(progress.record(m)), 3);
+  QCOMPARE(progress.totals(m_missions).xp, 3 * kXpPerStep + kXpPerChallenge);
+  QCOMPARE(missionStatus(progress.records(m_missions), 1),
+           MissionStatus::Available);
+  QCOMPARE(missionStatus(progress.records(m_missions), 2),
+           MissionStatus::Locked);
 }
 
 void tst_missions::tst_explainerFirstProgram() {
@@ -322,6 +535,141 @@ void tst_missions::tst_explainerSquashedInstruction() {
     return;
   }
   QFAIL("no squashed instruction found");
+}
+
+void tst_missions::tst_missionTranslations() {
+  // Every mission parses in English and in Chinese, has no missing Chinese
+  // text, and both languages share ids, steps and checks.
+  QString error;
+  const auto zh = loadBuiltinMissions(&error, "zh_CN");
+  QVERIFY2(error.isEmpty(), qPrintable(error));
+  QCOMPARE(zh.size(), m_missions.size());
+  QDir dir(":/missions");
+  int files = 0;
+  for (const auto &file : dir.entryList({"*.json"}, QDir::Files)) {
+    QFile f(dir.filePath(file));
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const auto o = QJsonDocument::fromJson(f.readAll()).object();
+    QVERIFY2(parseMission(o, &error).has_value(), qPrintable(error));
+    QVERIFY2(parseMission(o, &error, "zh_CN").has_value(), qPrintable(error));
+    const auto missing = missingTranslations(o, "zh_CN");
+    QVERIFY2(missing.isEmpty(),
+             qPrintable(file + " lacks zh_CN: " + missing.join(", ")));
+    ++files;
+  }
+  QCOMPARE(files, int(m_missions.size()));
+  for (size_t i = 0; i < zh.size(); ++i) {
+    const auto &en = m_missions[i];
+    const auto &cn = zh[i];
+    QCOMPARE(cn.id, en.id);
+    QCOMPARE(cn.processor, en.processor);
+    QCOMPARE(cn.example, en.example);
+    QCOMPARE(cn.referenceSolution, en.referenceSolution);
+    QCOMPARE(cn.steps.size(), en.steps.size());
+    QCOMPARE(cn.learn.size(), en.learn.size());
+    QVERIFY(cn.title != en.title);
+    QVERIFY(cn.objective != en.objective);
+    QVERIFY(cn.challenge != en.challenge);
+    for (size_t s = 0; s < en.steps.size(); ++s) {
+      QVERIFY(cn.steps[s].title != en.steps[s].title);
+      QCOMPARE(cn.steps[s].checks.size(), en.steps[s].checks.size());
+      for (size_t c = 0; c < en.steps[s].checks.size(); ++c) {
+        QCOMPARE(cn.steps[s].checks[c].kind, en.steps[s].checks[c].kind);
+        QCOMPARE(cn.steps[s].checks[c].params, en.steps[s].checks[c].params);
+      }
+    }
+    QCOMPARE(cn.challengeChecks.size(), en.challengeChecks.size());
+  }
+  // A language without translations falls back to English.
+  const auto fr = loadBuiltinMissions(&error, "fr");
+  QCOMPARE(fr.front().title, m_missions.front().title);
+}
+
+void tst_missions::tst_translationCatalogue() {
+  // translations/open-soc-explorer_zh_CN.ts: no unfinished or empty
+  // translations, placeholders kept, and the texts looked up at run time
+  // (upstream literals, trace texts) are present.
+  QFile file(QString(OSX_SOURCE_DIR) +
+             "/translations/open-soc-explorer_zh_CN.ts");
+  QVERIFY(file.open(QIODevice::ReadOnly));
+  QXmlStreamReader xml(&file);
+  QString context, source;
+  std::map<QString, QSet<QString>> sources;
+  QStringList unfinished, badPlaceholders;
+  int messages = 0;
+  static const QRegularExpression placeholder("%\\d");
+  auto placeholders = [&](const QString &s) {
+    QStringList list;
+    for (auto it = placeholder.globalMatch(s); it.hasNext();)
+      list << it.next().captured();
+    list.sort();
+    return list;
+  };
+  while (!xml.atEnd()) {
+    xml.readNext();
+    if (!xml.isStartElement())
+      continue;
+    if (xml.name() == QLatin1String("name")) {
+      context = xml.readElementText();
+    } else if (xml.name() == QLatin1String("source")) {
+      source = xml.readElementText();
+      sources[context].insert(source);
+      ++messages;
+    } else if (xml.name() == QLatin1String("translation")) {
+      const bool isUnfinished =
+          xml.attributes().value("type") == QLatin1String("unfinished");
+      const QString translation = xml.readElementText();
+      if (isUnfinished || translation.isEmpty())
+        unfinished << context + ": " + source;
+      else if (placeholders(translation) != placeholders(source))
+        badPlaceholders << context + ": " + source;
+    }
+  }
+  QVERIFY2(!xml.hasError(), qPrintable(xml.errorString()));
+  qInfo("%d messages, %d unfinished", messages, int(unfinished.size()));
+  QVERIFY(messages > 700);
+  QVERIFY2(unfinished.isEmpty(), qPrintable(unfinished.join("\n")));
+  QVERIFY2(badPlaceholders.isEmpty(), qPrintable(badPlaceholders.join("\n")));
+  for (const auto &text : I18n::upstreamSourceTexts())
+    QVERIFY2(sources["Upstream"].contains(text), qPrintable(text));
+  for (const auto &text : knownTraceTexts())
+    QVERIFY2(sources[kTraceTextContext].contains(text), qPrintable(text));
+}
+
+void tst_missions::tst_translatedTexts() {
+  // With the embedded catalogue installed, the texts built by the explorer
+  // library are Chinese; identifiers, numbers and register names are kept.
+  QTranslator translator;
+  QVERIFY(translator.load(":/i18n/open-soc-explorer_zh_CN.qm"));
+  QVERIFY(QCoreApplication::installTranslator(&translator));
+  const auto &m = mission(1);
+  auto state = run(m.processor, "addi x5, x0, 100\nadd x6, x5, x0");
+  auto report = evaluateChecks(m.challengeChecks, state, m);
+  QVERIFY(!report.passed);
+  QStringList zh;
+  for (const auto &r : report.results)
+    zh << r.description + " [" + r.detail + "]";
+  QVERIFY2(zh.join("; ").contains("最后写入者：addi"),
+           qPrintable(zh.join("; ")));
+  QVERIFY(zh.join("; ").contains("t0 (x5)"));
+  QCOMPARE(localizedTraceText("3 register write(s) could not be attributed to "
+                              "a retiring instruction (e.g. system call side "
+                              "effects or manual edits)."),
+           QString("有 3 次寄存器写入无法归属到某条退休的指令（例如系统调用的副"
+                   "作用或手动修改）。"));
+  QVERIFY(localizedTraceText(modelProfile(ProcessorID::RV32_5S).fidelityNote)
+              .contains("教学数据通路模型"));
+  QCOMPARE(localizedTraceText("gem5's own statistic text"),
+           QString("gem5's own statistic text"));
+  QVERIFY(componentInfo("alu")->title.contains("算术逻辑单元"));
+  QCOMPARE(levelTitle(1), QString("取指"));
+  QCoreApplication::removeTranslator(&translator);
+
+  // English again without the catalogue.
+  report = evaluateChecks(m.challengeChecks, state, m);
+  QVERIFY(failures(report).contains("last written by: addi"));
+  QCOMPARE(componentInfo("alu")->title, QString("Arithmetic logic unit (ALU)"));
+  QCOMPARE(levelTitle(1), QString("Fetch"));
 }
 
 QTEST_MAIN(tst_missions)

@@ -8,6 +8,9 @@
 #include "src/cli/clioptions.h"
 #include "src/cli/clirunner.h"
 #include "src/mainwindow.h"
+#include "src/mobile/mobileshell.h"
+#include "src/platform/uimode.h"
+#include "src/platform/webfonts.h"
 #include "src/ripessettings.h"
 
 using namespace std;
@@ -24,6 +27,10 @@ void initParser(QCommandLineParser &parser, Ripes::CLIModeOptions &options) {
   parser.setApplicationDescription(helpText);
   QCommandLineOption modeOption("mode", "Ripes mode [gui, cli]", "mode", "gui");
   parser.addOption(modeOption);
+  // Open SoC Explorer: phone user interface (in the browser: ?ui=mobile).
+  QCommandLineOption uiOption("ui", "User interface [desktop, mobile]", "ui",
+                              "desktop");
+  parser.addOption(uiOption);
   Ripes::addCLIOptions(parser, options);
 }
 
@@ -61,6 +68,12 @@ int guiMode(QApplication &app) {
   // application proper light/dark theming.
   QApplication::setStyle("Fusion");
   Ripes::applyColorScheme();
+  // Open SoC Explorer: Chinese font of the WebAssembly build.
+  Ripes::installWebFonts();
+
+  // Open SoC Explorer: the phone user interface instead of the main window.
+  if (Ripes::currentUiMode() == Ripes::UiMode::Mobile)
+    return Ripes::Mobile::runMobileShell(app);
 
   Ripes::MainWindow m;
 

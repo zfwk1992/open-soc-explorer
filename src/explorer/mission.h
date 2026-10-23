@@ -11,6 +11,7 @@
 #include <set>
 #include <vector>
 
+#include "cachemodel.h"
 #include "tracereplay.h"
 #include "tracetypes.h"
 
@@ -50,6 +51,8 @@ struct Mission {
   /// Known-good challenge solution, used by the automated tests to verify
   /// that each mission is solvable. Not shown in the GUI.
   QString referenceSolution;
+  /// Data cache that the dcache_* criteria simulate (JSON "data_cache").
+  std::optional<CacheGeometry> dataCache;
 };
 
 /// Facts about the current simulation that missions are verified against.
@@ -69,6 +72,8 @@ struct MissionState {
   TraceReplay::Stats stats;
   /// Mnemonic of the instruction that last wrote each GPR (by index).
   std::map<int, QString> lastWriter;
+  /// Data memory accesses of the recorded trace, in order.
+  std::vector<DataAccess> dataAccesses;
 };
 
 struct CriterionResult {
@@ -87,12 +92,22 @@ struct CheckReport {
 QStringList criterionKinds();
 
 /// Parses a mission from JSON. Returns std::nullopt and sets @p error on
-/// failure (unknown criterion kinds are rejected).
-std::optional<Mission> parseMission(const QJsonObject &o, QString *error);
+/// failure (unknown criterion kinds are rejected). With a @p language such
+/// as "zh_CN", the texts of the mission's optional "i18n" object for that
+/// language are used (title, objective, explanation, learn, completion,
+/// steps[].title/instruction, challenge.text/hint); missing ones fall back
+/// to the English fields.
+std::optional<Mission> parseMission(const QJsonObject &o, QString *error,
+                                    const QString &language = QString());
+
+/// Paths of the texts of @p o that have no translation for @p language
+/// (e.g. "steps[1].instruction"); empty if the mission is fully translated.
+QStringList missingTranslations(const QJsonObject &o, const QString &language);
 
 /// Loads the built-in missions (Qt resources under :/missions), ordered by
-/// mission number.
-std::vector<Mission> loadBuiltinMissions(QString *error = nullptr);
+/// mission number, in @p language (see parseMission(); empty: English).
+std::vector<Mission> loadBuiltinMissions(QString *error = nullptr,
+                                         const QString &language = QString());
 
 /// Builds a MissionState from the live ProcessorHandler state and @p trace.
 MissionState captureMissionState(const Trace::Trace &trace,
