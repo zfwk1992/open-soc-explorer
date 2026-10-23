@@ -135,6 +135,7 @@ QLabel#mobileStepStatus[state="current"] { color: @accent; }
 QPlainTextEdit#mobileProgramEditor { background: @base; color: @text; border: 1px solid @borderStrong; border-radius: 10px; padding: 6px; }
 QTextBrowser#mobileExplanation { background: @base; color: @text; border: none; }
 QTableWidget#mobileRegisterTable { background: @base; alternate-background-color: @alternate; color: @text; border: none; gridline-color: @border; }
+QTableWidget#mobileRegisterTable::item { padding-left: 12px; }
 QTableWidget#mobileRegisterTable QHeaderView::section { background: @panel; color: @muted; border: none; border-bottom: 1px solid @border; padding: 8px 6px; font-weight: 700; }
 QLabel#mobileToast { background: @card; color: @text; border: 2px solid @gold; border-radius: 14px; padding: 10px 14px; font-weight: 600; }
 QScrollBar:vertical { width: 4px; background: transparent; margin: 0; }
