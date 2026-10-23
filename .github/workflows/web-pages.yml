@@ -28,7 +28,9 @@ jobs:
         path: wasm
 
     - name: Assemble the site
-      run: python3 web/prepare_site.py wasm site
+      run: |
+        python3 -m unittest discover -s web
+        python3 web/prepare_site.py wasm site
 
     - uses: actions/setup-python@v5
       with:

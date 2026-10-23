@@ -60,6 +60,13 @@ public:
    */
   void restoreWindowGeometry();
 
+  /// Open SoC Explorer: loads a program (assembly source or ELF file) from
+  /// its contents, e.g. a file chosen in the browser. Returns false if the
+  /// editor rejected it.
+  bool loadProgramData(const QString &fileName, const QByteArray &content);
+  /// Open SoC Explorer: shows the example gem5 trace in the Explorer.
+  bool openExampleGem5Trace();
+
 protected:
   void showEvent(QShowEvent *event) override;
   void changeEvent(QEvent *event) override;
@@ -81,6 +88,9 @@ private slots:
 
 private:
   void loadFile(const QString &filename, SourceType type);
+  /// WebAssembly: load and save programs through the browser.
+  void loadFileFromBrowser();
+  void saveFileToBrowser();
 
   void setupStatusBar();
   void setupMenus();
@@ -102,5 +112,6 @@ private:
   // Open SoC Explorer: records the execution trace shown in the Explorer and
   // used to verify missions.
   Explorer::TraceRecorder *m_traceRecorder = nullptr;
+  QAction *m_gem5ExampleAction = nullptr;
 };
 } // namespace Ripes

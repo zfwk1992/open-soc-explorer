@@ -92,13 +92,16 @@ int HudBanner::heightForWidth(int width) const {
   return int(std::ceil(h));
 }
 
+// The hints do not depend on the current width: layouts cache them, and a
+// height computed for an earlier, narrower width made the views taller than
+// the window (the layouts use heightForWidth() for the actual width).
 QSize HudBanner::sizeHint() const {
-  const int w = std::max(width(), 400);
-  return QSize(w, heightForWidth(w));
+  constexpr int kHintWidth = 900;
+  return QSize(kHintWidth, heightForWidth(kHintWidth));
 }
 
 QSize HudBanner::minimumSizeHint() const {
-  return QSize(200, heightForWidth(std::max(width(), 200)));
+  return QSize(200, heightForWidth(900));
 }
 
 void HudBanner::paintEvent(QPaintEvent *) {
@@ -592,13 +595,14 @@ int StripLegend::heightForWidth(int width) const {
   return int(std::ceil(h));
 }
 
+// As for HudBanner: hints independent of the current width.
 QSize StripLegend::sizeHint() const {
-  const int w = std::max(width(), 300);
-  return QSize(w, heightForWidth(w));
+  constexpr int kHintWidth = 700;
+  return QSize(kHintWidth, heightForWidth(kHintWidth));
 }
 
 QSize StripLegend::minimumSizeHint() const {
-  return QSize(100, heightForWidth(std::max(width(), 100)));
+  return QSize(100, heightForWidth(700));
 }
 
 void StripLegend::paintEvent(QPaintEvent *) {

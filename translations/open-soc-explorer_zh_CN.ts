@@ -2203,6 +2203,26 @@
         <source>Signal values are read directly from the VSRTL model of the selected educational processor at the current simulator cycle; they are not recorded in the trace.</source>
         <translation>信号值是在当前模拟器周期直接从所选教学处理器的 VSRTL 模型中读取的，不记录在轨迹中。</translation>
     </message>
+    <message>
+        <source>Open the example gem5 trace</source>
+        <translation>打开 gem5 示例轨迹</translation>
+    </message>
+    <message>
+        <source>Replay a recorded gem5 O3CPU run with L1/L2 caches (no file needed)</source>
+        <translation>回放一次录制好的 gem5 O3CPU 运行（带 L1/L2 缓存，无需文件）</translation>
+    </message>
+    <message>
+        <source>This build has no example gem5 trace.</source>
+        <translation>此版本未包含 gem5 示例轨迹。</translation>
+    </message>
+    <message>
+        <source>Could not read &apos;%1&apos;: %2</source>
+        <translation>无法读取“%1”：%2</translation>
+    </message>
+    <message>
+        <source>the example gem5 O3CPU trace (loop_sum)</source>
+        <translation>gem5 O3CPU 示例轨迹（loop_sum）</translation>
+    </message>
 </context>
 <context>
     <name>Ripes::I18n</name>
@@ -2416,6 +2436,22 @@
     <message>
         <source>Open SoC Explorer (based on Ripes)</source>
         <translation>Open SoC Explorer（基于 Ripes）</translation>
+    </message>
+    <message>
+        <source>gem5 trace (O3CPU, loop_sum) in the Explorer</source>
+        <translation>gem5 轨迹（O3CPU，loop_sum），在 Explorer 中回放</translation>
+    </message>
+    <message>
+        <source>Load Program</source>
+        <translation>加载程序</translation>
+    </message>
+    <message>
+        <source>Could not store &apos;%1&apos; for loading.</source>
+        <translation>无法暂存“%1”以便加载。</translation>
+    </message>
+    <message>
+        <source>Programs (*.s *.asm *.S *.elf *.out *.o);;All files (*)</source>
+        <translation>程序 (*.s *.asm *.S *.elf *.out *.o);;所有文件 (*)</translation>
     </message>
 </context>
 <context>

@@ -85,6 +85,11 @@ public:
   ~ExplorerTab() override;
 
   void tabVisibilityChanged(bool visible) override;
+  /// The banner's word-wrapped height is handled by the tab's own layout.
+  /// Reporting height-for-width to the main window's stacked layout would
+  /// make the tab's preferred height its minimum height, which is taller
+  /// than many browser windows (and clipped there).
+  bool hasHeightForWidth() const override { return false; }
 
 protected:
   bool eventFilter(QObject *watched, QEvent *event) override;
@@ -93,10 +98,20 @@ protected:
 public:
   /// Loads a trace file (e.g. converted from gem5) for offline replay.
   bool openTraceFile(const QString &path, QString *error = nullptr);
+  /// Loads a trace from memory (e.g. a file chosen in the browser) for
+  /// offline replay; @p name is shown as its file name.
+  bool openTraceData(const QByteArray &data, const QString &name,
+                     QString *error = nullptr);
+  /// The example gem5 trace built into the application (a recorded gem5
+  /// O3CPU run, converted at build time), or an empty string if this build
+  /// has none.
+  static QString exampleGem5TracePath();
 
 public slots:
   void setCycle(qint64 cycle);
   void selectInstance(qint64 id);
+  /// Replays the example gem5 trace (see exampleGem5TracePath()).
+  bool openExampleGem5Trace();
 
 private slots:
   void refreshFromRecorder();
@@ -114,6 +129,9 @@ private:
   void retranslateUi();
   void updateCycleLabel();
   void loadReplay(Trace::Trace trace);
+  void loadOffline(Trace::Trace trace, const QString &name, bool example);
+  /// Name of the offline trace in the current language.
+  QString offlineName() const;
   void updateBanner();
   void updateCycleViews();
   void updatePipelineStrip();
@@ -130,6 +148,7 @@ private:
   quint64 m_revision = ~quint64(0);
   bool m_offline = false;
   QString m_offlineFile;
+  bool m_offlineExample = false;
   bool m_visible = false;
   bool m_dirty = true;
   qint64 m_cycle = 0;
@@ -177,6 +196,7 @@ private:
   QSpinBox *m_maxCycles = nullptr;
   QAction *m_exportAction = nullptr;
   QAction *m_openAction = nullptr;
+  QAction *m_exampleAction = nullptr;
   QAction *m_liveAction = nullptr;
 };
 

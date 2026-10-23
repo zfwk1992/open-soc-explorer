@@ -9,6 +9,7 @@
 #include <QGraphicsItem>
 #include <QGraphicsView>
 #include <QLabel>
+#include <QLayout>
 #include <QListWidget>
 #include <QMenu>
 #include <QMenuBar>
@@ -17,6 +18,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSplitter>
+#include <QStackedWidget>
 #include <QTabWidget>
 #include <QTableView>
 #include <QTableWidget>
@@ -233,6 +235,10 @@ private slots:
   void tst_language();
   void tst_demoVideo();
   void tst_languageDemoVideo();
+  void tst_exampleGem5Trace();
+  void tst_traceFromMemory();
+  void tst_loadProgramData();
+  void tst_webLayout();
   void cleanupTestCase();
 };
 
@@ -1269,6 +1275,148 @@ int main(int argc, char **argv) {
   QTEST_SET_MAIN_SOURCE_PATH
   tst_explorergui test;
   return QTest::qExec(&test, argc, argv);
+}
+
+// The example gem5 trace (File → Load Example, Ctrl+Shift+G, Explorer tool
+// bar), built into the application for the web version.
+void tst_explorergui::tst_exampleGem5Trace() {
+  RipesSettings::setValue(RIPES_SETTING_OSX_LANGUAGE, "en");
+  if (ExplorerTab::exampleGem5TracePath().isEmpty())
+    QSKIP("built without the example gem5 trace (no Python 3)");
+  activateTab(kProcessorTab);
+  QTest::keyClick(m_window, Qt::Key_G, Qt::ControlModifier | Qt::ShiftModifier);
+  QTest::qWait(200);
+  QCOMPARE(m_window->findChild<FancyTabBar *>()->getActiveIndex(),
+           kExplorerTab);
+  const QString banner =
+      m_explorer->findChild<QLabel *>("explorerBanner")->text();
+  QVERIFY2(banner.contains("example gem5 O3CPU trace"), qPrintable(banner));
+  QVERIFY(banner.contains("BaseO3CPU"));
+  auto *timeline = m_explorer->findChild<QTableView *>("explorerTimeline");
+  QCOMPARE(timeline->model()->rowCount(), 317);
+  bool found = false;
+  for (auto *a : m_window->findChildren<QAction *>())
+    if (a->text() == "Open the example gem5 trace") {
+      found = true;
+      QVERIFY(a->isEnabled());
+    }
+  QVERIFY(found);
+  screenshot("explorer-gem5-example");
+  QVERIFY(triggerAction("Return to the live trace"));
+}
+
+// Traces handed over in memory, as the browser's file chooser does.
+void tst_explorergui::tst_traceFromMemory() {
+  if (ExplorerTab::exampleGem5TracePath().isEmpty())
+    QSKIP("built without the example gem5 trace (no Python 3)");
+  QFile file(ExplorerTab::exampleGem5TracePath());
+  QVERIFY(file.open(QIODevice::ReadOnly));
+  const QByteArray data = file.readAll();
+  QString error;
+  QVERIFY2(m_explorer->openTraceData(data, "my-run.jsonl", &error),
+           qPrintable(error));
+  const auto *banner = m_explorer->findChild<QLabel *>("explorerBanner");
+  QVERIFY(banner->text().contains("my-run.jsonl"));
+  QCOMPARE(m_explorer->findChild<QTableView *>("explorerTimeline")
+               ->model()
+               ->rowCount(),
+           317);
+  // What the web version downloads on export reads back the same.
+  auto trace = Trace::fromJsonl(data, &error);
+  QVERIFY(trace.has_value());
+  auto again = Trace::fromJsonl(Trace::toJsonl(*trace), &error);
+  QVERIFY(again.has_value());
+  QCOMPARE(again->events.size(), trace->events.size());
+  QVERIFY(!m_explorer->openTraceData("not a trace", "bad.jsonl", &error));
+  QVERIFY2(error.contains("bad.jsonl"), qPrintable(error));
+  QVERIFY(banner->text().contains("my-run.jsonl")); // previous trace kept
+  QVERIFY(triggerAction("Return to the live trace"));
+}
+
+// Programs handed over in memory (the web version's Load Program).
+void tst_explorergui::tst_loadProgramData() {
+  auto *editTab = m_window->findChild<EditTab *>();
+  const QString source = "# loaded from memory\naddi a0, zero, 42\n";
+  QVERIFY(m_window->loadProgramData("from-browser.s", source.toUtf8()));
+  QCOMPARE(m_window->findChild<FancyTabBar *>()->getActiveIndex(), kEditorTab);
+  QCOMPARE(editTab->getAssemblyText(), source);
+  QCOMPARE(editTab->getSourceType(), SourceType::Assembly);
+
+  const QStringList elves = QDir(":/examples/ELF/").entryList(QDir::Files);
+  QVERIFY(!elves.isEmpty());
+  QFile elf(":/examples/ELF/" + elves.first());
+  QVERIFY(elf.open(QIODevice::ReadOnly));
+  QVERIFY(m_window->loadProgramData(elves.first(), elf.readAll()));
+  QCOMPARE(editTab->getSourceType(), SourceType::ExternalELF);
+  QTRY_VERIFY(ProcessorHandler::getProgram() &&
+              ProcessorHandler::getProgram()->sections.count(".text"));
+  editTab->newProgram();
+}
+
+// The web version shows the window at the size of the browser window: no
+// view may need more room than common desktop sizes offer (the bottom of the
+// view would be cut off). Also checks the positions that web/smoke_test.py
+// clicks at.
+void tst_explorergui::tst_webLayout() {
+  const QSize original = m_window->size();
+  auto *bar = m_window->findChild<FancyTabBar *>();
+  auto *stack = m_window->findChild<QStackedWidget *>();
+  const bool haveExample = !ExplorerTab::exampleGem5TracePath().isEmpty();
+  // Live trace first, then (if built in) the example gem5 trace, whose
+  // banner has more badges.
+  for (const bool example : {false, true}) {
+    if (example && !haveExample)
+      break;
+    if (example)
+      QVERIFY(m_window->openExampleGem5Trace());
+    for (const QSize size : {QSize(1280, 720), QSize(1680, 1000)}) {
+      m_window->resize(size);
+      for (int tab : {kEditorTab, kProcessorTab, kExplorerTab, kMissionsTab}) {
+        activateTab(tab);
+        QTest::qWait(100);
+        QCOMPARE(m_window->size(), size);
+        auto *page = stack->currentWidget();
+        const QRect pageRect(page->mapTo(m_window, QPoint(0, 0)), page->size());
+        QVERIFY2(QRect(QPoint(0, 0), size).contains(pageRect),
+                 qPrintable(QString("tab %1 is %2x%3 at %4,%5 in %6x%7")
+                                .arg(tab)
+                                .arg(pageRect.width())
+                                .arg(pageRect.height())
+                                .arg(pageRect.x())
+                                .arg(pageRect.y())
+                                .arg(size.width())
+                                .arg(size.height())));
+      }
+    }
+  }
+
+  const QSize size(1680, 1000);
+  m_window->resize(size);
+  const int tabH = (bar->minimumHeight() - 12) / 7;
+  const QPoint editorTab = bar->mapTo(
+      m_window, QPoint(bar->width() / 2, 6 + tabH * kEditorTab + tabH / 2));
+  activateTab(kExplorerTab);
+  QTest::qWait(100);
+  auto *timeline = m_explorer->findChild<QTableView *>("explorerTimeline");
+  const QRect t(timeline->mapTo(m_window, QPoint(0, 0)), timeline->size());
+  activateTab(kEditorTab);
+  QTest::qWait(100);
+  auto *editor = m_window->findChild<QWidget *>("codeEditor");
+  const QRect e(editor->mapTo(m_window, QPoint(0, 0)), editor->size());
+  qInfo("1680x1000: editor tab at %d,%d; editor %d,%d %dx%d; timeline "
+        "%.2f,%.2f-%.2f,%.2f of the window",
+        editorTab.x(), editorTab.y(), e.x(), e.y(), e.width(), e.height(),
+        double(t.left()) / size.width(), double(t.top()) / size.height(),
+        double(t.right()) / size.width(), double(t.bottom()) / size.height());
+  QVERIFY(QRect(editorTab - QPoint(16, 16), QSize(32, 32))
+              .contains(QPoint(38, 117)));
+  QVERIFY(e.contains(QPoint(200, 200)));
+  if (haveExample)
+    QVERIFY(
+        t.contains(QPoint(int(0.3 * size.width()), int(0.6 * size.height()))));
+  if (haveExample)
+    QVERIFY(triggerAction("Return to the live trace"));
+  m_window->resize(original);
 }
 
 #include "tst_explorergui.moc"

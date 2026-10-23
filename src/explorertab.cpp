@@ -4,6 +4,7 @@
 
 #include <QAction>
 #include <QComboBox>
+#include <QFile>
 #include <QFileDialog>
 #include <QFrame>
 #include <QGroupBox>
@@ -11,6 +12,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QMessageBox>
+#include <QPointer>
 #include <QSlider>
 #include <QSpinBox>
 #include <QSplitter>
@@ -366,6 +368,10 @@ void ExplorerTab::retranslateUi() {
          "that was already truncated."));
   m_exportAction->setText(tr("Export trace (JSON Lines)..."));
   m_openAction->setText(tr("Open a trace file for offline replay..."));
+  m_exampleAction->setText(tr("Open the example gem5 trace"));
+  m_exampleAction->setToolTip(
+      tr("Replay a recorded gem5 O3CPU run with L1/L2 caches (no file "
+         "needed)"));
   m_liveAction->setText(tr("Return to the live trace"));
 
   m_firstButton->setToolTip(tr("First cycle"));
@@ -475,6 +481,12 @@ void ExplorerTab::setupToolbar() {
   m_openAction = new QAction(QIcon(":/icons/loadfile.svg"), QString(), this);
   connect(m_openAction, &QAction::triggered, this, &ExplorerTab::openTrace);
   m_toolbar->addAction(m_openAction);
+
+  m_exampleAction = new QAction(QIcon(":/icons/server.svg"), QString(), this);
+  m_exampleAction->setEnabled(!exampleGem5TracePath().isEmpty());
+  connect(m_exampleAction, &QAction::triggered, this,
+          &ExplorerTab::openExampleGem5Trace);
+  m_toolbar->addAction(m_exampleAction);
 
   m_liveAction = new QAction(QIcon(":/icons/reset.svg"), QString(), this);
   m_liveAction->setEnabled(false);
@@ -588,6 +600,9 @@ void ExplorerTab::setupUi() {
   auto *timelineGroup = m_timelineGroup = new QGroupBox(left);
   auto *timelineLayout = new QVBoxLayout(timelineGroup);
   m_timeline = new QTableView(timelineGroup);
+  // Small minimum heights (the splitter can enlarge the tables), so that the
+  // tab fits windows of 720 pixels, e.g. a browser window on a laptop.
+  m_timeline->setMinimumHeight(40);
   m_timeline->setObjectName("explorerTimeline");
   m_timelineModel = new InstructionTimelineModel(this);
   m_timeline->setModel(m_timelineModel);
@@ -614,6 +629,7 @@ void ExplorerTab::setupUi() {
   auto *eventsGroup = m_eventsGroup = new QGroupBox(left);
   auto *eventsLayout = new QVBoxLayout(eventsGroup);
   m_events = new QTableWidget(eventsGroup);
+  m_events->setMinimumHeight(40);
   m_events->setObjectName("explorerEvents");
   m_events->setColumnCount(6);
   m_events->horizontalHeader()->setStretchLastSection(false);
@@ -1045,7 +1061,7 @@ void ExplorerTab::updateBanner() {
   QString mode;
   if (m_offline)
     mode = tr("Offline replay of %1")
-               .arg("<i>" + m_offlineFile.toHtmlEscaped() + "</i>");
+               .arg("<i>" + offlineName().toHtmlEscaped() + "</i>");
   else if (!m_recorder->isEnabled())
     mode = tr("Recording disabled");
   else
@@ -1089,7 +1105,7 @@ void ExplorerTab::updateBanner() {
   else if (c.programFinished)
     statusColor = c.startsAtReset ? tk.ok : tk.warn;
   QString traceTip =
-      m_offline ? tr("Offline replay of %1").arg(m_offlineFile) : shortMode;
+      m_offline ? tr("Offline replay of %1").arg(offlineName()) : shortMode;
   traceTip += "\n" + tr("%1 events, cycles %2 to %3")
                          .arg(t.events.size())
                          .arg(m_replay->firstCycle())
@@ -1224,46 +1240,110 @@ void ExplorerTab::updateStatistics() {
 }
 
 void ExplorerTab::exportTrace() {
+  const auto trace =
+      m_offline && m_replay ? m_replay->trace() : m_recorder->trace();
+#ifdef Q_OS_WASM
+  // The browser has no file system to write to: the trace is downloaded.
+  QFileDialog::saveFileContent(Trace::toJsonl(trace), "trace.jsonl", this);
+#else
   const QString path = QFileDialog::getSaveFileName(
       this, tr("Export execution trace"), "trace.jsonl",
       tr("JSON Lines trace (*.jsonl);;All files (*)"));
   if (path.isEmpty())
     return;
-  const auto trace =
-      m_offline && m_replay ? m_replay->trace() : m_recorder->trace();
   QString error;
   if (!Trace::writeJsonlFile(trace, path, &error))
     QMessageBox::warning(this, tr("Export trace"), error);
+#endif
 }
 
 void ExplorerTab::openTrace() {
+  const QString filter = tr("JSON Lines trace (*.jsonl);;All files (*)");
+#ifdef Q_OS_WASM
+  // The browser's file chooser: the file's contents are handed over, there
+  // is no path to open.
+  QPointer<ExplorerTab> self(this);
+  QFileDialog::getOpenFileContent(
+      filter,
+      [self](const QString &name, const QByteArray &content) {
+        if (!self || name.isEmpty())
+          return;
+        QString error;
+        if (!self->openTraceData(content, name, &error))
+          QMessageBox::warning(self, tr("Open trace"), error);
+      },
+      this);
+#else
   const QString path = QFileDialog::getOpenFileName(
-      this, tr("Open execution trace"), QString(),
-      tr("JSON Lines trace (*.jsonl);;All files (*)"));
+      this, tr("Open execution trace"), QString(), filter);
   if (path.isEmpty())
     return;
   QString error;
   if (!openTraceFile(path, &error))
     QMessageBox::warning(this, tr("Open trace"), error);
+#endif
+}
+
+QString ExplorerTab::exampleGem5TracePath() {
+  const QString path(":/osx-examples/gem5/loop_sum_o3_l1l2.jsonl");
+  return QFile::exists(path) ? path : QString();
+}
+
+bool ExplorerTab::openExampleGem5Trace() {
+  const QString path = exampleGem5TracePath();
+  QString error = tr("This build has no example gem5 trace.");
+  std::optional<Trace::Trace> trace;
+  if (!path.isEmpty())
+    trace = Trace::readJsonlFile(path, &error);
+  if (!trace.has_value()) {
+    QMessageBox::warning(this, tr("Open trace"), error);
+    return false;
+  }
+  loadOffline(std::move(*trace), QString(), true);
+  return true;
 }
 
 bool ExplorerTab::openTraceFile(const QString &path, QString *error) {
   auto trace = Trace::readJsonlFile(path, error);
   if (!trace.has_value())
     return false;
+  loadOffline(std::move(*trace), path, false);
+  return true;
+}
+
+bool ExplorerTab::openTraceData(const QByteArray &data, const QString &name,
+                                QString *error) {
+  auto trace = Trace::fromJsonl(data, error);
+  if (!trace.has_value()) {
+    if (error)
+      *error = tr("Could not read '%1': %2").arg(name, *error);
+    return false;
+  }
+  loadOffline(std::move(*trace), name, false);
+  return true;
+}
+
+void ExplorerTab::loadOffline(Trace::Trace trace, const QString &name,
+                              bool example) {
   m_offline = true;
-  m_offlineFile = path;
+  m_offlineFile = name;
+  m_offlineExample = example;
   m_liveAction->setEnabled(true);
   m_followButton->setChecked(false);
   m_followButton->setEnabled(false);
   m_selected = -1;
-  loadReplay(std::move(*trace));
-  return true;
+  loadReplay(std::move(trace));
+}
+
+QString ExplorerTab::offlineName() const {
+  return m_offlineExample ? tr("the example gem5 O3CPU trace (loop_sum)")
+                          : m_offlineFile;
 }
 
 void ExplorerTab::returnToLive() {
   m_offline = false;
   m_offlineFile.clear();
+  m_offlineExample = false;
   m_liveAction->setEnabled(false);
   m_followButton->setEnabled(true);
   m_selected = -1;
