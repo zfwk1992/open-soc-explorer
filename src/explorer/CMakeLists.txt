@@ -19,6 +19,8 @@ if(Python3_Interpreter_FOUND)
         ${CMAKE_CURRENT_BINARY_DIR}/osx-examples/gem5/loop_sum_o3_l1l2.jsonl)
     add_custom_command(
         OUTPUT ${OSX_GEM5_EXAMPLE}
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+                ${CMAKE_CURRENT_BINARY_DIR}/osx-examples/gem5
         COMMAND ${Python3_EXECUTABLE} ${OSX_GEM5_DIR}/gem5_to_osx.py
                 --trace ${OSX_GEM5_RUN}/trace.out.gz --m5out ${OSX_GEM5_RUN}
                 --binary ${OSX_GEM5_DIR}/testdata/loop_sum.elf
