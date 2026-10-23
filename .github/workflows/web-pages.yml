@@ -40,6 +40,10 @@ jobs:
         python -m playwright install --with-deps chromium
         python web/smoke_test.py site smoke.png
 
+    - name: Phone browser test (touch, portrait and landscape)
+      run: |
+        if [ -f web/smoke_mobile.py ]; then python web/smoke_mobile.py site smoke-mobile.png; else echo "no phone test yet"; fi
+
     - uses: actions/upload-artifact@v4
       if: always()
       with:
