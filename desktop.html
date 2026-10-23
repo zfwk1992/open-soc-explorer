@@ -1,0 +1,341 @@
+<!--
+Copyright (C) 2024 The Qt Company Ltd.
+SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+-->
+
+<!doctype html>
+<html lang="en-us">
+  <head>
+<script src="coi-serviceworker.min.js"></script>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Part of Open SoC Explorer: head of desktop.html (inserted by
+     web/prepare_site.py after coi-serviceworker.min.js). The application
+     fills the browser window and follows its size; the page itself never
+     scrolls; a loading screen shows the download progress. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<meta name="color-scheme" content="dark light">
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%;
+               overflow: hidden; overscroll-behavior: none; background: #0b1220; }
+  body { position: fixed; inset: 0; }
+  /* Qt's container: the whole window, whatever Qt's loader page sets. */
+  #screen { position: fixed !important; inset: 0; width: 100vw; height: 100vh;
+            height: 100dvh; margin: 0; padding: 0; }
+  /* Our loading screen replaces Qt's spinner. */
+  #qtspinner { display: none !important; }
+  #osx-loader { position: fixed; inset: 0; z-index: 10; display: flex;
+                align-items: center; justify-content: center; background: #0b1220;
+                color: #dbe4f3; transition: opacity .35s ease;
+                font: 15px/1.5 system-ui, -apple-system, "Segoe UI", "PingFang SC",
+                      "Microsoft YaHei", sans-serif; }
+  #osx-loader.done { opacity: 0; pointer-events: none; }
+  #osx-loader .card { width: min(540px, calc(100vw - 48px)); text-align: center; }
+  #osx-loader h1 { margin: 0 0 4px; font-size: 24px; font-weight: 650; letter-spacing: .4px; }
+  #osx-loader .sub { margin: 0 0 22px; color: #8fa2c4; font-size: 13px; }
+  #osx-loader .bar { height: 8px; border-radius: 4px; background: #1a2740; overflow: hidden; }
+  #osx-loader .fill { height: 100%; width: 0; border-radius: 4px;
+                      background: linear-gradient(90deg, #3d7bff, #39d0ff);
+                      transition: width .2s ease; }
+  #osx-loader.busy .fill { width: 35% !important; animation: osx-busy 1.3s ease-in-out infinite; }
+  @keyframes osx-busy { from { margin-left: -35%; } to { margin-left: 100%; } }
+  #osx-loader .status { margin-top: 12px; min-height: 3em; }
+  #osx-loader .status .zh { display: block; color: #9fb0cc; }
+  #osx-loader.error .fill { background: #e5484d; width: 100% !important; animation: none; margin: 0; }
+  #osx-loader .links { margin-top: 18px; font-size: 13px; color: #6f82a3; }
+  #osx-loader a, #osx-loader button { color: #8fb4ff; }
+  #osx-loader button { margin-top: 12px; background: #13223d; border: 1px solid #2c4a7a;
+                       border-radius: 8px; padding: 8px 16px; font: inherit; cursor: pointer; }
+  @media (prefers-reduced-motion: reduce) {
+    #osx-loader, #osx-loader .fill { transition: none; }
+    #osx-loader.busy .fill { animation: none; width: 100% !important; opacity: .5; }
+  }
+</style>
+<script>
+(function () {
+  "use strict";
+  // Size of Ripes.wasm in bytes, filled in by prepare_site.py. Servers may
+  // send the file compressed, so Content-Length is not the size we count.
+  var WASM_BYTES = Number("36643653") || 0;
+  var state = { phase: "init", loaded: 0, total: WASM_BYTES, error: null };
+  var osx = window.osxLoader = { state: state };
+
+  function el(id) { return document.getElementById(id); }
+  function mb(bytes) { return (bytes / 1048576).toFixed(1); }
+
+  function render() {
+    var root = el("osx-loader");
+    if (!root) return;
+    var en = "", zh = "", fraction = null;
+    switch (state.phase) {
+    case "isolating":
+      en = "Preparing the page (the first visit reloads it once)…";
+      zh = "正在准备页面（首次访问会自动刷新一次）…";
+      break;
+    case "download":
+      if (state.total > 0) {
+        fraction = Math.min(1, state.loaded / state.total);
+        en = "Downloading the simulator: " + mb(state.loaded) + " / " + mb(state.total) + " MB";
+        zh = "正在下载模拟器：" + Math.round(fraction * 100) + "%";
+      } else {
+        en = "Downloading the simulator: " + mb(state.loaded) + " MB";
+        zh = "正在下载模拟器…";
+      }
+      break;
+    case "compile":
+      fraction = 1;
+      en = "Compiling the simulator…";
+      zh = "正在编译模拟器…";
+      break;
+    case "start":
+      fraction = 1;
+      en = "Starting Open SoC Explorer…";
+      zh = "正在启动 Open SoC Explorer…";
+      break;
+    case "error":
+      en = "The simulator could not be started: " + state.error;
+      zh = "模拟器启动失败。请刷新页面，或使用最新版 Chrome、Edge、Firefox 或 Safari。";
+      break;
+    default:
+      en = "Loading…";
+      zh = "正在加载…";
+    }
+    root.classList.toggle("busy", fraction === null && state.phase !== "error");
+    root.classList.toggle("error", state.phase === "error");
+    el("osx-fill").style.width = fraction === null ? "" : (fraction * 100).toFixed(1) + "%";
+    el("osx-status-en").textContent = en;
+    el("osx-status-zh").textContent = zh;
+    el("osx-reload").hidden = state.phase !== "error";
+  }
+  osx.set = function (phase, extra) {
+    if (state.phase === "error" || state.phase === "done") return;
+    state.phase = phase;
+    if (extra) for (var k in extra) state[k] = extra[k];
+    render();
+  };
+  osx.fail = function (message) {
+    if (state.phase === "done") return;
+    state.phase = "error";
+    state.error = String(message || "unknown error");
+    render();
+  };
+
+  // Download progress of the WebAssembly module.
+  var nativeFetch = window.fetch;
+  if (nativeFetch && window.ReadableStream) {
+    window.fetch = function (input) {
+      var url = typeof input === "string" ? input : (input && input.url) || "";
+      var response = nativeFetch.apply(this, arguments);
+      if (!/\.wasm(\?|#|$)/.test(String(url))) return response;
+      osx.set("download");
+      return response.then(function (r) {
+        if (!r.ok || !r.body) return r;
+        if (!state.total) state.total = Number(r.headers.get("content-length")) || 0;
+        var reader = r.body.getReader();
+        var body = new ReadableStream({
+          pull: function (controller) {
+            return reader.read().then(function (chunk) {
+              if (chunk.done) {
+                controller.close();
+                osx.set("compile");
+                return;
+              }
+              state.loaded += chunk.value.byteLength;
+              if (state.total && state.loaded > state.total) state.total = state.loaded;
+              render();
+              controller.enqueue(chunk.value);
+            });
+          },
+          cancel: function (why) { return reader.cancel(why); }
+        });
+        return new Response(body, { status: r.status, statusText: r.statusText,
+                                    headers: r.headers });
+      });
+    };
+  }
+
+  // The loading screen goes away once Qt has drawn its window.
+  function findCanvas(root) {
+    var all = root.querySelectorAll("*");
+    for (var i = 0; i < all.length; ++i) {
+      var e = all[i];
+      if (e.tagName === "CANVAS" && e.width > 100 && e.height > 100) return e;
+      if (e.shadowRoot) { var c = findCanvas(e.shadowRoot); if (c) return c; }
+    }
+    return null;
+  }
+  function waitForWindow() {
+    var started = Date.now();
+    (function poll() {
+      // Also after an error: if Qt draws its window, the application runs.
+      var waited = Date.now() - started;
+      if (findCanvas(document) || (state.phase !== "error" && waited > 90000)) {
+        // Two frames: let Qt paint before uncovering.
+        requestAnimationFrame(function () { requestAnimationFrame(function () {
+          state.phase = "done";
+          var root = el("osx-loader");
+          if (root) {
+            root.classList.add("done");
+            setTimeout(function () { root.remove(); }, 400);
+          }
+        }); });
+        return;
+      }
+      if (waited < 600000) setTimeout(poll, 150);
+    })();
+  }
+
+  // Hook into Qt's loader: qtLoad() is defined by qtloader.js and called
+  // from Qt's page once it has loaded.
+  document.addEventListener("DOMContentLoaded", function () {
+    render();
+    var qtLoad = window.qtLoad;
+    if (typeof qtLoad !== "function") return;
+    window.qtLoad = function (config) {
+      // The multithreaded build needs a cross-origin isolated page; the
+      // service worker reloads the page once to make it so.
+      if (!window.crossOriginIsolated) {
+        osx.set("isolating");
+        setTimeout(function () {
+          osx.fail(window.isSecureContext
+            ? "this browser does not allow cross-origin isolation (SharedArrayBuffer)"
+            : "the page must be served over HTTPS");
+        }, 12000);
+        return new Promise(function () {});
+      }
+      var qt = (config && config.qt) || {};
+      var onLoaded = qt.onLoaded, onExit = qt.onExit;
+      qt.onLoaded = function () {
+        osx.set("start");
+        waitForWindow();
+        if (onLoaded) return onLoaded.apply(this, arguments);
+      };
+      qt.onExit = function (exit) {
+        osx.fail("the application exited" +
+                 (exit && exit.code !== undefined ? " with code " + exit.code : "") +
+                 (exit && exit.text ? " (" + exit.text + ")" : ""));
+        if (onExit) return onExit.apply(this, arguments);
+      };
+      if (state.phase === "init") osx.set("download");
+      return Promise.resolve(qtLoad.call(this, config)).catch(function (e) {
+        osx.fail(e && e.message ? e.message : e);
+        throw e;
+      });
+    };
+  });
+  // Errors before Qt has loaded mean that it cannot start.
+  window.addEventListener("error", function (e) {
+    var message = e && e.message ? String(e.message) : "";
+    if (message && !/ResizeObserver/.test(message) &&
+        (state.phase === "init" || state.phase === "download" || state.phase === "compile"))
+      osx.fail(message);
+  });
+
+  // Cancelling one of the browser's file pickers rejects a promise inside
+  // Qt's file dialog code; that is the user's choice, not an error.
+  window.addEventListener("unhandledrejection", function (e) {
+    if (e.reason && e.reason.name === "AbortError") e.preventDefault();
+  });
+
+  // The page never scrolls (a focused hidden input could scroll it), and
+  // Ctrl+wheel / trackpad pinch goes to the application (it zooms the
+  // processor view) instead of zooming the page.
+  window.addEventListener("scroll", function () {
+    if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  });
+  document.addEventListener("scroll", function (e) {
+    var t = e.target;
+    if (t && t.nodeType === 1 && (t === document.body || t.id === "screen") &&
+        (t.scrollTop || t.scrollLeft)) { t.scrollTop = 0; t.scrollLeft = 0; }
+  }, true);
+  window.addEventListener("wheel", function (e) {
+    if (e.ctrlKey) e.preventDefault();
+  }, { passive: false, capture: true });
+})();
+</script>
+
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!--Set visual viewport size for mobile devices to the device size,
+        witch results in a scale of 1 and a 1:1 mapping between CSS pixels
+        and Qt device independent pixels. -->
+    <title>Open SoC Explorer</title>
+    <style>
+      /* Make the html body cover the entire (visual) viewport with no scroll bars. */
+      html, body { padding: 0; margin: 0; overflow: hidden; height: 100% }
+      #screen { width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body onload="init()">
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Part of Open SoC Explorer: loading screen of desktop.html (driven by the
+     script in desktop.head.html). -->
+<div id="osx-loader" class="busy" role="status" aria-live="polite">
+  <div class="card">
+    <h1>Open SoC Explorer</h1>
+    <p class="sub">RISC-V &amp; SoC simulator · based on Ripes · 基于 Ripes 的 RISC-V 与 SoC 模拟器</p>
+    <div class="bar"><div class="fill" id="osx-fill"></div></div>
+    <div class="status"><span id="osx-status-en">Loading…</span><span class="zh" id="osx-status-zh">正在加载…</span></div>
+    <button type="button" id="osx-reload" hidden onclick="location.reload()">Reload · 刷新</button>
+    <div class="links">The first start downloads about 35 MB · 首次启动约需下载 35 MB<br>
+      <a href="index.html?ui=mobile">手机版 / Mobile version</a></div>
+    <noscript>JavaScript is required · 需要启用 JavaScript</noscript>
+  </div>
+</div>
+
+    <figure style="overflow:visible;" id="qtspinner">
+      <center style="margin-top:1.5em; line-height:150%">
+        <img src="qtlogo.svg" width="320" height="200" style="display:block"></img>
+        <strong>Qt for WebAssembly: Ripes</strong>
+        <div id="qtstatus"></div>
+        <noscript>JavaScript is disabled. Please enable JavaScript to use this application.</noscript>
+      </center>
+    </figure>
+    <div id="screen"></div>
+
+    <script type="text/javascript">
+        async function init()
+        {
+            const spinner = document.querySelector('#qtspinner');
+            const screen = document.querySelector('#screen');
+            const status = document.querySelector('#qtstatus');
+
+            const showUi = (ui) => {
+                [spinner, screen].forEach(element => element.style.display = 'none');
+                if (screen === ui)
+                    screen.style.position = 'default';
+                ui.style.display = 'block';
+            }
+
+            try {
+                showUi(spinner);
+                status.innerHTML = 'Loading...';
+
+                const instance = await qtLoad({
+                    qt: {
+                        onLoaded: () => showUi(screen),
+                        onExit: exitData =>
+                        {
+                            status.innerHTML = 'Application exit';
+                            status.innerHTML +=
+                                exitData.code !== undefined ? ` with code ${exitData.code}` : '';
+                            status.innerHTML +=
+                                exitData.text !== undefined ? ` (${exitData.text})` : '';
+                            showUi(spinner);
+                        },
+                        entryFunction: window.Ripes_entry,
+                        containerElements: [screen],
+                        
+                    }
+                });
+            } catch (e) {
+                console.error(e);
+                console.error(e.stack);
+            }
+        }
+    </script>
+    <script src="Ripes.js"></script>
+    <script type="text/javascript" src="qtloader.js"></script>
+  </body>
+</html>
