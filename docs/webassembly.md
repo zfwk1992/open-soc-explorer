@@ -84,8 +84,10 @@ interface mode from the `ui` query parameter (default: desktop).
 * Files: *File → Load Program* (assembly source or ELF) and the Explorer's
   *Open a trace file* use `QFileDialog::getOpenFileContent` (the browser's
   file chooser); *Save File* and *Export trace* download the file
-  (`QFileDialog::saveFileContent`). C compilation and the compiler settings
-  stay unavailable in the browser.
+  (`QFileDialog::saveFileContent`). In Chrome and Edge Qt uses the File
+  System Access API (open and save pickers), elsewhere a file input and a
+  download. C compilation and the compiler settings stay unavailable in the
+  browser.
 * *File → Load Example → gem5 trace (O3CPU, loop_sum) in the Explorer*
   (Ctrl+Shift+G, also in the Explorer tool bar) replays the recorded gem5
   run in `tools/gem5/testdata/loop_sum_o3_l1l2`, converted with
@@ -109,8 +111,10 @@ interface mode from the `ui` query parameter (default: desktop).
   loading screen gone, canvas filling the window at device resolution,
   picture drawn, no page scrolling, resize to 1280×720 and back, the gem5
   example (Ctrl+Shift+G), mouse-wheel scrolling of the Explorer timeline,
-  typing in the editor, Load Program (Ctrl+O, browser file chooser) and
-  Save File (Ctrl+S, download), and the language setting across a reload. Small
+  typing in the editor, the language setting across a reload, and Load
+  Program (Ctrl+O) / Save File (Ctrl+S) both with the File System Access
+  API (pickers stubbed: headless Chromium cannot show them) and without it
+  (file input and download, as in Firefox and Safari). Small
   JPEG thumbnails of the screenshots are printed to the log between
   `OSX-THUMBNAIL-BEGIN`/`END` markers.
 * `web/smoke_mobile.py`: the phone version (run by the workflow if

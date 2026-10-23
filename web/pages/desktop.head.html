@@ -222,6 +222,12 @@
       osx.fail(message);
   });
 
+  // Cancelling one of the browser's file pickers rejects a promise inside
+  // Qt's file dialog code; that is the user's choice, not an error.
+  window.addEventListener("unhandledrejection", function (e) {
+    if (e.reason && e.reason.name === "AbortError") e.preventDefault();
+  });
+
   // The page never scrolls (a focused hidden input could scroll it), and
   // Ctrl+wheel / trackpad pinch goes to the application (it zooms the
   // processor view) instead of zooming the page.

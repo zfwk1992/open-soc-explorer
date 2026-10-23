@@ -21,9 +21,11 @@ them (and reloads the page once). In headless Chromium (Playwright) it checks
   follows a window resize;
 * the example gem5 trace opens with its shortcut (Ctrl+Shift+G), the mouse
   wheel scrolls the Explorer's instruction timeline, typing reaches the
-  editor, Load Program (Ctrl+O) reads a file from the browser's file
-  chooser, Save File (Ctrl+S) downloads it, and settings persist in the
-  browser's storage across a reload.
+  editor, and settings persist in the browser's storage across a reload;
+* Load Program (Ctrl+O) reads a file chosen in the browser and Save File
+  (Ctrl+S) hands it back, through the File System Access API (Chrome,
+  pickers stubbed) and through a file input and a download (as in Firefox
+  and Safari).
 
 Small JPEG thumbnails of the screenshots are printed to the log
 (log_thumbnail). The phone version is tested by smoke_mobile.py.
@@ -149,6 +151,37 @@ PAGE_STATE = """() => ({
              document.documentElement.scrollTop, document.body.scrollTop],
     viewport: [innerWidth, innerHeight],
 })"""
+
+
+PROGRAM = "# loaded in the browser\nli a0, 7\nli a1, 35\nadd a2, a0, a1\n"
+
+# Chrome and Edge have the File System Access API, which Qt's file dialogs
+# use (showOpenFilePicker / showSaveFilePicker); headless Chromium cannot
+# show these pickers, so they are replaced by stubs that hand over a file
+# and record what is written.
+PICKER_STUBS = """
+window.osxSaved = null;
+window.showOpenFilePicker = async (options) => {
+  window.osxPickerOptions = options;
+  const file = new File([%s], 'browser.s', {type: 'text/plain'});
+  return [{kind: 'file', name: file.name, getFile: async () => file}];
+};
+window.showSaveFilePicker = async (options) => {
+  window.osxSaveOptions = options;
+  const chunks = [];
+  return {kind: 'file', name: (options && options.suggestedName) || 'file',
+          createWritable: async () => ({
+            write: async (data) => { chunks.push(data && data.data !== undefined
+                                                 ? data.data : data); },
+            close: async () => { window.osxSaved = await new Blob(chunks).text(); },
+          })};
+};
+""" % repr(PROGRAM)
+# Firefox and Safari have no such API: Qt uses a file input and a download.
+NO_PICKERS = """
+for (const name of ['showOpenFilePicker', 'showSaveFilePicker'])
+  Object.defineProperty(window, name, {value: undefined, configurable: true});
+"""
 
 
 class Run:
@@ -280,10 +313,56 @@ def check_window(run, page, label, viewport):
               f"{state['scroll']}")
 
 
-def test_desktop(run, browser, base, label, size, scale, interactions):
+def file_round_trip(run, page, label, size, pickers):
+    """Load Program (Ctrl+O) reads a file chosen in the browser, Save File
+    (Ctrl+S) hands the program back (File System Access API or download)."""
+    page.mouse.click(size[0] // 2, size[1] - 8)  # keyboard focus
+    page.wait_for_timeout(500)
+    before = page.screenshot()
+    try:
+        if pickers:
+            page.keyboard.press("Control+O")
+        else:
+            with page.expect_file_chooser(timeout=10000) as chooser:
+                page.keyboard.press("Control+O")
+            chooser.value.set_files(files=[{"name": "browser.s",
+                                            "mimeType": "text/plain",
+                                            "buffer": PROGRAM.encode()}])
+        page.wait_for_timeout(3000)
+        loaded = run.screenshot(page, f"{label}-load-program")
+        log_thumbnail(crop_png(loaded, (0, 0, 480, 240)),
+                      f"{label}-load-program-detail")
+        change = picture_change(before, loaded)
+        run.check(change > 0.3, f"{label}: Load Program read the file chosen "
+                  f"in the browser (change {change:.2f})")
+    except Exception as e:
+        run.check(False, f"{label}: Load Program: {e}")
+    try:
+        if pickers:
+            page.keyboard.press("Control+S")
+            page.wait_for_timeout(3000)
+            saved = page.evaluate("window.osxSaved")
+            name = page.evaluate("(window.osxSaveOptions || {}).suggestedName")
+        else:
+            with page.expect_download(timeout=10000) as download:
+                page.keyboard.press("Control+S")
+            with open(download.value.path(), encoding="utf-8") as f:
+                saved = f.read()
+            name = download.value.suggested_filename
+        print(f"[{label}] saved {name}: {saved!r}")
+        run.check(bool(saved) and "loaded in the browser" in saved,
+                  f"{label}: Save File handed the program to the browser "
+                  f"({name})")
+    except Exception as e:
+        run.check(False, f"{label}: Save File: {e}")
+
+
+def test_desktop(run, browser, base, label, size, scale, interactions,
+                 pickers):
     context = browser.new_context(
         viewport={"width": size[0], "height": size[1]},
         device_scale_factor=scale)
+    context.add_init_script(PICKER_STUBS if pickers else NO_PICKERS)
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
@@ -315,6 +394,7 @@ def test_desktop(run, browser, base, label, size, scale, interactions):
 
     if interactions:
         desktop_interactions(run, page, label, size)
+    file_round_trip(run, page, label, size, pickers)
 
     for e in errors:
         run.check(False, f"{label}: uncaught error: {e}")
@@ -369,38 +449,6 @@ def desktop_interactions(run, page, label, size):
     run.check(change > 0.3, f"{label}: typing changed the editor "
               f"(change {change:.2f})")
 
-    # Load Program (Ctrl+O) opens the browser's file chooser; Save File
-    # (Ctrl+S) downloads the program.
-    program = "# loaded in the browser\nli a0, 7\nli a1, 35\nadd a2, a0, a1\n"
-    before = page.screenshot()
-    try:
-        with page.expect_file_chooser(timeout=10000) as chooser:
-            page.keyboard.press("Control+O")
-        chooser.value.set_files(files=[{"name": "browser.s",
-                                        "mimeType": "text/plain",
-                                        "buffer": program.encode()}])
-        page.wait_for_timeout(2500)
-        loaded = run.screenshot(page, f"{label}-load-program")
-        log_thumbnail(crop_png(loaded, (0, 0, 480, 240)),
-                      f"{label}-load-program-detail")
-        change = picture_change(before, loaded)
-        run.check(change > 0.3, f"{label}: Load Program read the chosen "
-                  f"file (change {change:.2f})")
-    except Exception as e:
-        run.check(False, f"{label}: Load Program file chooser: {e}")
-    try:
-        with page.expect_download(timeout=10000) as download:
-            page.keyboard.press("Control+S")
-        with open(download.value.path(), encoding="utf-8") as f:
-            saved = f.read()
-        print(f"[{label}] downloaded {download.value.suggested_filename}: "
-              f"{saved!r}")
-        run.check("loaded in the browser" in saved,
-                  f"{label}: Save File downloaded the program "
-                  f"({download.value.suggested_filename})")
-    except Exception as e:
-        run.check(False, f"{label}: Save File download: {e}")
-
     # The window follows a resize of the browser window.
     small = (1280, 720)
     page.set_viewport_size({"width": small[0], "height": small[1]})
@@ -446,10 +494,11 @@ def run_tests(site, shot):
         test_router(run, browser, plain_base)
         # As on GitHub Pages: isolation by the service worker.
         test_desktop(run, browser, plain_base, "desktop-1680x1000",
-                     (1680, 1000), 1, interactions=True)
+                     (1680, 1000), 1, interactions=True, pickers=True)
         # High-DPI screen, isolation by the server's headers.
+        # Without the File System Access API (as in Firefox and Safari).
         test_desktop(run, browser, isolated_base, "desktop-1280x720-hidpi",
-                     (1280, 720), 2, interactions=False)
+                     (1280, 720), 2, interactions=False, pickers=False)
         browser.close()
     plain.shutdown()
     isolated.shutdown()
