@@ -105,6 +105,20 @@ GEM5=/path/to/gem5 tools/gem5/run_gem5.sh loop_sum o3 l1l2 out/loop_o3
 # Explorer tab → "Open a trace file for offline replay…" → out/loop_o3/trace.jsonl
 ```
 
+### In the browser
+
+The WebAssembly build runs in the browser:
+**https://zfwk1992.github.io/open-soc-explorer/**. The entry page sends
+phones to the touch version (`mobile.html`) and computers and tablets to the
+desktop version (`desktop.html`, the full application filling the browser
+window); both links are offered on `index.html?choose`, and the choice is
+remembered (`?ui=auto` detects again). In the desktop version *File → Load
+Program* / *Save File* and the Explorer's trace open/export use the
+browser's file chooser and downloads, settings and mission progress stay in
+the browser's storage, and *File → Load Example → gem5 trace* (Ctrl+Shift+G)
+shows a recorded gem5 O3CPU run without any file. Details:
+[docs/webassembly.md](docs/webassembly.md).
+
 ### Test
 
 ```bash
@@ -113,9 +127,11 @@ cd ../.. && OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools
 OSX_RIPES_BIN=$PWD/build/Ripes python3 -m unittest discover -s tools/gem5
 ```
 
-9 QtTest suites (119 test functions: 56 upstream, 63 Open SoC Explorer, three of them opt-in) and
-27 Python tests (trace tool and gem5 converter, using recorded gem5 output).
-CI runs the QtTest suites on Ubuntu, macOS and Windows.
+9 QtTest suites (123 test functions: 56 upstream, 67 Open SoC Explorer, three of them opt-in),
+27 Python tests (trace tool and gem5 converter, using recorded gem5 output)
+and 5 tests of the web site assembly (`python3 -m unittest discover -s web`).
+CI runs the QtTest suites on Ubuntu, macOS and Windows, and tests the
+WebAssembly build in headless Chromium (`web/smoke_test.py`).
 
 ## Documentation
 
@@ -140,7 +156,9 @@ Open SoC Explorer 是一个基于 [Ripes](https://github.com/mortbopet/Ripes)
 探索器中逐周期回放流水线（取指、译码、执行、访存、写回），解释每条指令的
 操作数、结果、冒险与停顿，并提供由模拟器实时验证的学习任务（流水线冒险、
 分支与冲刷、缓存局部性等）。界面可在运行时通过 *视图 → 语言* 在 English 与
-简体中文之间切换，默认跟随系统语言。所有显示的数值都来自模拟器或 ISA
+简体中文之间切换，默认跟随系统语言。网页版：
+https://zfwk1992.github.io/open-soc-explorer/ ——手机自动打开手机版，电脑和平板
+打开电脑版（`index.html?choose` 可手动选择，选择会被记住）。所有显示的数值都来自模拟器或 ISA
 规范；Ripes 的处理器是教学用的数据通路模型，其周期数不代表任何真实处理器核
 （见 [SIMULATION_FIDELITY.md](docs/SIMULATION_FIDELITY.md)）。
 
