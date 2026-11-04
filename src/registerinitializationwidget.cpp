@@ -73,6 +73,9 @@ RegisterInitializationWidget::RegisterInitializationWidget(QWidget *parent)
 
   const QIcon addIcon = QIcon(":/icons/plus.svg");
   m_ui->addInitButton->setIcon(addIcon);
+  m_ui->addInitButton->setToolTip(
+      tr("Add a register that is set to a given value when the processor is "
+         "reset"));
   connect(m_ui->addInitButton, &QPushButton::clicked, this, [this] {
     if (auto regIdx = getNonInitializedRegIdx(); regIdx.has_value())
       this->addRegisterInitialization(regIdx->file->regFileName(),
@@ -183,6 +186,8 @@ void RegisterInitializationWidget::addRegisterInitialization(
 
   const QIcon removeIcon = QIcon(":/icons/delete.svg");
   w->remove->setIcon(removeIcon);
+  w->remove->setToolTip(tr("Remove this register initialization"));
+  w->value->setToolTip(tr("Initial value (hexadecimal) loaded on reset"));
 
   w->value->setValidator(m_hexValidator);
   w->value->setText(

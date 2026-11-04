@@ -202,7 +202,7 @@ void CachePlotView::tooltip(QPointF point, bool state) {
 
   if (state) {
     m_tooltip->setText(
-        QString("Cycle: %1 \nValue: %2 ").arg(point.x()).arg(point.y()));
+        tr("Cycle: %1 \nValue: %2 ").arg(point.x()).arg(point.y()));
     m_tooltip->setAnchor(point);
     m_tooltip->setZValue(11);
     m_tooltip->updateGeometry();

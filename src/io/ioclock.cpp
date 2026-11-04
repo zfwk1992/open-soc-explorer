@@ -10,14 +10,22 @@ namespace Ripes {
 
 IOClock::IOClock(QWidget *parent) : IOBase(IOType::RTC, parent) {
   m_regDescs = {
-      RegDesc{"TIME_LO", RegDesc::RW::R, 32, TIME_LO * 4, true},
-      RegDesc{"TIME_HI", RegDesc::RW::R, 32, TIME_HI * 4, true},
+      RegDesc{"TIME_LO", RegDesc::RW::R, 32, TIME_LO * 4, true,
+              tr("Low 32 bits of the time in ns; reading it samples the clock "
+                 "and latches TIME_HI")},
+      RegDesc{"TIME_HI", RegDesc::RW::R, 32, TIME_HI * 4, true,
+              tr("High 32 bits of the time sampled by the last TIME_LO "
+                 "read")},
   };
 
   auto *layout = new QVBoxLayout(this);
   m_epochLabel = new QLabel(this);
   m_humanLabel = new QLabel(this);
   m_epochLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  m_epochLabel->setToolTip(
+      tr("Current host time in nanoseconds since 1970-01-01 00:00 UTC (the "
+         "64-bit value returned by TIME_HI:TIME_LO)"));
+  m_humanLabel->setToolTip(tr("The same time as local date and clock time"));
   layout->addWidget(m_epochLabel);
   layout->addWidget(m_humanLabel);
   setLayout(layout);
@@ -41,7 +49,7 @@ uint64_t IOClock::nowNanos() {
 
 void IOClock::updateDisplay() {
   const uint64_t ns = nowNanos();
-  m_epochLabel->setText("Epoch: " + QString::number(ns) + " ns");
+  m_epochLabel->setText(tr("Epoch: %1 ns").arg(ns));
   const auto ms = static_cast<qint64>(ns / 1000000ull);
   m_humanLabel->setText(
       QDateTime::fromMSecsSinceEpoch(ms).toString("yyyy-MM-dd hh:mm:ss.zzz"));
@@ -49,18 +57,18 @@ void IOClock::updateDisplay() {
 
 QString IOClock::description() const {
   QStringList desc;
-  desc << "A real-time clock exposing the host machine's wall-clock time as "
-          "nanoseconds since the Unix epoch (a 64-bit value).";
+  desc << tr("A real-time clock exposing the host machine's wall-clock time "
+             "as nanoseconds since the Unix epoch (a 64-bit value).");
   desc << "";
-  desc << "The value is split across two 32-bit registers:";
-  desc << "  TIME_LO (offset 0): low 32 bits";
-  desc << "  TIME_HI (offset 4): high 32 bits";
+  desc << tr("The value is split across two 32-bit registers:");
+  desc << tr("  TIME_LO (offset 0): low 32 bits");
+  desc << tr("  TIME_HI (offset 4): high 32 bits");
   desc << "";
-  desc
-      << "Reading TIME_LO samples the full 64-bit time, returns its low word, "
-         "and latches the high word. Read TIME_LO first, then TIME_HI, to "
-         "obtain a coherent 64-bit value without tearing. On 64-bit targets "
-         "the whole value may be read with a single 8-byte access at offset 0.";
+  desc << tr("Reading TIME_LO samples the full 64-bit time, returns its low "
+             "word, and latches the high word. Read TIME_LO first, then "
+             "TIME_HI, to obtain a coherent 64-bit value without tearing. On "
+             "64-bit targets the whole value may be read with a single 8-byte "
+             "access at offset 0.");
   return desc.join('\n');
 }
 

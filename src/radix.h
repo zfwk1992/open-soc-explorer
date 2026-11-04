@@ -14,9 +14,9 @@
 namespace Ripes {
 
 const static std::map<Radix, QString> s_radixName = {
-    {Radix::Hex, "Hex"},           {Radix::Binary, "Binary"},
-    {Radix::Unsigned, "Unsigned"}, {Radix::Signed, "Signed"},
-    {Radix::ASCII, "ASCII"},       {Radix::Float, "Float"}};
+    {Radix::Hex, QT_TRANSLATE_NOOP("Ripes::RadixSelectorWidget", "Hex")},           {Radix::Binary, QT_TRANSLATE_NOOP("Ripes::RadixSelectorWidget", "Binary")},
+    {Radix::Unsigned, QT_TRANSLATE_NOOP("Ripes::RadixSelectorWidget", "Unsigned")}, {Radix::Signed, QT_TRANSLATE_NOOP("Ripes::RadixSelectorWidget", "Signed")},
+    {Radix::ASCII, QT_TRANSLATE_NOOP("Ripes::RadixSelectorWidget", "ASCII")},       {Radix::Float, QT_TRANSLATE_NOOP("Ripes::RadixSelectorWidget", "Float")}};
 
 static const auto hexRegex = QRegularExpression("0[xX][0-9a-fA-F]+");
 static const auto hexRegex16 = QRegularExpression("0[xX][0-9a-fA-F]{0,4}");

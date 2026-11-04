@@ -5,6 +5,7 @@
 
 #include "fonts.h"
 #include "processorhandler.h"
+#include "tabheader.h"
 
 namespace Ripes {
 
@@ -64,11 +65,23 @@ QVariant MemoryModel::headerData(int section, Qt::Orientation orientation,
   if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
     switch (section) {
     case Column::Address:
-      return "Address";
+      return tr("Address");
     case Column::WordValue:
-      return "Word";
+      return tr("Word");
     default:
-      return "Byte " + QString::number(section - FIXED_COLUMNS_CNT);
+      return tr("Byte %1").arg(section - FIXED_COLUMNS_CNT);
+    }
+  }
+  if (orientation == Qt::Horizontal && role == Qt::ToolTipRole) {
+    switch (section) {
+    case Column::Address:
+      return tr("Address of the first byte of the row (hexadecimal). Rows "
+                "are one word apart.");
+    case Column::WordValue:
+      return tr("Value of the whole word starting at this address "
+                "(little-endian), shown in the selected display type");
+    default:
+      return tr("Byte at address + %1").arg(section - FIXED_COLUMNS_CNT);
     }
   }
   return QVariant();
@@ -172,7 +185,7 @@ QVariant MemoryModel::fgColorData(AInt address, AInt byteOffset,
                                   bool validAddress) const {
   if (!validAddress ||
       !ProcessorHandler::getMemory().contains(address + byteOffset)) {
-    return QBrush(Qt::lightGray);
+    return QBrush(hintTextColor());
   } else {
     return QVariant(); // default
   }

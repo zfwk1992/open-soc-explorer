@@ -1,0 +1,89 @@
+{
+  "id": "example_minimal",
+  "title": {"zh": "示例：最小系统", "en": "Example: minimal system"},
+  "subtitle": {"zh": "模板：3 个块、2 条总线、1 个 flow", "en": "Template: 3 blocks, 2 buses, 1 flow"},
+  "description": {"zh": "这是架构浏览器 JSON 的最小模板。复制本文件、改掉 id/title，再按 docs/arch/arch_explorer.md 中的 schema 添加 blocks / buses / flows 即可。\n\n画布坐标为逻辑像素，建议 1200×700 以内；kind 决定配色并显示在图例中。\n\n所有面向用户的文字既可以是普通字符串，也可以是 {\"zh\": \"...\", \"en\": \"...\"} 对象。", "en": "This is the minimal template for an Architecture Explorer JSON file. Copy it, change id/title, then add blocks / buses / flows following the schema in docs/arch/arch_explorer.md.\n\nCanvas coordinates are logical pixels, preferably within 1200×700; kind determines the colour and is shown in the legend.\n\nEvery user-visible text may be a plain string or a {\"zh\": \"...\", \"en\": \"...\"} object."},
+  "blocks": [
+    {
+      "id": "cpu",
+      "label": {"zh": "CPU", "en": "CPU"},
+      "sublabel": {"zh": "RV32I, 单发射 5 级流水", "en": "RV32I, single-issue 5-stage"},
+      "kind": "cpu",
+      "x": 40, "y": 40, "w": 200, "h": 80,
+      "details": {"zh": "处理器核。通过数据总线访问内存，通过 MMIO 访问外设寄存器。\n\n点击块后，这段 details 会显示在右侧栏；props 中的键值对显示在属性表里。", "en": "The processor core. It accesses memory over the data bus and peripheral registers via MMIO.\n\nWhen a block is clicked, this details text is shown in the details panel; the key/value pairs in props are shown in the property table."},
+      "props": [
+        {"key": "Clock", "value": "100 MHz"},
+        {"key": "ISA", "value": "RV32I"}
+      ]
+    },
+    {
+      "id": "ram",
+      "label": {"zh": "RAM", "en": "RAM"},
+      "sublabel": {"zh": "64 KB SRAM", "en": "64 KB SRAM"},
+      "kind": "memory",
+      "x": 40, "y": 220, "w": 200, "h": 70,
+      "details": {"zh": "指令与数据统一存放的主存。", "en": "Main memory holding both instructions and data."},
+      "props": [
+        {"key": "Size", "value": "64 KB"},
+        {"key": "Width", "value": "32 bit"}
+      ]
+    },
+    {
+      "id": "uart",
+      "label": {"zh": "UART", "en": "UART"},
+      "sublabel": {"zh": "MMIO 0x1000_0000", "en": "MMIO 0x1000_0000"},
+      "kind": "io",
+      "x": 340, "y": 40, "w": 200, "h": 80,
+      "details": {"zh": "串口外设：CPU 向 TX 寄存器写字节即发送。", "en": "Serial port peripheral: the CPU sends a byte by writing it to the TX register."},
+      "props": [
+        {"key": "Base", "value": "0x10000000"},
+        {"key": "Regs", "value": "TX, RX, STATUS"}
+      ]
+    }
+  ],
+  "buses": [
+    {
+      "id": "b_mem",
+      "from": "cpu",
+      "to": "ram",
+      "label": {"zh": "load / store", "en": "load / store"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": [
+        {"key": "Width", "value": "32 bit"}
+      ]
+    },
+    {
+      "id": "b_mmio",
+      "from": "cpu",
+      "to": "uart",
+      "label": {"zh": "MMIO 写", "en": "MMIO write"},
+      "kind": "bus",
+      "bidirectional": false
+    }
+  ],
+  "flows": [
+    {
+      "id": "print_char",
+      "title": {"zh": "CPU 通过 UART 发送一个字符", "en": "The CPU sends a character through the UART"},
+      "description": {"zh": "演示最简单的 MMIO 访问路径。", "en": "Shows the simplest MMIO access path."},
+      "steps": [
+        {
+          "highlight": ["cpu", "ram"],
+          "buses": ["b_mem"],
+          "text": {"zh": "CPU 从 RAM 取指并读取待发送的字符。", "en": "The CPU fetches instructions from RAM and reads the character to send."}
+        },
+        {
+          "highlight": ["cpu", "uart"],
+          "buses": ["b_mmio"],
+          "text": {"zh": "CPU 执行 sw 指令，把字符写入 UART 的 TX 寄存器（MMIO 地址）。", "en": "The CPU executes a sw instruction that writes the character to the UART's TX register (an MMIO address)."}
+        },
+        {
+          "highlight": ["uart"],
+          "buses": [],
+          "text": {"zh": "UART 把字节串行发送出去；STATUS 寄存器在发送期间置 busy。", "en": "The UART shifts the byte out serially; the STATUS register reports busy while sending."}
+        }
+      ]
+    }
+  ]
+}

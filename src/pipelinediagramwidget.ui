@@ -25,10 +25,10 @@
        <item>
         <widget class="QToolButton" name="copy">
          <property name="toolTip">
-          <string>Copy table to clipboard (tab sepearated)</string>
+          <string>Copy table to clipboard (tab separated)</string>
          </property>
          <property name="text">
-          <string>...</string>
+          <string notr="true">...</string>
          </property>
          <property name="iconSize">
           <size>

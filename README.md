@@ -1,3 +1,29 @@
+# open-soc-explorer
+
+open-soc-explorer 是基于 [Ripes](https://github.com/mortbopet/Ripes) 的教学用 SoC 探索器。在 Ripes 的 RISC-V 可视化处理器、缓存与 MMIO 模拟之上，增加了异构 SoC 的教学模块：
+
+| 模块 | 入口 | 说明 |
+|---|---|---|
+| GPU 运行原理 | I/O tab → "SIMT GPU" 外设；[docs/arch/gpu.md](docs/arch/gpu.md) | 可配置 SM/warp/lane 的 SIMT 模型，RISC-V 主机程序通过 MMIO 启动 kernel，观察 warp 调度、分支发散、合并访存 |
+| 张量处理器与 CPU 交互 | I/O tab → "Tensor Unit (NPU)" 外设；[docs/arch/tensor_cpu.md](docs/arch/tensor_cpu.md) | 脉动阵列 NPU，描述符环 + 门铃 + DMA + 中断的主从交互模型 |
+| Neo Geo 架构 | Architecture tab；[docs/arch/neogeo.md](docs/arch/neogeo.md) | 68000 + Z80 + LSPC + YM2610 双 CPU 街机架构与数据流演示 |
+| PS3 / Cell 架构 | Architecture tab；[docs/arch/ps3_cell.md](docs/arch/ps3_cell.md) | PPE + SPE + EIB + MFC + RSX 架构与数据流演示 |
+| 架构浏览器 | Architecture tab；[docs/arch/arch_explorer.md](docs/arch/arch_explorer.md) | JSON 驱动的框图/数据流演示器，可添加新架构 |
+
+## 用户手册 / User Guide
+
+**完整的中英双语用户手册：[docs/guide/README.md](docs/guide/README.md)**（17 章：安装、10 分钟上手、界面总览、RISC-V 汇编、C 编程、流水线、缓存、MMIO、GPU、NPU、架构浏览器、NeoGeo、PS3、编写拓扑、命令行、FAQ、术语表）。程序内按 **F1** 或 **Help → User Guide / 帮助 → 用户手册** 打开同一份手册。
+
+The complete bilingual (Chinese/English) user guide is at [docs/guide/README.md](docs/guide/README.md); inside the app press **F1** or use **Help → User Guide**.
+
+界面语言 / UI language：**Edit → Settings → Environment → Language / 语言**（System / English / 简体中文，重启生效 / applies after restart）。
+
+示例程序见 `examples/`（`gpu_vecadd.s`、`npu_matmul.s/.c`、`neogeo_mailbox.s`、`spe_double_buffer.c`，以及练习 `exercise_gpu_saxpy.s`、`exercise_gpu_divergence.s`、`exercise_npu_batch.s`）。扩展计划与约定见 [docs/arch/PLAN.md](docs/arch/PLAN.md) 与 [docs/arch/PLAN2.md](docs/arch/PLAN2.md)。
+
+Windows 下的用户态构建脚本：`P:\workspace\soc\build.ps1`（见 PLAN.md 模块 F）。
+
+---
+
 # Ripes
 [![Windows / Qt 6.5.0](https://github.com/mortbopet/Ripes/actions/workflows/windows-release.yml/badge.svg)](https://github.com/mortbopet/Ripes/actions/workflows/windows-release.yml)
 [![Mac release / Qt 6.5.0](https://github.com/mortbopet/Ripes/actions/workflows/mac-release.yml/badge.svg)](https://github.com/mortbopet/Ripes/actions/workflows/mac-release.yml)

@@ -2,7 +2,11 @@
 
 #include <QAction>
 #include <QMdiSubWindow>
+#include <QPointer>
 #include <QWidget>
+
+QT_FORWARD_DECLARE_CLASS(QLabel)
+QT_FORWARD_DECLARE_CLASS(QPushButton)
 
 #include <unordered_map>
 
@@ -24,6 +28,7 @@ class IOTab : public RipesTab {
 public:
   IOTab(QToolBar *toolbar, QWidget *parent = nullptr);
   ~IOTab() override;
+  void tabVisibilityChanged(bool visible) override;
   void removePeripheral(QObject *peripheral);
 
 private slots:
@@ -47,6 +52,20 @@ private:
   void loadPeripheralState();
   void storePeripheralState();
   void updateIOSymbolFilePreview();
+  /// Shows the "no peripherals yet" hint while no device exists.
+  void updateEmptyHint();
+  /// Gives newly added device windows a size that fits the device area
+  /// (never larger than the visible area, never below the device's minimum)
+  /// and moves them inside it. Windows are fitted once the area has been laid
+  /// out; larger devices can then be scrolled instead of being cut off.
+  void fitPendingSubWindows();
+  std::vector<QPointer<QMdiSubWindow>> m_pendingFit;
+  /// The splitter is given its initial proportions on the first real resize.
+  bool m_splitterSized = false;
+  void sizeSplitterOnce();
+
+  QPushButton *m_addButton = nullptr;
+  QLabel *m_emptyHint = nullptr;
 
   void tile();
   Ui::IOTab *m_ui = nullptr;

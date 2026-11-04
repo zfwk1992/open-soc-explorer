@@ -1,1 +1,1 @@
-create_ripes_lib(io LINK_TO_RIPES_LIB)
+create_ripes_lib(io LINK_TO_RIPES_LIB LINK_LIBS accel_gpu_lib accel_npu_lib)

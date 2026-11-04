@@ -7,7 +7,7 @@ CompilerErrorDialog::CompilerErrorDialog(QWidget *parent)
     : QDialog(parent), m_ui(new Ui::CompilerErrorDialog) {
   m_ui->setupUi(this);
 
-  setWindowTitle("Compilation error");
+  setWindowTitle(tr("Compilation error"));
 }
 
 void CompilerErrorDialog::setText(const QString &text) {

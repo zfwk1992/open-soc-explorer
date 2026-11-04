@@ -12,6 +12,7 @@
 #include "processorhandler.h"
 #include "radixselectorwidget.h"
 #include "registermodel.h"
+#include "tabheader.h"
 
 namespace Ripes {
 
@@ -43,6 +44,10 @@ void RegisterWidget::initialize() {
   m_ui->registerView->horizontalHeader()->setSectionResizeMode(
       RegisterModel::Value, QHeaderView::Stretch);
 
+  setTips(m_ui->registerView,
+          tr("Register file. The most recently written register is "
+             "highlighted (gold). Double-click a value to change it; "
+             "right-click for copy / go to address."));
   m_ui->radixSelector->setRadix(m_model->getRadix());
   connect(m_model, &RegisterModel::registerChanged, this,
           &RegisterWidget::setRegisterviewCenterIndex);
@@ -62,20 +67,20 @@ void RegisterWidget::showContextMenu(const QPoint &pos) {
     return;
 
   QMenu menu;
-  menu.addAction("Copy register value", [&]() {
+  menu.addAction(tr("Copy register value"), [&]() {
     QApplication::clipboard()->setText(
         m_model->data(index, Qt::DisplayRole).toString());
   });
 
   // If the register is not read only, add "set register value" action.
   if (m_model->flags(index) & Qt::ItemIsEditable) {
-    menu.addAction("Set register value", [&]() {
+    menu.addAction(tr("Set register value"), [&]() {
       QInputDialog dialog(this);
-      dialog.setWindowTitle("Set register value");
-      dialog.setLabelText("Register value");
+      dialog.setWindowTitle(tr("Set register value"));
+      dialog.setLabelText(tr("Register value"));
       dialog.setTextValue(m_model->data(index, Qt::DisplayRole).toString());
-      dialog.setOkButtonText("Set");
-      dialog.setCancelButtonText("Cancel");
+      dialog.setOkButtonText(tr("Set"));
+      dialog.setCancelButtonText(tr("Cancel"));
       dialog.setWindowFlags(dialog.windowFlags() &
                             ~Qt::WindowContextHelpButtonHint);
       if (dialog.exec() == QDialog::Accepted) {
@@ -84,9 +89,10 @@ void RegisterWidget::showContextMenu(const QPoint &pos) {
     });
   }
 
-  auto goToAddressAction = QAction("Go to address");
-  goToAddressAction.setToolTip("Make all memory viewers move to the address "
-                               "contained in the selected register");
+  auto goToAddressAction = QAction(tr("Go to address"));
+  goToAddressAction.setToolTip(tr("Make all memory viewers move to the "
+                                  "address contained in the selected "
+                                  "register"));
   connect(&goToAddressAction, &QAction::triggered, [&]() {
     const auto address = m_model->data(index, Qt::EditRole).toULongLong();
     ProcessorHandler::setMemoryFocusAddress(address);

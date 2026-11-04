@@ -5,6 +5,7 @@
 #include "io/iomanager.h"
 #include "loaddialog.h"
 #include "processorhandler.h"
+#include "processorregistry.h"
 #include "programutilities.h"
 #include "syscall/systemio.h"
 #include "telemetry.h"
@@ -53,8 +54,15 @@ static QString qVariantToString(QVariant &v) {
 CLIRunner::CLIRunner(const CLIModeOptions &options)
     : QObject(), m_options(options) {
   info("Ripes CLI mode", false, true);
+  // Start from the processor's default register values (sp, gp, ...) as the
+  // GUI does, then apply any --reginit overrides on top.
+  RegisterInitialization regInit =
+      ProcessorRegistry::getDescription(m_options.proc).defaultRegisterVals;
+  for (const auto &[rf, vals] : m_options.regInit)
+    for (const auto &[idx, v] : vals)
+      regInit[rf][idx] = v;
   ProcessorHandler::selectProcessor(m_options.proc, m_options.isaExtensions,
-                                    m_options.regInit);
+                                    regInit);
 
   // Optionally instantiate cache simulation so its behaviour/overhead is
   // exercised during the headless run.
@@ -84,10 +92,10 @@ CLIRunner::~CLIRunner() = default;
  */
 void CLIRunner::setupCaches() {
   if (m_options.l1dCache) {
-    m_l1dCache = std::make_shared<CacheSim>(this);
+    m_l1dCache = std::make_shared<CacheSim>(nullptr);
     m_l1dCache->setPreset(*m_options.l1dCache);
     m_l1dShim =
-        std::make_unique<L1CacheShim>(L1CacheShim::CacheType::DataCache, this);
+        std::make_unique<L1CacheShim>(L1CacheShim::CacheType::DataCache, nullptr);
     // The CLI --cache option explicitly requests cache statistics, so simulate
     // regardless of whether the selected processor declares a cache interface
     // (e.g. the ISA simulator, whose fast functional model can still yield
@@ -97,10 +105,10 @@ void CLIRunner::setupCaches() {
   }
 
   if (m_options.l1iCache) {
-    m_l1iCache = std::make_shared<CacheSim>(this);
+    m_l1iCache = std::make_shared<CacheSim>(nullptr);
     m_l1iCache->setPreset(*m_options.l1iCache);
     m_l1iShim =
-        std::make_unique<L1CacheShim>(L1CacheShim::CacheType::InstrCache, this);
+        std::make_unique<L1CacheShim>(L1CacheShim::CacheType::InstrCache, nullptr);
     m_l1iShim->setRequireCacheInterface(false);
     m_l1iShim->setNextLevelCache(m_l1iCache);
   }

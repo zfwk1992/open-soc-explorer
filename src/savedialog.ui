@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string notr="true">Dialog</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
    <item row="0" column="0">
@@ -21,14 +21,14 @@
        <item>
         <widget class="QCheckBox" name="saveSource">
          <property name="text">
-          <string>source code</string>
+          <string>Source code (.s / .c)</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QCheckBox" name="saveBinary">
          <property name="text">
-          <string>assembled/compiled binary</string>
+          <string>Assembled/compiled binary (.bin, raw .text section)</string>
          </property>
         </widget>
        </item>
@@ -37,38 +37,45 @@
      <item row="1" column="0">
       <widget class="QLabel" name="label_2">
        <property name="text">
-        <string>Files:</string>
+        <string>Save:</string>
        </property>
       </widget>
      </item>
      <item row="0" column="0">
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>File:</string>
+        <string>File name (without extension):</string>
        </property>
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="QLineEdit" name="filePath"/>
+      <widget class="QLineEdit" name="filePath">
+       <property name="toolTip">
+        <string>Path and base name of the files to write; the extension is added automatically.</string>
+       </property>
+      </widget>
      </item>
      <item row="0" column="2">
       <widget class="QPushButton" name="openFile">
+       <property name="toolTip">
+        <string>Browse for a location to save to.</string>
+       </property>
        <property name="text">
-        <string>...</string>
+        <string notr="true">...</string>
        </property>
       </widget>
      </item>
      <item row="2" column="0">
       <widget class="QLabel" name="label_3">
        <property name="text">
-        <string>Output:</string>
+        <string>Files to be written:</string>
        </property>
       </widget>
      </item>
      <item row="2" column="1">
       <widget class="QLabel" name="filesToSave">
        <property name="text">
-        <string>dstFiles</string>
+        <string notr="true">dstFiles</string>
        </property>
       </widget>
      </item>

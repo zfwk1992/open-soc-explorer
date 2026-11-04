@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Architecture Explorer tab icon: three blocks connected by buses -->
+  <rect x="6" y="6" width="24" height="16" rx="3" ry="3" fill="#3B7EA1" stroke="#1A1A1A" stroke-width="2"/>
+  <rect x="34" y="6" width="24" height="16" rx="3" ry="3" fill="#FDB515" stroke="#1A1A1A" stroke-width="2"/>
+  <rect x="20" y="42" width="24" height="16" rx="3" ry="3" fill="#4CDE75" stroke="#1A1A1A" stroke-width="2"/>
+  <line x1="30" y1="14" x2="34" y2="14" stroke="#1A1A1A" stroke-width="2.5"/>
+  <polyline points="18,22 18,32 32,32 32,42" fill="none" stroke="#1A1A1A" stroke-width="2.5" stroke-linejoin="round"/>
+  <polyline points="46,22 46,32 32,32" fill="none" stroke="#1A1A1A" stroke-width="2.5" stroke-linejoin="round"/>
+  <polygon points="32,42 28,36 36,36" fill="#1A1A1A"/>
+</svg>

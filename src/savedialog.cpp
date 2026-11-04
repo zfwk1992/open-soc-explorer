@@ -10,7 +10,7 @@ SaveDialog::SaveDialog(SourceType sourceType, QWidget *parent)
     : QDialog(parent), m_ui(new Ui::SaveDialog), sourceType(sourceType) {
   m_ui->setupUi(this);
 
-  setWindowTitle("Save files...");
+  setWindowTitle(tr("Save files..."));
 
   connect(m_ui->openFile, &QPushButton::clicked, this,
           &SaveDialog::openFileButtonTriggered);

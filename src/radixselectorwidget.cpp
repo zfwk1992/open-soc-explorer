@@ -27,8 +27,17 @@ void RadixSelectorWidget::setRadix(Radix r) {
 
 void RadixSelectorWidget::setupRadixComboBox() {
   for (const auto &rt : s_radixName) {
-    m_ui->displayType->addItem(rt.second, QVariant::fromValue(rt.first));
+    m_ui->displayType->addItem(
+        QCoreApplication::translate("Ripes::RadixSelectorWidget",
+                                    rt.second.toUtf8().constData()),
+        QVariant::fromValue(rt.first));
   }
+  const QString tip =
+      tr("How values are displayed: Hex (0x...), Binary (0b...), Unsigned or "
+         "Signed decimal, ASCII characters or IEEE-754 Float. Only the "
+         "display changes, not the stored value.");
+  m_ui->displayType->setToolTip(tip);
+  m_ui->displayType->setStatusTip(tip);
 
   connect(m_ui->displayType,
           QOverload<int>::of(&QComboBox::currentIndexChanged), this,

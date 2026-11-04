@@ -182,10 +182,6 @@ bool parseCLIOptions(QCommandLineParser &parser, QString &errorMessage,
   }
   options.src = parser.value("src");
 
-  if (!parser.isSet("t")) {
-    errorMessage = "No source type specified (--t)";
-    return false;
-  }
 
   if (parser.value("t") == "c") {
     options.srcType = SourceType::C;

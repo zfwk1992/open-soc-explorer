@@ -12,9 +12,11 @@ IOScreen::IOScreen(QWidget *parent) : IOBase(IOType::SCREEN, parent) {
   constexpr unsigned maxSideWidth = 1024;
 
   m_parameters[WIDTH] =
-      IOParam(WIDTH, "Width", defaultWidth, true, 1, maxSideWidth);
+      IOParam(WIDTH, tr("Width (pixels)"), defaultWidth, true, 1,
+              maxSideWidth);
   m_parameters[HEIGHT] =
-      IOParam(HEIGHT, "Height", defaultHeight, true, 1, maxSideWidth);
+      IOParam(HEIGHT, tr("Height (pixels)"), defaultHeight, true, 1,
+              maxSideWidth);
 
   updateScreen();
 }
@@ -34,16 +36,16 @@ unsigned IOScreen::byteSize() const {
 
 QString IOScreen::description() const {
   QStringList desc;
-  desc << "A double-buffered raster screen. Each pixel is a 24-bit RGB value "
-          "(0xRRGGBB, blue in the least significant byte).";
+  desc << tr("A double-buffered raster screen. Each pixel is a 24-bit RGB "
+             "value (0xRRGGBB, blue in the least significant byte).");
   desc << "";
-  desc << "The framebuffer (the back buffer) starts at the peripheral base "
-          "address. The byte offset of pixel (x, y) is:";
+  desc << tr("The framebuffer (the back buffer) starts at the peripheral base "
+             "address. The byte offset of pixel (x, y) is:");
   desc << "    offset = (y*WIDTH + x) * 4";
   desc << "";
-  desc << "Writing pixels does not update the display. Write any value to the "
-          "PRESENT register to scan the back buffer onto the screen and flip "
-          "to the other buffer for the next frame.";
+  desc << tr("Writing pixels does not update the display. Write any value to "
+             "the PRESENT register to scan the back buffer onto the screen and "
+             "flip to the other buffer for the next frame.");
   return desc.join('\n');
 }
 
@@ -134,7 +136,9 @@ void IOScreen::updateScreen() {
   m_regDescs.clear();
   m_regDescs.push_back(RegDesc{"PRESENT", RegDesc::RW::W, 32,
                                static_cast<AInt>(nPixels) * 4,
-                               /*exported=*/true});
+                               /*exported=*/true,
+                               tr("Write any value to show the back buffer on "
+                                  "the screen and swap buffers")});
 
   updateGeometry();
   emit regMapChanged();

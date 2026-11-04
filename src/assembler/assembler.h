@@ -335,6 +335,15 @@ protected:
           expandedLines.push_back(tsl);
         }
       } else {
+        const QString msg = expandedOps.error().errorMessage();
+        if (!msg.isEmpty() && msg != "Not a pseudo instruction") {
+          // A real pseudo-instruction whose expansion failed (e.g. `li` with
+          // an undefined symbol). Report that error instead of retrying the
+          // line as a base instruction, which would yield a misleading
+          // "Unknown opcode" message.
+          errors.push_back(expandedOps.error());
+          continue;
+        }
         // This was not a pseudoinstruction; just add line to the set of
         // expanded lines
         expandedLines.push_back(tokenizedLine.value());

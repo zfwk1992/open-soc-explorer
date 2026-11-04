@@ -24,7 +24,7 @@ LoadDialog::LoadDialog(QWidget *parent)
     : QDialog(parent), m_ui(new Ui::LoadDialog) {
   m_ui->setupUi(this);
 
-  setWindowTitle("Load program...");
+  setWindowTitle(tr("Load program..."));
 
   m_fileTypeButtons = new QButtonGroup(this);
   m_fileTypeButtons->addButton(m_ui->sourceRadioButton, TypeButtonID::Source);
@@ -98,19 +98,19 @@ void LoadDialog::openFileButtonTriggered() {
   QString filter;
   switch (m_currentType) {
   case TypeButtonID::Source: {
-    title = "Open source file";
-    filter = "Source files [*.s, *.as, *.asm, *.c] (*.s *.as *.asm *.c);; All "
-             "files (*.*)";
+    title = tr("Open source file");
+    filter = tr("Source files [*.s, *.as, *.asm, *.c] (*.s *.as *.asm *.c);; "
+                "All files (*.*)");
     break;
   }
   case TypeButtonID::Flatbinary: {
-    title = "Open binary file";
-    filter = "All files (*)";
+    title = tr("Open binary file");
+    filter = tr("All files (*)");
     break;
   }
   case TypeButtonID::ELF: {
-    title = "Open executable (ELF) file";
-    filter = "All files (*)";
+    title = tr("Open executable (ELF) file");
+    filter = tr("All files (*)");
     break;
   }
   }
@@ -146,7 +146,7 @@ void LoadDialog::setElfInfo(const ELFInfo &info) {
   if (info.valid) {
     m_ui->elfInfo->clear();
   } else {
-    m_ui->elfInfo->setText("<b>Error:</b> " + info.errorMessage);
+    m_ui->elfInfo->setText(tr("<b>Error:</b> %1").arg(info.errorMessage));
   }
 }
 
@@ -159,7 +159,7 @@ ELFInfo LoadDialog::validateELFFile(const QFile &file) {
 
   // Is it an ELF file?
   if (!reader.load(file.fileName().toStdString())) {
-    info.errorMessage = "Not an ELF file";
+    info.errorMessage = tr("Not an ELF file");
     info.valid = false;
     goto finish;
   }
@@ -167,14 +167,15 @@ ELFInfo LoadDialog::validateELFFile(const QFile &file) {
   // Is it a compatible machine format?
   if (reader.get_machine() != ProcessorHandler::currentISA()->elfMachineId()) {
     info.errorMessage =
-        "Incompatible ELF machine type (ISA).<br/><br/>Expected machine "
-        "type:<br/>'" +
-        QString::number(ProcessorHandler::currentISA()->elfMachineId()) +
-        "' (" +
-        getNameForElfMachine(ProcessorHandler::currentISA()->elfMachineId()) +
-        ")<br/>but file has machine type:<br/>    '" +
-        QString::number(reader.get_machine()) + "' (" +
-        getNameForElfMachine(reader.get_machine()) + ")";
+        tr("Incompatible ELF machine type (ISA).<br/><br/>Expected machine "
+           "type:<br/>'%1' (%2)<br/>but file has machine type:<br/>    '%3' "
+           "(%4)")
+            .arg(QString::number(
+                     ProcessorHandler::currentISA()->elfMachineId()),
+                 getNameForElfMachine(
+                     ProcessorHandler::currentISA()->elfMachineId()),
+                 QString::number(reader.get_machine()),
+                 getNameForElfMachine(reader.get_machine()));
     info.valid = false;
     goto finish;
   }
@@ -184,8 +185,9 @@ ELFInfo LoadDialog::validateELFFile(const QFile &file) {
   if (elfbits != ProcessorHandler::currentISA()->bits()) {
     const QString bitSize = elfbits == 32 ? "32" : "64";
     info.errorMessage =
-        "Expected " + QString::number(ProcessorHandler::currentISA()->bits()) +
-        " bit executable, but input program is " + bitSize + " bit.";
+        tr("Expected %1 bit executable, but input program is %2 bit.")
+            .arg(QString::number(ProcessorHandler::currentISA()->bits()),
+                 bitSize);
     info.valid = false;
     goto finish;
   }
@@ -193,10 +195,11 @@ ELFInfo LoadDialog::validateELFFile(const QFile &file) {
   // executable? (Not dynamically linked nor relocateable)
   if (!(reader.get_type() == ET_EXEC)) {
     info.errorMessage =
-        "Only executable ELF files are supported.<br/><br/>File type is<br/>" +
-        QString::number(reader.get_type()) + " (" +
-        getNameForElfType(reader.get_type()) + ")<br/>Expected<br/>" +
-        QString::number(ET_EXEC) + " (" + getNameForElfType(ET_EXEC) + ")";
+        tr("Only executable ELF files are supported.<br/><br/>File type "
+           "is<br/>%1 (%2)<br/>Expected<br/>%3 (%4)")
+            .arg(QString::number(reader.get_type()),
+                 getNameForElfType(reader.get_type()),
+                 QString::number(ET_EXEC), getNameForElfType(ET_EXEC));
     info.valid = false;
     goto finish;
   }
@@ -247,8 +250,8 @@ void LoadDialog::validateCurrentFile() {
 }
 
 void LoadDialog::loadFileError(const QString &filename) {
-  QMessageBox::warning(this, "Load file error",
-                       "Error: Could not load file \"" + filename + "\"");
+  QMessageBox::warning(this, tr("Load file error"),
+                       tr("Could not load file \"%1\"").arg(filename));
   QDialog::reject();
 }
 

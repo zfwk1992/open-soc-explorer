@@ -1,0 +1,852 @@
+[
+  {
+    "file": "04-riscv-assembly-first-program.zh.png",
+    "lang": "zh",
+    "tab": "editor",
+    "example": null,
+    "source": ".data\nmsg:    .string \"Hello, RISC-V!\\n\"\n\n.text\nmain:\n    la   a0, msg\n    li   a7, 4\n    ecall\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble"
+    ],
+    "settings": {
+      "input_type": "Assembly"
+    },
+    "caption": "Editor tab: hello program source on the left, disassembly (la expanded to auipc+addi) on the right",
+    "script": [
+      "source",
+      "tab editor",
+      "grab window"
+    ]
+  },
+  {
+    "file": "04-riscv-assembly-first-program.en.png",
+    "lang": "en",
+    "tab": "editor",
+    "example": null,
+    "source": ".data\nmsg:    .string \"Hello, RISC-V!\\n\"\n\n.text\nmain:\n    la   a0, msg\n    li   a7, 4\n    ecall\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble"
+    ],
+    "settings": {
+      "input_type": "Assembly"
+    },
+    "caption": "Editor tab: hello program source on the left, disassembly (la expanded to auipc+addi) on the right",
+    "script": [
+      "source",
+      "tab editor",
+      "grab window"
+    ]
+  },
+  {
+    "file": "04-riscv-assembly-registers.zh.png",
+    "lang": "zh",
+    "tab": "processor",
+    "example": null,
+    "source": ".data\nmsg:    .string \"Hello, RISC-V!\\n\"\n\n.text\nmain:\n    la   a0, msg\n    li   a7, 4\n    ecall\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble",
+      "reset"
+    ],
+    "settings": {
+      "processor": "RV32_5S"
+    },
+    "caption": "Processor tab Registers panel after reset: sp=0x7ffffff0, gp=0x10000000",
+    "script": [
+      "processor RV32_5S",
+      "source",
+      "tab processor",
+      "reset",
+      "grab widget registerContainerWidget"
+    ]
+  },
+  {
+    "file": "04-riscv-assembly-registers.en.png",
+    "lang": "en",
+    "tab": "processor",
+    "example": null,
+    "source": ".data\nmsg:    .string \"Hello, RISC-V!\\n\"\n\n.text\nmain:\n    la   a0, msg\n    li   a7, 4\n    ecall\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble",
+      "reset"
+    ],
+    "settings": {
+      "processor": "RV32_5S"
+    },
+    "caption": "Processor tab Registers panel after reset: sp=0x7ffffff0, gp=0x10000000",
+    "script": [
+      "processor RV32_5S",
+      "source",
+      "tab processor",
+      "reset",
+      "grab widget registerContainerWidget"
+    ]
+  },
+  {
+    "file": "04-riscv-assembly-data-memory.zh.png",
+    "lang": "zh",
+    "tab": "memory",
+    "example": null,
+    "source": ".equ COUNT, 3\n.data\nb:      .byte 0xFF, 2\n        .align 2\nh:      .half 0x1234\nw:      .word 0xDEADBEEF\nbuf:    .zero 8\n.text\n    la   t0, b\n    lb   a0, 0(t0)\n    li   a7, 1\n    ecall\n",
+    "actions": [
+      "assemble",
+      "reset"
+    ],
+    "settings": {
+      "memory_goto_section": ".data"
+    },
+    "caption": "Memory tab showing the .data segment at 0x10000000 (ff 02 00 00 34 12 ...)",
+    "script": [
+      "source",
+      "tab processor",
+      "reset",
+      "tab memory",
+      "memgoto section:.data",
+      "grab window"
+    ]
+  },
+  {
+    "file": "04-riscv-assembly-data-memory.en.png",
+    "lang": "en",
+    "tab": "memory",
+    "example": null,
+    "source": ".equ COUNT, 3\n.data\nb:      .byte 0xFF, 2\n        .align 2\nh:      .half 0x1234\nw:      .word 0xDEADBEEF\nbuf:    .zero 8\n.text\n    la   t0, b\n    lb   a0, 0(t0)\n    li   a7, 1\n    ecall\n",
+    "actions": [
+      "assemble",
+      "reset"
+    ],
+    "settings": {
+      "memory_goto_section": ".data"
+    },
+    "caption": "Memory tab showing the .data segment at 0x10000000 (ff 02 00 00 34 12 ...)",
+    "script": [
+      "source",
+      "tab processor",
+      "reset",
+      "tab memory",
+      "memgoto section:.data",
+      "grab window"
+    ]
+  },
+  {
+    "file": "04-riscv-assembly-stack.zh.png",
+    "lang": "zh",
+    "tab": "memory",
+    "example": null,
+    "source": ".data\nn:  .word 5\n.text\nmain:\n    lw   a0, n\n    jal  ra, square_plus_one\n    li   a7, 1\n    ecall\n    li   a0, 42\n    li   a7, 93\n    ecall\nsquare_plus_one:\n    addi sp, sp, -8\n    sw   ra, 4(sp)\n    sw   s0, 0(sp)\n    mv   s0, a0\n    mul  a0, s0, s0\n    addi a0, a0, 1\n    lw   s0, 0(sp)\n    lw   ra, 4(sp)\n    addi sp, sp, 8\n    ret\n",
+    "actions": [
+      "assemble",
+      "run_to_breakpoint"
+    ],
+    "settings": {
+      "breakpoint_at": "mv s0, a0",
+      "memory_goto_register": "sp"
+    },
+    "caption": "Memory tab jumped to sp, showing the saved s0 and ra in the stack frame",
+    "script": [
+      "source",
+      "break sym:square_plus_one+12",
+      "tab processor",
+      "run",
+      "clock 4",
+      "tab memory",
+      "memgoto reg:sp",
+      "grab window"
+    ],
+    "shot_note": "Breakpoint on \"mv s0, a0\" stops when it is fetched; 4 more cycles are clocked so both sw instructions have written the stack frame (ra=0x0c at sp+4, s0=0 at sp)."
+  },
+  {
+    "file": "04-riscv-assembly-stack.en.png",
+    "lang": "en",
+    "tab": "memory",
+    "example": null,
+    "source": ".data\nn:  .word 5\n.text\nmain:\n    lw   a0, n\n    jal  ra, square_plus_one\n    li   a7, 1\n    ecall\n    li   a0, 42\n    li   a7, 93\n    ecall\nsquare_plus_one:\n    addi sp, sp, -8\n    sw   ra, 4(sp)\n    sw   s0, 0(sp)\n    mv   s0, a0\n    mul  a0, s0, s0\n    addi a0, a0, 1\n    lw   s0, 0(sp)\n    lw   ra, 4(sp)\n    addi sp, sp, 8\n    ret\n",
+    "actions": [
+      "assemble",
+      "run_to_breakpoint"
+    ],
+    "settings": {
+      "breakpoint_at": "mv s0, a0",
+      "memory_goto_register": "sp"
+    },
+    "caption": "Memory tab jumped to sp, showing the saved s0 and ra in the stack frame",
+    "script": [
+      "source",
+      "break sym:square_plus_one+12",
+      "tab processor",
+      "run",
+      "clock 4",
+      "tab memory",
+      "memgoto reg:sp",
+      "grab window"
+    ],
+    "shot_note": "Breakpoint on \"mv s0, a0\" stops when it is fetched; 4 more cycles are clocked so both sw instructions have written the stack frame (ra=0x0c at sp+4, s0=0 at sp)."
+  },
+  {
+    "file": "04-riscv-assembly-errors.zh.png",
+    "lang": "zh",
+    "tab": "editor",
+    "example": null,
+    "source": ".text\n    addi t0, t0\n    lw t1, 0(q5)\n    foo a0, a1\n    j nowhere\n",
+    "actions": [
+      "assemble"
+    ],
+    "settings": {
+      "hover_error_line": 3
+    },
+    "caption": "Editor with marked error lines and the hover message of an assembler error",
+    "script": [
+      "source",
+      "tab editor",
+      "hover_error 3",
+      "grab window"
+    ]
+  },
+  {
+    "file": "04-riscv-assembly-errors.en.png",
+    "lang": "en",
+    "tab": "editor",
+    "example": null,
+    "source": ".text\n    addi t0, t0\n    lw t1, 0(q5)\n    foo a0, a1\n    j nowhere\n",
+    "actions": [
+      "assemble"
+    ],
+    "settings": {
+      "hover_error_line": 3
+    },
+    "caption": "Editor with marked error lines and the hover message of an assembler error",
+    "script": [
+      "source",
+      "tab editor",
+      "hover_error 3",
+      "grab window"
+    ]
+  },
+  {
+    "file": "05-c-programs-compiler-settings.zh.png",
+    "lang": "zh",
+    "tab": "settings",
+    "example": null,
+    "actions": [],
+    "settings": {
+      "settings_page": "Compiler"
+    },
+    "caption": "Edit -> Settings, Compiler page: Compiler path, Compiler arguments (-O0 -g), Linker arguments (-static -lm), compile command, Assembler group",
+    "script": [
+      "dialog settings 2 size 900 640",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "05-c-programs-compiler-settings.en.png",
+    "lang": "en",
+    "tab": "settings",
+    "example": null,
+    "actions": [],
+    "settings": {
+      "settings_page": "Compiler"
+    },
+    "caption": "Edit -> Settings, Compiler page: Compiler path, Compiler arguments (-O0 -g), Linker arguments (-static -lm), compile command, Assembler group",
+    "script": [
+      "dialog settings 2 size 900 640",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "05-c-programs-compiled.zh.png",
+    "lang": "zh",
+    "tab": "editor",
+    "example": null,
+    "source": "#include <stdio.h>\n\nint square(int x) { return x * x; }\n\nint main() {\n    int sum = 0;\n    for (int i = 1; i <= 10; i++) {\n        sum += square(i);\n    }\n    printf(\"sum of squares 1..10 = %d\\n\", sum);\n    return 0;\n}\n",
+    "actions": [
+      "compile"
+    ],
+    "settings": {
+      "input_type": "C",
+      "requires": "riscv64-unknown-elf-gcc registered"
+    },
+    "caption": "Editor with a C program on the left and the compiled disassembly on the right",
+    "script": [
+      "load examples/ELF/RanPi-RV32",
+      "tab editor",
+      "grab window"
+    ],
+    "shot_note": "No RISC-V C compiler (riscv64-unknown-elf-gcc) on this machine, so the C program could not be compiled. The shot shows the closest real equivalent: the precompiled C program examples/ELF/RanPi-RV32 loaded in the Editor (source area replaced by the \"Current input source: Executable (ELF)\" page, disassembly on the right). It does not show the C source listed in \"source\"."
+  },
+  {
+    "file": "05-c-programs-compiled.en.png",
+    "lang": "en",
+    "tab": "editor",
+    "example": null,
+    "source": "#include <stdio.h>\n\nint square(int x) { return x * x; }\n\nint main() {\n    int sum = 0;\n    for (int i = 1; i <= 10; i++) {\n        sum += square(i);\n    }\n    printf(\"sum of squares 1..10 = %d\\n\", sum);\n    return 0;\n}\n",
+    "actions": [
+      "compile"
+    ],
+    "settings": {
+      "input_type": "C",
+      "requires": "riscv64-unknown-elf-gcc registered"
+    },
+    "caption": "Editor with a C program on the left and the compiled disassembly on the right",
+    "script": [
+      "load examples/ELF/RanPi-RV32",
+      "tab editor",
+      "grab window"
+    ],
+    "shot_note": "No RISC-V C compiler (riscv64-unknown-elf-gcc) on this machine, so the C program could not be compiled. The shot shows the closest real equivalent: the precompiled C program examples/ELF/RanPi-RV32 loaded in the Editor (source area replaced by the \"Current input source: Executable (ELF)\" page, disassembly on the right). It does not show the C source listed in \"source\"."
+  },
+  {
+    "file": "05-c-programs-load-elf.zh.png",
+    "lang": "zh",
+    "tab": "dialog",
+    "example": "examples/ELF/RanPi-RV32",
+    "actions": [
+      "open_load_dialog"
+    ],
+    "settings": {
+      "dialog": "File -> Load Program",
+      "file_type": "Executable (ELF)"
+    },
+    "caption": "Load Program dialog with an ELF file selected and its ELF info shown",
+    "script": [
+      "dialog load elf examples/ELF/RanPi-RV32 size 640 330",
+      "grab dialog"
+    ],
+    "shot_note": "The ELF info box stays empty for a valid file (it only shows errors)."
+  },
+  {
+    "file": "05-c-programs-load-elf.en.png",
+    "lang": "en",
+    "tab": "dialog",
+    "example": "examples/ELF/RanPi-RV32",
+    "actions": [
+      "open_load_dialog"
+    ],
+    "settings": {
+      "dialog": "File -> Load Program",
+      "file_type": "Executable (ELF)"
+    },
+    "caption": "Load Program dialog with an ELF file selected and its ELF info shown",
+    "script": [
+      "dialog load elf examples/ELF/RanPi-RV32 size 640 330",
+      "grab dialog"
+    ],
+    "shot_note": "The ELF info box stays empty for a valid file (it only shows errors)."
+  },
+  {
+    "file": "06-processors-pipelines-select-dialog.zh.png",
+    "lang": "zh",
+    "tab": "dialog",
+    "example": null,
+    "actions": [
+      "open_processor_dialog"
+    ],
+    "settings": {
+      "dialog": "Select processor",
+      "selected": "RV32_5S"
+    },
+    "caption": "Processor selection dialog: tree RISC-V/32-bit/64-bit, description, ISA Exts., Layout, register initialisation",
+    "script": [
+      "dialog processor",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "06-processors-pipelines-select-dialog.en.png",
+    "lang": "en",
+    "tab": "dialog",
+    "example": null,
+    "actions": [
+      "open_processor_dialog"
+    ],
+    "settings": {
+      "dialog": "Select processor",
+      "selected": "RV32_5S"
+    },
+    "caption": "Processor selection dialog: tree RISC-V/32-bit/64-bit, description, ISA Exts., Layout, register initialisation",
+    "script": [
+      "dialog processor",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "06-processors-pipelines-5stage-extended.zh.png",
+    "lang": "zh",
+    "tab": "processor",
+    "example": null,
+    "source": ".data\nx: .word 10\n.text\n    lw   a0, x\n    addi a1, a0, 1\n    add  a2, a1, a1\n    beq  a2, zero, skip\n    addi a3, zero, 7\nskip:\n    addi a4, zero, 1\n",
+    "actions": [
+      "assemble",
+      "clock:4"
+    ],
+    "settings": {
+      "processor": "RV32_5S",
+      "layout": "Extended"
+    },
+    "caption": "Processor tab with the 5-stage processor in Extended layout, mid-execution",
+    "script": [
+      "processor RV32_5S layout 1",
+      "source",
+      "tab processor",
+      "clock 4",
+      "fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "06-processors-pipelines-5stage-extended.en.png",
+    "lang": "en",
+    "tab": "processor",
+    "example": null,
+    "source": ".data\nx: .word 10\n.text\n    lw   a0, x\n    addi a1, a0, 1\n    add  a2, a1, a1\n    beq  a2, zero, skip\n    addi a3, zero, 7\nskip:\n    addi a4, zero, 1\n",
+    "actions": [
+      "assemble",
+      "clock:4"
+    ],
+    "settings": {
+      "processor": "RV32_5S",
+      "layout": "Extended"
+    },
+    "caption": "Processor tab with the 5-stage processor in Extended layout, mid-execution",
+    "script": [
+      "processor RV32_5S layout 1",
+      "source",
+      "tab processor",
+      "clock 4",
+      "fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "06-processors-pipelines-diagram-loaduse.zh.png",
+    "lang": "zh",
+    "tab": "pipeline_diagram",
+    "example": null,
+    "source": ".data\nx: .word 10\n.text\n    lw   a0, x\n    addi a1, a0, 1\n    add  a2, a1, a1\n    beq  a2, zero, skip\n    addi a3, zero, 7\nskip:\n    addi a4, zero, 1\n",
+    "actions": [
+      "assemble",
+      "clock:12",
+      "open_pipeline_diagram"
+    ],
+    "settings": {
+      "processor": "RV32_5S"
+    },
+    "caption": "Pipeline diagram window: the load-use stall of addi shown as '-'",
+    "script": [
+      "processor RV32_5S",
+      "source",
+      "tab processor",
+      "clock 12",
+      "dialog pipeline size 1000 420",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "06-processors-pipelines-diagram-loaduse.en.png",
+    "lang": "en",
+    "tab": "pipeline_diagram",
+    "example": null,
+    "source": ".data\nx: .word 10\n.text\n    lw   a0, x\n    addi a1, a0, 1\n    add  a2, a1, a1\n    beq  a2, zero, skip\n    addi a3, zero, 7\nskip:\n    addi a4, zero, 1\n",
+    "actions": [
+      "assemble",
+      "clock:12",
+      "open_pipeline_diagram"
+    ],
+    "settings": {
+      "processor": "RV32_5S"
+    },
+    "caption": "Pipeline diagram window: the load-use stall of addi shown as '-'",
+    "script": [
+      "processor RV32_5S",
+      "source",
+      "tab processor",
+      "clock 12",
+      "dialog pipeline size 1000 420",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "06-processors-pipelines-vcd-settings.zh.png",
+    "lang": "zh",
+    "tab": "settings",
+    "example": null,
+    "actions": [],
+    "settings": {
+      "settings_page": "Simulator"
+    },
+    "caption": "Edit -> Settings, Simulator page: Max. undo cycles, I/O start address, VCD trace options",
+    "script": [
+      "dialog settings 1 size 900 640",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "06-processors-pipelines-vcd-settings.en.png",
+    "lang": "en",
+    "tab": "settings",
+    "example": null,
+    "actions": [],
+    "settings": {
+      "settings_page": "Simulator"
+    },
+    "caption": "Edit -> Settings, Simulator page: Max. undo cycles, I/O start address, VCD trace options",
+    "script": [
+      "dialog settings 1 size 900 640",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "07-cache-overview.zh.png",
+    "lang": "zh",
+    "tab": "cache",
+    "example": null,
+    "source": "# Sum N words of an array, visiting every STRIDE-th word.\n.equ N, 64          # number of loads\n.equ STRIDE, 1      # in words: try 1, 2, 4, 8\n.data\narr:    .zero 2048  # 512 words\n.text\nmain:\n    la   t0, arr\n    li   t1, N\n    li   t2, STRIDE\n    slli t2, t2, 2      # stride in bytes\n    li   a0, 0\nloop:\n    lw   t3, 0(t0)\n    add  a0, a0, t3\n    add  t0, t0, t2\n    addi t1, t1, -1\n    bnez t1, loop\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble",
+      "run"
+    ],
+    "settings": {
+      "processor": "RV32_SS",
+      "cache_tab": "L1 Data Cache",
+      "preset": "32-entry 4-word direct-mapped"
+    },
+    "caption": "Cache tab overview: configuration, cache table view, statistics and hit-rate plot after the stride program",
+    "script": [
+      "processor RV32_SS",
+      "source",
+      "tab cache",
+      "combo presets 0",
+      "run",
+      "grab window"
+    ]
+  },
+  {
+    "file": "07-cache-overview.en.png",
+    "lang": "en",
+    "tab": "cache",
+    "example": null,
+    "source": "# Sum N words of an array, visiting every STRIDE-th word.\n.equ N, 64          # number of loads\n.equ STRIDE, 1      # in words: try 1, 2, 4, 8\n.data\narr:    .zero 2048  # 512 words\n.text\nmain:\n    la   t0, arr\n    li   t1, N\n    li   t2, STRIDE\n    slli t2, t2, 2      # stride in bytes\n    li   a0, 0\nloop:\n    lw   t3, 0(t0)\n    add  a0, a0, t3\n    add  t0, t0, t2\n    addi t1, t1, -1\n    bnez t1, loop\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble",
+      "run"
+    ],
+    "settings": {
+      "processor": "RV32_SS",
+      "cache_tab": "L1 Data Cache",
+      "preset": "32-entry 4-word direct-mapped"
+    },
+    "caption": "Cache tab overview: configuration, cache table view, statistics and hit-rate plot after the stride program",
+    "script": [
+      "processor RV32_SS",
+      "source",
+      "tab cache",
+      "combo presets 0",
+      "run",
+      "grab window"
+    ]
+  },
+  {
+    "file": "07-cache-view-hit.zh.png",
+    "lang": "zh",
+    "tab": "cache",
+    "example": null,
+    "source": "# Sum N words of an array, visiting every STRIDE-th word.\n.equ N, 64          # number of loads\n.equ STRIDE, 1      # in words: try 1, 2, 4, 8\n.data\narr:    .zero 2048  # 512 words\n.text\nmain:\n    la   t0, arr\n    li   t1, N\n    li   t2, STRIDE\n    slli t2, t2, 2      # stride in bytes\n    li   a0, 0\nloop:\n    lw   t3, 0(t0)\n    add  a0, a0, t3\n    add  t0, t0, t2\n    addi t1, t1, -1\n    bnez t1, loop\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble",
+      "clock:12"
+    ],
+    "settings": {
+      "processor": "RV32_SS",
+      "cache_tab": "L1 Data Cache",
+      "preset": "32-entry 4-word direct-mapped"
+    },
+    "caption": "Cache table view zoomed in, showing a hit (green cell) with indexed row/column highlighted",
+    "script": [
+      "processor RV32_SS",
+      "source",
+      "tab cache",
+      "combo presets 0",
+      "clock 12",
+      "grab widget Ripes::CacheView"
+    ],
+    "shot_note": "Cropped to the cache table view (Ripes::CacheView) of the L1 data cache after 12 cycles."
+  },
+  {
+    "file": "07-cache-view-hit.en.png",
+    "lang": "en",
+    "tab": "cache",
+    "example": null,
+    "source": "# Sum N words of an array, visiting every STRIDE-th word.\n.equ N, 64          # number of loads\n.equ STRIDE, 1      # in words: try 1, 2, 4, 8\n.data\narr:    .zero 2048  # 512 words\n.text\nmain:\n    la   t0, arr\n    li   t1, N\n    li   t2, STRIDE\n    slli t2, t2, 2      # stride in bytes\n    li   a0, 0\nloop:\n    lw   t3, 0(t0)\n    add  a0, a0, t3\n    add  t0, t0, t2\n    addi t1, t1, -1\n    bnez t1, loop\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble",
+      "clock:12"
+    ],
+    "settings": {
+      "processor": "RV32_SS",
+      "cache_tab": "L1 Data Cache",
+      "preset": "32-entry 4-word direct-mapped"
+    },
+    "caption": "Cache table view zoomed in, showing a hit (green cell) with indexed row/column highlighted",
+    "script": [
+      "processor RV32_SS",
+      "source",
+      "tab cache",
+      "combo presets 0",
+      "clock 12",
+      "grab widget Ripes::CacheView"
+    ],
+    "shot_note": "Cropped to the cache table view (Ripes::CacheView) of the L1 data cache after 12 cycles."
+  },
+  {
+    "file": "07-cache-plot.zh.png",
+    "lang": "zh",
+    "tab": "cache",
+    "example": null,
+    "source": "# Traverse a 16x16 word matrix row by row (ROWMAJOR=1) or column by column (ROWMAJOR=0)\n.equ DIM, 16\n.equ ROWMAJOR, 1\n.data\nmat:    .zero 1024      # 16*16*4 bytes\n.text\nmain:\n    la   s0, mat\n    li   s1, DIM\n    li   t0, 0              # i\nouter:\n    li   t1, 0              # j\ninner:\n    li   t4, ROWMAJOR\n    beqz t4, colmajor\n    mul  t2, t0, s1         # row-major: index = i*DIM + j\n    add  t2, t2, t1\n    j    access\ncolmajor:\n    mul  t2, t1, s1         # column-major: index = j*DIM + i\n    add  t2, t2, t0\naccess:\n    slli t2, t2, 2\n    add  t2, s0, t2\n    lw   t3, 0(t2)\n    addi t3, t3, 1\n    sw   t3, 0(t2)\n    addi t1, t1, 1\n    blt  t1, s1, inner\n    addi t0, t0, 1\n    blt  t0, s1, outer\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble",
+      "run"
+    ],
+    "settings": {
+      "processor": "RV32_SS",
+      "cache_tab": "L1 Data Cache",
+      "moving_avg": true
+    },
+    "caption": "Hit-rate plot with moving average for the matrix traversal program",
+    "script": [
+      "processor RV32_SS",
+      "source",
+      "tab cache",
+      "run",
+      "grab widget Ripes::CachePlotWidget"
+    ],
+    "shot_note": "Cropped to the plot widget (Ripes::CachePlotWidget)."
+  },
+  {
+    "file": "07-cache-plot.en.png",
+    "lang": "en",
+    "tab": "cache",
+    "example": null,
+    "source": "# Traverse a 16x16 word matrix row by row (ROWMAJOR=1) or column by column (ROWMAJOR=0)\n.equ DIM, 16\n.equ ROWMAJOR, 1\n.data\nmat:    .zero 1024      # 16*16*4 bytes\n.text\nmain:\n    la   s0, mat\n    li   s1, DIM\n    li   t0, 0              # i\nouter:\n    li   t1, 0              # j\ninner:\n    li   t4, ROWMAJOR\n    beqz t4, colmajor\n    mul  t2, t0, s1         # row-major: index = i*DIM + j\n    add  t2, t2, t1\n    j    access\ncolmajor:\n    mul  t2, t1, s1         # column-major: index = j*DIM + i\n    add  t2, t2, t0\naccess:\n    slli t2, t2, 2\n    add  t2, s0, t2\n    lw   t3, 0(t2)\n    addi t3, t3, 1\n    sw   t3, 0(t2)\n    addi t1, t1, 1\n    blt  t1, s1, inner\n    addi t0, t0, 1\n    blt  t0, s1, outer\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "assemble",
+      "run"
+    ],
+    "settings": {
+      "processor": "RV32_SS",
+      "cache_tab": "L1 Data Cache",
+      "moving_avg": true
+    },
+    "caption": "Hit-rate plot with moving average for the matrix traversal program",
+    "script": [
+      "processor RV32_SS",
+      "source",
+      "tab cache",
+      "run",
+      "grab widget Ripes::CachePlotWidget"
+    ],
+    "shot_note": "Cropped to the plot widget (Ripes::CachePlotWidget)."
+  },
+  {
+    "file": "08-mmio-peripherals-iotab-ledmatrix.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "LED Matrix",
+    "example": null,
+    "actions": [
+      "create_peripheral"
+    ],
+    "settings": {
+      "select_peripheral": "LED Matrix 0"
+    },
+    "caption": "I/O tab: Devices list, LED Matrix 0 widget, Parameters, Register map, Exports and I/O exports",
+    "script": [
+      "peripheral \"LED Matrix\"",
+      "tab io",
+      "grab window"
+    ]
+  },
+  {
+    "file": "08-mmio-peripherals-iotab-ledmatrix.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "LED Matrix",
+    "example": null,
+    "actions": [
+      "create_peripheral"
+    ],
+    "settings": {
+      "select_peripheral": "LED Matrix 0"
+    },
+    "caption": "I/O tab: Devices list, LED Matrix 0 widget, Parameters, Register map, Exports and I/O exports",
+    "script": [
+      "peripheral \"LED Matrix\"",
+      "tab io",
+      "grab window"
+    ]
+  },
+  {
+    "file": "08-mmio-peripherals-led-diagonal.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "LED Matrix",
+    "example": null,
+    "source": "# Light the LED matrix diagonal red, then the first row blue.\n.text\nmain:\n    li   s0, LED_MATRIX_0_BASE\n    li   s1, LED_MATRIX_0_WIDTH\n    li   s2, LED_MATRIX_0_HEIGHT\n    li   t0, 0\ndiag:\n    bge  t0, s1, row\n    bge  t0, s2, row\n    mul  t1, t0, s1\n    add  t1, t1, t0\n    slli t1, t1, 2\n    add  t1, s0, t1\n    li   t2, 0xFF0000\n    sw   t2, 0(t1)\n    addi t0, t0, 1\n    j    diag\nrow:\n    li   t0, 1\nrow_loop:\n    bge  t0, s1, end\n    slli t1, t0, 2\n    add  t1, s0, t1\n    li   t2, 0x0000FF\n    sw   t2, 0(t1)\n    addi t0, t0, 1\n    j    row_loop\nend:\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "create_peripheral",
+      "assemble",
+      "run"
+    ],
+    "settings": {
+      "processor": "RV32_SS",
+      "led_size": 12
+    },
+    "caption": "LED matrix with a red diagonal and a blue first row",
+    "script": [
+      "processor RV32_SS",
+      "peripheral \"LED Matrix\" 2=12",
+      "source",
+      "tab io",
+      "run",
+      "grab window"
+    ]
+  },
+  {
+    "file": "08-mmio-peripherals-led-diagonal.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "LED Matrix",
+    "example": null,
+    "source": "# Light the LED matrix diagonal red, then the first row blue.\n.text\nmain:\n    li   s0, LED_MATRIX_0_BASE\n    li   s1, LED_MATRIX_0_WIDTH\n    li   s2, LED_MATRIX_0_HEIGHT\n    li   t0, 0\ndiag:\n    bge  t0, s1, row\n    bge  t0, s2, row\n    mul  t1, t0, s1\n    add  t1, t1, t0\n    slli t1, t1, 2\n    add  t1, s0, t1\n    li   t2, 0xFF0000\n    sw   t2, 0(t1)\n    addi t0, t0, 1\n    j    diag\nrow:\n    li   t0, 1\nrow_loop:\n    bge  t0, s1, end\n    slli t1, t0, 2\n    add  t1, s0, t1\n    li   t2, 0x0000FF\n    sw   t2, 0(t1)\n    addi t0, t0, 1\n    j    row_loop\nend:\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "create_peripheral",
+      "assemble",
+      "run"
+    ],
+    "settings": {
+      "processor": "RV32_SS",
+      "led_size": 12
+    },
+    "caption": "LED matrix with a red diagonal and a blue first row",
+    "script": [
+      "processor RV32_SS",
+      "peripheral \"LED Matrix\" 2=12",
+      "source",
+      "tab io",
+      "run",
+      "grab window"
+    ]
+  },
+  {
+    "file": "08-mmio-peripherals-dpad.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": [
+      "LED Matrix",
+      "D-Pad"
+    ],
+    "example": null,
+    "source": "# Move a white dot around the LED matrix with the D-pad\n.text\nmain:\n    li   s0, LED_MATRIX_0_BASE\n    li   s1, LED_MATRIX_0_WIDTH\n    li   s2, LED_MATRIX_0_HEIGHT\n    li   s3, 0              # x\n    li   s4, 0              # y\n    li   s5, 0xFFFFFF       # white\ndraw:\n    mul  t0, s4, s1         # offset = (y*WIDTH + x) * 4\n    add  t0, t0, s3\n    slli t0, t0, 2\n    add  s6, s0, t0         # s6 = address of the dot\n    sw   s5, 0(s6)\npoll:\n    li   t1, D_PAD_0_UP\n    lw   t2, 0(t1)\n    bnez t2, up\n    li   t1, D_PAD_0_DOWN\n    lw   t2, 0(t1)\n    bnez t2, down\n    li   t1, D_PAD_0_LEFT\n    lw   t2, 0(t1)\n    bnez t2, left\n    li   t1, D_PAD_0_RIGHT\n    lw   t2, 0(t1)\n    bnez t2, right\n    j    poll\nup:\n    beqz s4, poll\n    addi s4, s4, -1\n    j    move\ndown:\n    addi t3, s2, -1\n    bge  s4, t3, poll\n    addi s4, s4, 1\n    j    move\nleft:\n    beqz s3, poll\n    addi s3, s3, -1\n    j    move\nright:\n    addi t3, s1, -1\n    bge  s3, t3, poll\n    addi s3, s3, 1\nmove:\n    sw   zero, 0(s6)        # erase the old dot\n    j    draw\n",
+    "actions": [
+      "create_peripheral",
+      "assemble",
+      "run_briefly"
+    ],
+    "settings": {
+      "processor": "RV32_SS"
+    },
+    "caption": "D-Pad and LED matrix widgets side by side with the white dot",
+    "script": [
+      "processor RV32_SS",
+      "peripheral \"LED Matrix\"",
+      "peripheral \"D-Pad\"",
+      "source",
+      "tab io",
+      "mdiwin \"LED Matrix\" 0 0 320 290",
+      "mdiwin D-Pad 0 295 180 180",
+      "runfor 800",
+      "grab window"
+    ],
+    "shot_note": "No D-Pad key is pressed, so the white dot stays at (0,0) in the top-left corner. Sub-windows placed with mdiwin so both are visible."
+  },
+  {
+    "file": "08-mmio-peripherals-dpad.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": [
+      "LED Matrix",
+      "D-Pad"
+    ],
+    "example": null,
+    "source": "# Move a white dot around the LED matrix with the D-pad\n.text\nmain:\n    li   s0, LED_MATRIX_0_BASE\n    li   s1, LED_MATRIX_0_WIDTH\n    li   s2, LED_MATRIX_0_HEIGHT\n    li   s3, 0              # x\n    li   s4, 0              # y\n    li   s5, 0xFFFFFF       # white\ndraw:\n    mul  t0, s4, s1         # offset = (y*WIDTH + x) * 4\n    add  t0, t0, s3\n    slli t0, t0, 2\n    add  s6, s0, t0         # s6 = address of the dot\n    sw   s5, 0(s6)\npoll:\n    li   t1, D_PAD_0_UP\n    lw   t2, 0(t1)\n    bnez t2, up\n    li   t1, D_PAD_0_DOWN\n    lw   t2, 0(t1)\n    bnez t2, down\n    li   t1, D_PAD_0_LEFT\n    lw   t2, 0(t1)\n    bnez t2, left\n    li   t1, D_PAD_0_RIGHT\n    lw   t2, 0(t1)\n    bnez t2, right\n    j    poll\nup:\n    beqz s4, poll\n    addi s4, s4, -1\n    j    move\ndown:\n    addi t3, s2, -1\n    bge  s4, t3, poll\n    addi s4, s4, 1\n    j    move\nleft:\n    beqz s3, poll\n    addi s3, s3, -1\n    j    move\nright:\n    addi t3, s1, -1\n    bge  s3, t3, poll\n    addi s3, s3, 1\nmove:\n    sw   zero, 0(s6)        # erase the old dot\n    j    draw\n",
+    "actions": [
+      "create_peripheral",
+      "assemble",
+      "run_briefly"
+    ],
+    "settings": {
+      "processor": "RV32_SS"
+    },
+    "caption": "D-Pad and LED matrix widgets side by side with the white dot",
+    "script": [
+      "processor RV32_SS",
+      "peripheral \"LED Matrix\"",
+      "peripheral \"D-Pad\"",
+      "source",
+      "tab io",
+      "mdiwin \"LED Matrix\" 0 0 320 290",
+      "mdiwin D-Pad 0 295 180 180",
+      "runfor 800",
+      "grab window"
+    ],
+    "shot_note": "No D-Pad key is pressed, so the white dot stays at (0,0) in the top-left corner. Sub-windows placed with mdiwin so both are visible."
+  },
+  {
+    "file": "08-mmio-peripherals-screen.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "Screen",
+    "example": null,
+    "source": "# Draw a colour gradient on the Screen and present it\n.text\nmain:\n    li   s0, SCREEN_0_BASE\n    li   s1, SCREEN_0_WIDTH\n    li   s2, SCREEN_0_HEIGHT\n    li   t0, 0              # y\nrow:\n    li   t1, 0              # x\ncol:\n    slli t2, t1, 18         # red   = x * 4 (in bits 23:16)\n    slli t3, t0, 10         # green = y * 4 (in bits 15:8)\n    or   t2, t2, t3\n    mul  t4, t0, s1         # offset = (y*WIDTH + x) * 4\n    add  t4, t4, t1\n    slli t4, t4, 2\n    add  t4, s0, t4\n    sw   t2, 0(t4)\n    addi t1, t1, 1\n    blt  t1, s1, col\n    addi t0, t0, 1\n    blt  t0, s2, row\n    li   t5, SCREEN_0_PRESENT\n    sw   zero, 0(t5)        # any write to PRESENT shows the frame\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "create_peripheral",
+      "assemble",
+      "run"
+    ],
+    "settings": {
+      "processor": "RV32_SS"
+    },
+    "caption": "Screen peripheral showing the colour gradient after PRESENT",
+    "script": [
+      "processor RV32_SS",
+      "peripheral \"Screen\"",
+      "source",
+      "tab io",
+      "run",
+      "grab window"
+    ]
+  },
+  {
+    "file": "08-mmio-peripherals-screen.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "Screen",
+    "example": null,
+    "source": "# Draw a colour gradient on the Screen and present it\n.text\nmain:\n    li   s0, SCREEN_0_BASE\n    li   s1, SCREEN_0_WIDTH\n    li   s2, SCREEN_0_HEIGHT\n    li   t0, 0              # y\nrow:\n    li   t1, 0              # x\ncol:\n    slli t2, t1, 18         # red   = x * 4 (in bits 23:16)\n    slli t3, t0, 10         # green = y * 4 (in bits 15:8)\n    or   t2, t2, t3\n    mul  t4, t0, s1         # offset = (y*WIDTH + x) * 4\n    add  t4, t4, t1\n    slli t4, t4, 2\n    add  t4, s0, t4\n    sw   t2, 0(t4)\n    addi t1, t1, 1\n    blt  t1, s1, col\n    addi t0, t0, 1\n    blt  t0, s2, row\n    li   t5, SCREEN_0_PRESENT\n    sw   zero, 0(t5)        # any write to PRESENT shows the frame\n    li   a7, 10\n    ecall\n",
+    "actions": [
+      "create_peripheral",
+      "assemble",
+      "run"
+    ],
+    "settings": {
+      "processor": "RV32_SS"
+    },
+    "caption": "Screen peripheral showing the colour gradient after PRESENT",
+    "script": [
+      "processor RV32_SS",
+      "peripheral \"Screen\"",
+      "source",
+      "tab io",
+      "run",
+      "grab window"
+    ]
+  }
+]

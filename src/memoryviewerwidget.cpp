@@ -10,6 +10,7 @@
 #include "memorymodel.h"
 #include "processorhandler.h"
 #include "radixselectorwidget.h"
+#include "tabheader.h"
 
 namespace Ripes {
 
@@ -49,14 +50,35 @@ void MemoryViewerWidget::setupNavigationWidgets() {
   flowLayout->addWidget(m_radixSelector);
 
   QHBoxLayout *layout = new QHBoxLayout();
-  layout->addWidget(new QLabel("Go to register: ", m_ui->flowParentLayout));
+  auto *regLabel = new QLabel(tr("Go to register:"), m_ui->flowParentLayout);
+  const QString regTip =
+      tr("Center the view on the address currently stored in a register "
+         "(e.g. sp for the stack, gp for global data).");
+  setTips(regLabel, regTip);
+  setTips(m_goToRegister, regTip);
+  layout->addWidget(regLabel);
   layout->addWidget(m_goToRegister);
   flowLayout->addItem(layout);
 
   layout = new QHBoxLayout();
-  layout->addWidget(new QLabel("Go to section: ", m_ui->flowParentLayout));
+  auto *secLabel = new QLabel(tr("Go to section:"), m_ui->flowParentLayout);
+  const QString secTip =
+      tr("Center the view on the start of a program section (.text = code, "
+         ".data = global variables) or on an address you type in "
+         "(\"Address...\").");
+  setTips(secLabel, secTip);
+  setTips(m_goToSection, secTip);
+  layout->addWidget(secLabel);
   layout->addWidget(m_goToSection);
   flowLayout->addItem(layout);
+
+  // Legend for the placeholder symbols used in the table.
+  auto *legend = new QLabel(
+      tr("X = never written (no value yet), - = outside the address space; "
+         "greyed rows are uninitialized."),
+      m_ui->flowParentLayout);
+  legend->setWordWrap(true);
+  flowLayout->addWidget(legend);
 }
 
 void MemoryViewerWidget::setCentralAddress(AInt address) {
@@ -100,6 +122,10 @@ void MemoryViewerWidget::updateModel() {
 
   m_ui->memoryView->horizontalHeader()->setSectionResizeMode(
       MemoryModel::Address, QHeaderView::Stretch);
+  setTips(m_ui->memoryView,
+          tr("Memory contents, one word per row (addresses increase "
+             "upwards). Scroll with the mouse wheel; hover over a column "
+             "header for its meaning."));
 
   if (oldModel) {
     delete oldModel;

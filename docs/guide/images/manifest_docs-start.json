@@ -1,0 +1,518 @@
+[
+  {
+    "file": "01-install-first-launch.zh.png",
+    "lang": "zh",
+    "tab": "processor",
+    "actions": [],
+    "caption": "首次启动后的主窗口（Processor 标签页，默认 5 级流水线处理器，最大化）",
+    "script": [
+      "welcome on",
+      "tab processor",
+      "fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "01-install-first-launch.en.png",
+    "lang": "en",
+    "tab": "processor",
+    "actions": [],
+    "caption": "Main window right after the first launch (Processor tab, default 5-stage processor, maximized)",
+    "script": [
+      "welcome on",
+      "tab processor",
+      "fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "02-quickstart-editor.zh.png",
+    "lang": "zh",
+    "tab": "editor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example"
+    ],
+    "caption": "加载 factorial.s 后的 Editor 标签页：左边源代码，右边反汇编",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab editor",
+      "grab window"
+    ]
+  },
+  {
+    "file": "02-quickstart-editor.en.png",
+    "lang": "en",
+    "tab": "editor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example"
+    ],
+    "caption": "Editor tab after loading factorial.s: source left, disassembled executable code right",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab editor",
+      "grab window"
+    ]
+  },
+  {
+    "file": "02-quickstart-processor.zh.png",
+    "lang": "zh",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "clock x5"
+    ],
+    "caption": "单步 5 个周期后的 Processor 标签页：阶段标签、寄存器（a0 高亮）、指令存储器、执行信息",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "clock 5",
+      "fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "02-quickstart-processor.en.png",
+    "lang": "en",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "clock x5"
+    ],
+    "caption": "Processor tab after 5 clock cycles: stage labels, Registers (a0 highlighted), Instruction memory, Execution info",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "clock 5",
+      "fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "02-quickstart-pipeline-diagram.zh.png",
+    "lang": "zh",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "clock x20",
+      "show_pipeline_diagram"
+    ],
+    "caption": "运行 20 个周期后的流水线图窗口，可见 jal 之后的冲刷",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "clock 20",
+      "dialog pipeline size 1100 640",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "02-quickstart-pipeline-diagram.en.png",
+    "lang": "en",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "clock x20",
+      "show_pipeline_diagram"
+    ],
+    "caption": "Pipeline diagram dialog after 20 cycles, showing flushes after jal",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "clock 20",
+      "dialog pipeline size 1100 640",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "03-gui-tour-main-window.zh.png",
+    "lang": "zh",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "clock x5"
+    ],
+    "caption": "主窗口各区域：菜单栏、模拟控制工具栏、标签页工具栏、左侧标签栏、中央区域、状态栏（如可能加标注）",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "clock 5",
+      "fit",
+      "grab window"
+    ],
+    "shot_note": "No annotations added (plain screenshot)."
+  },
+  {
+    "file": "03-gui-tour-main-window.en.png",
+    "lang": "en",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "clock x5"
+    ],
+    "caption": "Main window areas: menu bar, simulator control toolbar, tab toolbar, left tab bar, central area, status bar (annotate if possible)",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "clock 5",
+      "fit",
+      "grab window"
+    ],
+    "shot_note": "No annotations added (plain screenshot)."
+  },
+  {
+    "file": "03-gui-tour-toolbar.zh.png",
+    "lang": "zh",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "grab_toolbar"
+    ],
+    "caption": "模拟控制工具栏特写（选择处理器、复位、反向、时钟、自动时钟 + 间隔、运行）",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "grab toolbar"
+    ]
+  },
+  {
+    "file": "03-gui-tour-toolbar.en.png",
+    "lang": "en",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "grab_toolbar"
+    ],
+    "caption": "Close-up of the simulator control toolbar (Select processor, Reset, Reverse, Clock, Auto clock + interval, Run)",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "grab toolbar"
+    ]
+  },
+  {
+    "file": "03-gui-tour-editor.zh.png",
+    "lang": "zh",
+    "tab": "editor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "clock x3"
+    ],
+    "caption": "Editor 标签页，显示寄存器面板与控制台，程序视图中有阶段高亮",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "clock 3",
+      "tab editor",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-editor.en.png",
+    "lang": "en",
+    "tab": "editor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "clock x3"
+    ],
+    "caption": "Editor tab with registers panel and console visible, stage highlighting in the program viewer",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "clock 3",
+      "tab editor",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-processor.zh.png",
+    "lang": "zh",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "run"
+    ],
+    "caption": "运行结束后的 Processor 标签页：控制台输出与执行信息",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "run",
+      "fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-processor.en.png",
+    "lang": "en",
+    "tab": "processor",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "run"
+    ],
+    "caption": "Processor tab after Run: console output 'Factorial value of 7 is 5040', Execution info filled",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab processor",
+      "run",
+      "fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-cache.zh.png",
+    "lang": "zh",
+    "tab": "cache",
+    "example": "examples/C/matrixmul.c",
+    "actions": [
+      "select_processor RV32_SS",
+      "load_example",
+      "run"
+    ],
+    "caption": "运行后的 Cache 标签页（L1 Data Cache）：预设、缓存表、统计与命中率曲线；无编译器时改用 examples/ELF/RanPi-RV32",
+    "script": [
+      "processor RV32_SS",
+      "load examples/ELF/RanPi-RV32",
+      "tab cache",
+      "combo presets 0",
+      "run 120000",
+      "grab window"
+    ],
+    "shot_note": "No RISC-V C compiler on this machine, so examples/ELF/RanPi-RV32 (precompiled C) is run instead of matrixmul.c. The ~120000-cycle run is longer than \"Max. cache plot cycles\" (default 10000), so the plot shows the most recent cycles with the note above it."
+  },
+  {
+    "file": "03-gui-tour-cache.en.png",
+    "lang": "en",
+    "tab": "cache",
+    "example": "examples/C/matrixmul.c",
+    "actions": [
+      "select_processor RV32_SS",
+      "load_example",
+      "run"
+    ],
+    "caption": "Cache tab (L1 Data Cache) with preset, cache table, statistics and hit-rate plot after running; if no C compiler use examples/ELF/RanPi-RV32",
+    "script": [
+      "processor RV32_SS",
+      "load examples/ELF/RanPi-RV32",
+      "tab cache",
+      "combo presets 0",
+      "run 120000",
+      "grab window"
+    ],
+    "shot_note": "No RISC-V C compiler on this machine, so examples/ELF/RanPi-RV32 (precompiled C) is run instead of matrixmul.c. The ~120000-cycle run is longer than \"Max. cache plot cycles\" (default 10000), so the plot shows the most recent cycles with the note above it."
+  },
+  {
+    "file": "03-gui-tour-memory.zh.png",
+    "lang": "zh",
+    "tab": "memory",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "goto_section .data"
+    ],
+    "caption": "Memory 标签页跳到 .data（0x10000000），可见 argument=7 与字符串，以及内存映射",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab memory",
+      "memgoto section:.data",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-memory.en.png",
+    "lang": "en",
+    "tab": "memory",
+    "example": "examples/assembly/factorial.s",
+    "actions": [
+      "load_example",
+      "goto_section .data"
+    ],
+    "caption": "Memory tab at .data (0x10000000) showing argument=7 and the strings, plus the Memory map",
+    "script": [
+      "load :/examples/assembly/factorial.s",
+      "tab memory",
+      "memgoto section:.data",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-io.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "LED Matrix",
+    "example": "examples/assembly/leds.s",
+    "actions": [
+      "create_peripheral LED Matrix",
+      "create_peripheral Switches",
+      "load_example",
+      "clock x200"
+    ],
+    "caption": "I/O 标签页：设备列表、I/O 导出符号、LED 矩阵与开关子窗口及外设详情",
+    "script": [
+      "peripheral \"LED Matrix\"",
+      "peripheral \"Switches\"",
+      "load :/examples/assembly/leds.s",
+      "tab io",
+      "runfor 400",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-io.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "LED Matrix",
+    "example": "examples/assembly/leds.s",
+    "actions": [
+      "create_peripheral LED Matrix",
+      "create_peripheral Switches",
+      "load_example",
+      "clock x200"
+    ],
+    "caption": "I/O tab with Devices list, I/O exports, LED Matrix and Switches sub-windows and peripheral details (Parameters, Register map, Exports)",
+    "script": [
+      "peripheral \"LED Matrix\"",
+      "peripheral \"Switches\"",
+      "load :/examples/assembly/leds.s",
+      "tab io",
+      "runfor 400",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-architecture.zh.png",
+    "lang": "zh",
+    "tab": "architecture",
+    "example": "resources/arch/ps3.json",
+    "actions": [
+      "select_architecture ps3",
+      "select_flow 0",
+      "next_step x2"
+    ],
+    "caption": "Architecture 标签页：PS3/Cell 拓扑，选中一个数据流的第 2 步，右侧显示方块详情",
+    "script": [
+      "tab architecture",
+      "arch topology ps3",
+      "arch flow 0",
+      "arch next 2",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-architecture.en.png",
+    "lang": "en",
+    "tab": "architecture",
+    "example": "resources/arch/ps3.json",
+    "actions": [
+      "select_architecture ps3",
+      "select_flow 0",
+      "next_step x2"
+    ],
+    "caption": "Architecture tab with PS3/Cell topology, a flow selected at step 2, block details on the right",
+    "script": [
+      "tab architecture",
+      "arch topology ps3",
+      "arch flow 0",
+      "arch next 2",
+      "grab window"
+    ]
+  },
+  {
+    "file": "03-gui-tour-load-dialog.zh.png",
+    "lang": "zh",
+    "tab": null,
+    "actions": [
+      "open_load_program_dialog",
+      "select Executable (ELF)"
+    ],
+    "caption": "Load program 对话框，选中 Executable (ELF)，显示 Current ISA",
+    "script": [
+      "dialog load elf examples/ELF/RanPi-RV32 size 640 330",
+      "grab dialog"
+    ],
+    "shot_note": "The ELF info box stays empty for a valid file (it only shows errors)."
+  },
+  {
+    "file": "03-gui-tour-load-dialog.en.png",
+    "lang": "en",
+    "tab": null,
+    "actions": [
+      "open_load_program_dialog",
+      "select Executable (ELF)"
+    ],
+    "caption": "Load program dialog with Executable (ELF) selected and Current ISA shown",
+    "script": [
+      "dialog load elf examples/ELF/RanPi-RV32 size 640 330",
+      "grab dialog"
+    ],
+    "shot_note": "The ELF info box stays empty for a valid file (it only shows errors)."
+  },
+  {
+    "file": "03-gui-tour-processor-dialog.zh.png",
+    "lang": "zh",
+    "tab": null,
+    "actions": [
+      "open_select_processor",
+      "select 5-stage processor"
+    ],
+    "caption": "选择处理器对话框，选中 5 级流水线处理器：树形列表、名称/ISA/描述、ISA 扩展、布局、寄存器初始化",
+    "script": [
+      "dialog processor",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "03-gui-tour-processor-dialog.en.png",
+    "lang": "en",
+    "tab": null,
+    "actions": [
+      "open_select_processor",
+      "select 5-stage processor"
+    ],
+    "caption": "Select Processor dialog with the 5-stage processor selected: tree, Name/ISA/Description, ISA Exts., Layout, register initialization",
+    "script": [
+      "dialog processor",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "03-gui-tour-settings.zh.png",
+    "lang": "zh",
+    "tab": null,
+    "actions": [
+      "open_settings",
+      "page Environment"
+    ],
+    "caption": "设置对话框 Environment 页（配色方案、语言、刷新与绘图上限）",
+    "script": [
+      "dialog settings 0 size 900 640",
+      "grab dialog"
+    ]
+  },
+  {
+    "file": "03-gui-tour-settings.en.png",
+    "lang": "en",
+    "tab": null,
+    "actions": [
+      "open_settings",
+      "page Environment"
+    ],
+    "caption": "Settings dialog, Environment page (Color scheme, Language, UI update and plot limits)",
+    "script": [
+      "dialog settings 0 size 900 640",
+      "grab dialog"
+    ]
+  }
+]

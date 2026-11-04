@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string notr="true">Dialog</string>
   </property>
   <property name="modal">
    <bool>true</bool>
@@ -42,7 +42,11 @@
             </widget>
            </item>
            <item row="3" column="1">
-            <widget class="QComboBox" name="layout"/>
+            <widget class="QComboBox" name="layout">
+             <property name="toolTip">
+              <string>How detailed the processor diagram is drawn: Standard shows the main datapath, Extended also shows control signals.</string>
+             </property>
+            </widget>
            </item>
            <item row="0" column="0">
             <widget class="QLabel" name="label">
@@ -60,8 +64,11 @@
            </item>
            <item row="3" column="0">
             <widget class="QLabel" name="label_4">
+             <property name="toolTip">
+              <string>How detailed the processor diagram is drawn: Standard shows the main datapath, Extended also shows control signals.</string>
+             </property>
              <property name="text">
-              <string>Layout</string>
+              <string>Layout:</string>
              </property>
             </widget>
            </item>
@@ -105,6 +112,9 @@
            </item>
            <item row="1" column="0">
             <widget class="QLabel" name="label_2">
+             <property name="toolTip">
+              <string>Instruction set architecture implemented by the selected processor.</string>
+             </property>
              <property name="text">
               <string>ISA:</string>
              </property>
@@ -112,8 +122,11 @@
            </item>
            <item row="2" column="0">
             <widget class="QLabel" name="label_5">
+             <property name="toolTip">
+              <string>Optional RISC-V instruction set extensions (M = multiply/divide, C = compressed, ...). Hover an extension for details.</string>
+             </property>
              <property name="text">
-              <string>ISA Exts.</string>
+              <string>ISA extensions:</string>
              </property>
             </widget>
            </item>

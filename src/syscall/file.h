@@ -15,10 +15,10 @@ class OpenSyscall : public BaseSyscall {
 public:
   OpenSyscall()
       : BaseSyscall(
-            "Open", "Opens a file from a path",
-            {{0, "Pointer to null terminated string for the path"},
-             {1, "flags" /* TODO(raccog): Add descriptions for each flag */}},
-            {{0, "the file decriptor or -1 if an error occurred"}}) {}
+            "Open", QT_TRANSLATE_NOOP("Ripes::Syscall", "Opens a file from a path"),
+            {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "Pointer to null terminated string for the path")},
+             {1, QT_TRANSLATE_NOOP("Ripes::Syscall", "flags") /* TODO(raccog): Add descriptions for each flag */}},
+            {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "the file decriptor or -1 if an error occurred")}}) {}
   void execute() {
     const AInt arg0 = BaseSyscall::getArg(BaseSyscall::REG_FILE, 0);
     const AInt arg1 = BaseSyscall::getArg(BaseSyscall::REG_FILE, 1);
@@ -45,8 +45,8 @@ class CloseSyscall : public BaseSyscall {
 
 public:
   CloseSyscall()
-      : BaseSyscall("Close", "Close a file",
-                    {{0, "the file descriptor to close"}}) {}
+      : BaseSyscall("Close", QT_TRANSLATE_NOOP("Ripes::Syscall", "Close a file"),
+                    {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "the file descriptor to close")}}) {}
   void execute() {
     const VInt arg0 = BaseSyscall::getArg(BaseSyscall::REG_FILE, 0);
     SystemIO::closeFile(arg0);
@@ -59,13 +59,13 @@ class LSeekSyscall : public BaseSyscall {
 
 public:
   LSeekSyscall()
-      : BaseSyscall("LSeek", "Seek to a position in a file",
-                    {{0, "the file descriptor"},
-                     {1, "the offset for the base"},
-                     {2, "the base is the begining of the file (0), the "
-                         "current position (1), or the end of the file (2)"}},
-                    {{0, "the selected position from the beginning of the file "
-                         "or -1 if an error occurred"}}) {}
+      : BaseSyscall("LSeek", QT_TRANSLATE_NOOP("Ripes::Syscall", "Seek to a position in a file"),
+                    {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "the file descriptor")},
+                     {1, QT_TRANSLATE_NOOP("Ripes::Syscall", "the offset for the base")},
+                     {2, QT_TRANSLATE_NOOP("Ripes::Syscall", "the base is the begining of the file (0), the "
+                         "current position (1), or the end of the file (2)")}},
+                    {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "the selected position from the beginning of the file "
+                         "or -1 if an error occurred")}}) {}
   void execute() {
     int result = SystemIO::seek(BaseSyscall::getArg(BaseSyscall::REG_FILE, 0),
                                 BaseSyscall::getArg(BaseSyscall::REG_FILE, 1),
@@ -80,11 +80,11 @@ class ReadSyscall : public BaseSyscall {
 
 public:
   ReadSyscall()
-      : BaseSyscall("Read", "Read from a file descriptor into a buffer",
-                    {{0, "the file descriptor"},
-                     {1, "address of the buffer"},
-                     {2, "maximum number of bytes to read"}},
-                    {{0, "number of read bytes or -1 if an error occurred"}}) {}
+      : BaseSyscall("Read", QT_TRANSLATE_NOOP("Ripes::Syscall", "Read from a file descriptor into a buffer"),
+                    {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "the file descriptor")},
+                     {1, QT_TRANSLATE_NOOP("Ripes::Syscall", "address of the buffer")},
+                     {2, QT_TRANSLATE_NOOP("Ripes::Syscall", "maximum number of bytes to read")}},
+                    {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "number of read bytes or -1 if an error occurred")}}) {}
   void execute() {
     const int fd = BaseSyscall::getArg(BaseSyscall::REG_FILE, 0);
     long byteAddress = BaseSyscall::getArg(
@@ -114,11 +114,11 @@ class WriteSyscall : public BaseSyscall {
 
 public:
   WriteSyscall()
-      : BaseSyscall("Write", "Write to a file descriptor from a buffer",
-                    {{0, "the file descriptor"},
-                     {1, "address of the buffer"},
-                     {2, "number of bytes to write"}},
-                    {{0, "the number of bytes written"}}) {}
+      : BaseSyscall("Write", QT_TRANSLATE_NOOP("Ripes::Syscall", "Write to a file descriptor from a buffer"),
+                    {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "the file descriptor")},
+                     {1, QT_TRANSLATE_NOOP("Ripes::Syscall", "address of the buffer")},
+                     {2, QT_TRANSLATE_NOOP("Ripes::Syscall", "number of bytes to write")}},
+                    {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "the number of bytes written")}}) {}
   void execute() {
     const long byteAddress = BaseSyscall::getArg(
         BaseSyscall::REG_FILE, 1); // source of characters to write to file
@@ -151,10 +151,10 @@ public:
   GetCWDSyscall()
       : BaseSyscall(
             "GetCWD",
-            "Writes the path of the current working directory into a buffer",
-            {{0, "address of the buffer to write into"},
-             {1, "the length of the buffer"}},
-            {{0, "-1 if the path is longer than the buffer"}}) {}
+            QT_TRANSLATE_NOOP("Ripes::Syscall", "Writes the path of the current working directory into a buffer"),
+            {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "address of the buffer to write into")},
+             {1, QT_TRANSLATE_NOOP("Ripes::Syscall", "the length of the buffer")}},
+            {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "-1 if the path is longer than the buffer")}}) {}
   void execute() {
     const long byteAddress = BaseSyscall::getArg(
         BaseSyscall::REG_FILE, 0); // destination of characters read from file
@@ -189,10 +189,10 @@ public:
   FStatSyscall()
       : BaseSyscall(
             "FStat",
-            "fstat is a system call that is used to determine information "
-            "about a file based on its file descriptor.",
-            {{0, " the file descriptor "}, {1, " pointer to a struct stat "}},
-            {{0, "returns -1 if an error occurred"}}) {}
+            QT_TRANSLATE_NOOP("Ripes::Syscall", "fstat is a system call that is used to determine information "
+            "about a file based on its file descriptor."),
+            {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", " the file descriptor ")}, {1, QT_TRANSLATE_NOOP("Ripes::Syscall", " pointer to a struct stat ")}},
+            {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "returns -1 if an error occurred")}}) {}
   void execute() {
     /// @todo: Figure out whether we want to handle fstat. For now, most
     /// syscall's seems to execute fine with just null-values in the fstat

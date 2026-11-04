@@ -20,7 +20,7 @@ AddressDialog::AddressDialog(QWidget *parent)
   m_ui->address->setText(
       "0x" +
       QString("0").repeated(ProcessorHandler::currentISA()->bytes() * 2));
-  setWindowTitle("Ripes");
+  setWindowTitle(tr("Go to address"));
 
   connect(m_ui->address, &QLineEdit::textChanged, this,
           &AddressDialog::validateTargetAddress);

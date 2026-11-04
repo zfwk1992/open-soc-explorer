@@ -1,0 +1,351 @@
+{
+  "id": "npu_system",
+  "title": {"zh": "主机 CPU + 张量单元（描述符环 / 门铃 / DMA / 脉动阵列）", "en": "Host CPU + tensor unit (descriptor ring / doorbell / DMA / systolic array)"},
+  "subtitle": {"zh": "RISC-V 主机 + 脉动阵列 NPU：描述符环、门铃、DMA、中断", "en": "RISC-V host + systolic-array NPU: descriptor ring, doorbell, DMA, interrupt"},
+  "description": {"zh": "本视图展示模块 B（张量处理器与 CPU 交互）的系统级结构：CPU 在 DRAM 中填写任务描述符并写 TAIL 寄存器（门铃）；NPU 的控制器消费 HEAD..TAIL 之间的描述符，由 DMA 引擎把输入 tile 搬入片上 buffer，脉动阵列按周期推进计算，结果再由 DMA 写回 DRAM，最后通过 IRQ_STATUS / 中断线通知 CPU。\n\n图中用粗线表示 DMA 数据搬运，虚线表示中断，点划线表示门铃这类“信箱”式通知。\n\n选择左侧的 flow 并按 → 单步。", "en": "This view shows the system-level structure of module B (tensor processor / CPU interaction): the CPU fills in a task descriptor in DRAM and writes the TAIL register (the doorbell); the NPU controller consumes the descriptors between HEAD..TAIL, the DMA engine moves the input tiles into on-chip buffers, the systolic array advances the computation cycle by cycle, the DMA writes the results back to DRAM, and finally the CPU is notified via IRQ_STATUS / the interrupt line.\n\nThick lines denote DMA data transfers, dashed lines interrupts, and dash-dotted lines \"mailbox\"-style notifications such as the doorbell.\n\nPick a flow on the left and press → to step through it."},
+  "blocks": [
+    {
+      "id": "cpu",
+      "label": {"zh": "RISC-V Host CPU", "en": "RISC-V Host CPU"},
+      "sublabel": {"zh": "Ripes 处理器模型（RV32I）", "en": "Ripes processor model (RV32I)"},
+      "kind": "cpu",
+      "x": 40, "y": 40, "w": 220, "h": 80,
+      "details": {"zh": "运行主机程序：准备矩阵 A、B，在描述符环中填写 MATMUL 任务，敲门铃，然后轮询 STATUS 或等待中断，最后读回 C 并与 CPU 验算结果对比。\n\n示例：examples/C/npu_matmul.c、examples/assembly/npu_matmul.s。", "en": "Runs the host program: prepares matrices A and B, writes a MATMUL task into the descriptor ring, rings the doorbell, then polls STATUS or waits for the interrupt, and finally reads C back and compares it with the result computed on the CPU.\n\nExamples: examples/C/npu_matmul.c, examples/assembly/npu_matmul.s."},
+      "props": [
+        {"key": "ISA", "value": "RV32I"},
+        {"key": "Role", "value": "Host / producer"},
+        {"key": "Sync", "value": "poll STATUS or IRQ"}
+      ]
+    },
+    {
+      "id": "regs",
+      "label": {"zh": "IOTensorUnit MMIO registers", "en": "IOTensorUnit MMIO registers"},
+      "sublabel": {"zh": "QUEUE_BASE / QUEUE_SIZE / HEAD / TAIL / STATUS / IRQ_EN / IRQ_STATUS", "en": "QUEUE_BASE / QUEUE_SIZE / HEAD / TAIL / STATUS / IRQ_EN / IRQ_STATUS"},
+      "kind": "io",
+      "x": 600, "y": 40, "w": 260, "h": 80,
+      "details": {"zh": "NPU 对主机暴露的寄存器窗口（IOBase 外设）。\n\nQUEUE_BASE / QUEUE_SIZE: 描述符环在主存中的位置和长度\nHEAD (R): 设备已消费到的位置\nTAIL (RW): CPU 写入新的尾指针即为门铃（doorbell）\nSTATUS: busy / idle\nIRQ_EN / IRQ_STATUS (W1C): 完成中断使能与状态\nCYCLES / DMA_BYTES / MACS: 统计信息。", "en": "The register window the NPU exposes to the host (an IOBase peripheral).\n\nQUEUE_BASE / QUEUE_SIZE: location and length of the descriptor ring in main memory\nHEAD (R): how far the device has consumed\nTAIL (RW): writing a new tail pointer is the doorbell\nSTATUS: busy / idle\nIRQ_EN / IRQ_STATUS (W1C): completion interrupt enable and status\nCYCLES / DMA_BYTES / MACS: statistics."},
+      "props": [
+        {"key": "Doorbell", "value": "write TAIL"},
+        {"key": "HEAD", "value": "read-only, device owned"},
+        {"key": "IRQ_STATUS", "value": "write-1-to-clear"},
+        {"key": "Stats", "value": "CYCLES, DMA_BYTES, MACS"}
+      ]
+    },
+    {
+      "id": "sysbus",
+      "label": {"zh": "System bus", "en": "System bus"},
+      "sublabel": {"zh": "memory + memory-mapped I/O", "en": "memory + memory-mapped I/O"},
+      "kind": "bus",
+      "x": 40, "y": 160, "w": 620, "h": 46,
+      "details": {"zh": "Ripes 的统一地址空间：主存与外设寄存器都映射在其中。", "en": "Ripes' unified address space: both main memory and peripheral registers are mapped into it."},
+      "props": [
+        {"key": "Width", "value": "32 bit"}
+      ]
+    },
+    {
+      "id": "ctrl",
+      "label": {"zh": "Sequencer / control", "en": "Sequencer / control"},
+      "sublabel": {"zh": "消费 HEAD..TAIL 之间的描述符", "en": "consumes descriptors HEAD..TAIL"},
+      "kind": "accel",
+      "x": 640, "y": 250, "w": 260, "h": 60,
+      "details": {"zh": "门铃响后，控制器发现 HEAD != TAIL，让 DMA 取回描述符，解析 opcode（MATMUL / RELU / ADD）和 M、N、K，把任务拆成 tile，依次驱动 DMA 与脉动阵列。每完成一个描述符就把 HEAD 加一。", "en": "After the doorbell rings the controller sees HEAD != TAIL, has the DMA fetch the descriptor, decodes the opcode (MATMUL / RELU / ADD) and M, N, K, splits the task into tiles and drives the DMA and the systolic array in turn. HEAD is incremented after each completed descriptor."},
+      "props": [
+        {"key": "Opcodes", "value": "MATMUL, RELU, ADD"},
+        {"key": "Descriptor", "value": "32 B: opcode, srcA, srcB, dst, M, N, K, flags"}
+      ]
+    },
+    {
+      "id": "dma",
+      "label": {"zh": "DMA engine", "en": "DMA engine"},
+      "sublabel": {"zh": "每周期搬 1 个字（可配带宽）", "en": "1 word/cycle (configurable)"},
+      "kind": "dma",
+      "x": 640, "y": 350, "w": 260, "h": 60,
+      "details": {"zh": "通过外设的 memRead/memWrite 回调主动访问主存：取描述符、把 A/B 的 tile 搬到片上 buffer、把结果 C 写回。\n\n带宽有限（默认每周期 1 个字），用来体现“搬数据往往比算慢”。DMA_BYTES 统计搬运量。", "en": "Actively accesses main memory through the peripheral's memRead/memWrite callbacks: fetches descriptors, moves the A/B tiles into the on-chip buffers and writes the result C back.\n\nBandwidth is limited (1 word per cycle by default) to show that \"moving data is often slower than computing\". DMA_BYTES counts the bytes transferred."},
+      "props": [
+        {"key": "Bandwidth", "value": "1 word / cycle (default)"},
+        {"key": "Transfers", "value": "descriptor, A/B tiles in, C tiles out"}
+      ]
+    },
+    {
+      "id": "ring",
+      "label": {"zh": "Descriptor ring", "en": "Descriptor ring"},
+      "sublabel": {"zh": "QUEUE_BASE + idx × 32（位于 DRAM）", "en": "QUEUE_BASE + idx × 32 (in DRAM)"},
+      "kind": "memory",
+      "x": 40, "y": 470, "w": 240, "h": 80,
+      "details": {"zh": "位于主存中的环形队列，每项 32 字节：{opcode, srcA, srcB, dst, M, N, K, flags}。\n\nCPU 是生产者（写 ring[TAIL]，再写 TAIL 寄存器），NPU 是消费者（读 ring[HEAD]，完成后 HEAD++）。队列满的判断：(TAIL + 1) % QUEUE_SIZE == HEAD。", "en": "A circular queue in main memory, 32 bytes per entry: {opcode, srcA, srcB, dst, M, N, K, flags}.\n\nThe CPU is the producer (writes ring[TAIL], then the TAIL register), the NPU is the consumer (reads ring[HEAD], HEAD++ when done). The queue is full when (TAIL + 1) % QUEUE_SIZE == HEAD."},
+      "props": [
+        {"key": "Entry", "value": "32 B"},
+        {"key": "Producer", "value": "CPU (TAIL)"},
+        {"key": "Consumer", "value": "NPU (HEAD)"}
+      ]
+    },
+    {
+      "id": "dram",
+      "label": {"zh": "Host DRAM", "en": "Host DRAM"},
+      "sublabel": {"zh": "矩阵 A、B（int8）、C（int32）以及描述符环", "en": "A, B (int8), C (int32), descriptor ring"},
+      "kind": "memory",
+      "x": 40, "y": 720, "w": 1240, "h": 60,
+      "details": {"zh": "主机主存。CPU 与 NPU 共享；在带 cache 的系统上，CPU 敲门铃前需要把写入的数据刷出 cache（flush），读结果前需要使 cache 失效（invalidate），并用 fence 保证顺序。Ripes 的模型中 cache 只是统计性的，不改变数据可见性，但示例程序仍演示这一约定。", "en": "Host main memory, shared by the CPU and the NPU. On a system with caches the CPU must flush the written data out of the cache before ringing the doorbell, invalidate the cache before reading the results, and use fence to enforce ordering. In the Ripes model the cache is statistical only and does not change data visibility, but the example programs still demonstrate this convention."},
+      "props": [
+        {"key": "Contents", "value": "A, B, C, descriptor ring"},
+        {"key": "Coherence", "value": "flush before doorbell, invalidate after IRQ"}
+      ]
+    },
+    {
+      "id": "buf",
+      "label": {"zh": "On-chip buffers (SRAM)", "en": "On-chip buffers (SRAM)"},
+      "sublabel": {"zh": "A tile / weight tile", "en": "A tile / weight tile"},
+      "kind": "cache",
+      "x": 1070, "y": 350, "w": 210, "h": 60,
+      "details": {"zh": "DMA 搬入的输入 tile 与权重 tile 暂存在片上 SRAM；权重先装入脉动阵列（weight-stationary），输入再斜向注入。", "en": "Input tiles and weight tiles brought in by the DMA are staged in on-chip SRAM; the weights are loaded into the systolic array first (weight-stationary), then the inputs are injected diagonally."},
+      "props": [
+        {"key": "Holds", "value": "A tile, B (weight) tile"}
+      ]
+    },
+    {
+      "id": "array",
+      "label": {"zh": "Systolic array N×N", "en": "Systolic array N×N"},
+      "sublabel": {"zh": "weight-stationary；int8 × int8 → int32 部分和向下流动", "en": "weight-stationary; int8 × int8 → int32 partial sums flow down"},
+      "kind": "accel",
+      "x": 1070, "y": 460, "w": 210, "h": 140,
+      "details": {"zh": "N×N 个处理单元（PE，默认 4×4，可配 8×8）。每个 PE 保存一个权重 w；输入 a 从左向右逐拍传递，部分和从上向下逐拍累加，每个 PE 每拍做一次乘加（MAC）。\n\n输入按行斜向（skew）注入，使得数据在阵列中像脉搏一样流动；一个 N×N tile 的 matmul 需要约 3N 拍的流水，吞吐接近每拍 N² 次 MAC。MACS 统计总乘加次数。", "en": "N×N processing elements (PEs, 4×4 by default, configurable to 8×8). Each PE holds one weight w; inputs a are passed from left to right one beat at a time, partial sums accumulate from top to bottom, and every PE performs one multiply-accumulate (MAC) per beat.\n\nInputs are injected row by row with a skew so that data pulses through the array like a heartbeat; a matmul on one N×N tile takes a pipeline of about 3N beats, with a throughput approaching N² MACs per beat. MACS counts the total number of multiply-accumulates."},
+      "props": [
+        {"key": "Size", "value": "4×4 (default), 8×8"},
+        {"key": "Dataflow", "value": "weight-stationary"},
+        {"key": "Precision", "value": "int8 × int8 → int32"},
+        {"key": "Throughput", "value": "N² MAC / cycle"}
+      ]
+    },
+    {
+      "id": "acc",
+      "label": {"zh": "Accumulators / output buffer", "en": "Accumulators / output buffer"},
+      "sublabel": {"zh": "C tile（int32）", "en": "C tile (int32)"},
+      "kind": "cache",
+      "x": 1070, "y": 630, "w": 210, "h": 50,
+      "details": {"zh": "阵列底部流出的部分和累加成输出 tile；K 维分块时在这里累加多轮结果，最后由 DMA 写回 DRAM。", "en": "The partial sums leaving the bottom of the array are accumulated into the output tile; when the K dimension is tiled, the results of several passes are accumulated here before the DMA writes them back to DRAM."},
+      "props": [
+        {"key": "Holds", "value": "C tile (int32)"}
+      ]
+    }
+  ],
+  "buses": [
+    {
+      "id": "b_cpu_bus",
+      "from": "cpu",
+      "to": "sysbus",
+      "label": {"zh": "load / store", "en": "load / store"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_bus_regs",
+      "from": "sysbus",
+      "to": "regs",
+      "label": {"zh": "MMIO (ioRead / ioWrite)", "en": "MMIO (ioRead / ioWrite)"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_bus_ring",
+      "from": "sysbus",
+      "to": "ring",
+      "label": {"zh": "写描述符", "en": "write descriptor"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_bus_dram",
+      "from": "sysbus",
+      "to": "dram",
+      "label": {"zh": "内存", "en": "memory"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_ring_dram",
+      "from": "ring",
+      "to": "dram",
+      "label": {"zh": "位于 DRAM", "en": "lives in DRAM"},
+      "kind": "link",
+      "bidirectional": true
+    },
+    {
+      "id": "b_doorbell",
+      "from": "regs",
+      "to": "ctrl",
+      "label": {"zh": "门铃（TAIL）/ HEAD、STATUS", "en": "doorbell (TAIL) / HEAD, STATUS"},
+      "kind": "mailbox",
+      "bidirectional": true
+    },
+    {
+      "id": "b_ctrl_dma",
+      "from": "ctrl",
+      "to": "dma",
+      "label": {"zh": "tile 请求", "en": "tile requests"},
+      "kind": "link",
+      "bidirectional": false
+    },
+    {
+      "id": "b_dma_ring",
+      "from": "dma",
+      "to": "ring",
+      "label": {"zh": "取描述符 [HEAD]", "en": "fetch descriptor [HEAD]"},
+      "kind": "dma",
+      "bidirectional": false
+    },
+    {
+      "id": "b_dma_dram",
+      "from": "dma",
+      "to": "dram",
+      "label": {"zh": "A / B tile 读入，C tile 写出", "en": "A / B tiles in, C tiles out"},
+      "kind": "dma",
+      "bidirectional": true
+    },
+    {
+      "id": "b_dma_buf",
+      "from": "dma",
+      "to": "buf",
+      "label": {"zh": "填充 buffer", "en": "fill buffers"},
+      "kind": "dma",
+      "bidirectional": false
+    },
+    {
+      "id": "b_buf_array",
+      "from": "buf",
+      "to": "array",
+      "label": {"zh": "装入权重，斜向注入输入", "en": "load weights, inject inputs (skewed)"},
+      "kind": "link",
+      "bidirectional": false
+    },
+    {
+      "id": "b_array_acc",
+      "from": "array",
+      "to": "acc",
+      "label": {"zh": "部分和", "en": "partial sums"},
+      "kind": "link",
+      "bidirectional": false
+    },
+    {
+      "id": "b_acc_dma",
+      "from": "acc",
+      "to": "dma",
+      "label": {"zh": "写回 C", "en": "write back C"},
+      "kind": "dma",
+      "bidirectional": false
+    },
+    {
+      "id": "b_irq",
+      "from": "regs",
+      "to": "cpu",
+      "label": {"zh": "IRQ (IRQ_EN & IRQ_STATUS)", "en": "IRQ (IRQ_EN & IRQ_STATUS)"},
+      "kind": "irq",
+      "bidirectional": false
+    }
+  ],
+  "flows": [
+    {
+      "id": "matmul_offload",
+      "title": {"zh": "把一次 MATMUL 卸载到 NPU", "en": "Offload one MATMUL to the NPU"},
+      "description": {"zh": "从 CPU 填写描述符、敲门铃，到 DMA 搬运、脉动阵列计算、写回和完成通知的完整路径。", "en": "The complete path from the CPU filling in a descriptor and ringing the doorbell, through DMA transfers and systolic-array computation, to write-back and completion notification."},
+      "steps": [
+        {
+          "highlight": ["cpu", "dram"],
+          "buses": ["b_cpu_bus", "b_bus_dram"],
+          "text": {"zh": "CPU 把量化后的 int8 矩阵 A (M×K) 和 B (K×N) 写入 DRAM，并为 int32 的 C (M×N) 预留空间。", "en": "The CPU writes the quantized int8 matrices A (M×K) and B (K×N) into DRAM and reserves space for the int32 result C (M×N)."}
+        },
+        {
+          "highlight": ["cpu", "ring"],
+          "buses": ["b_cpu_bus", "b_bus_ring"],
+          "text": {"zh": "CPU 在 ring[TAIL] 填写描述符 {opcode=MATMUL, srcA, srcB, dst, M, N, K, flags}。此时设备还看不到它。", "en": "The CPU fills in the descriptor {opcode=MATMUL, srcA, srcB, dst, M, N, K, flags} at ring[TAIL]. The device cannot see it yet."}
+        },
+        {
+          "highlight": ["cpu", "dram"],
+          "buses": ["b_cpu_bus", "b_bus_dram"],
+          "text": {"zh": "CPU 执行 fence（带 cache 的系统还要 flush），保证数据和描述符在敲门铃之前已经对设备可见。", "en": "The CPU executes a fence (and a flush on systems with caches) so that the data and the descriptor are visible to the device before the doorbell rings."}
+        },
+        {
+          "highlight": ["cpu", "regs"],
+          "buses": ["b_cpu_bus", "b_bus_regs"],
+          "text": {"zh": "CPU 写 TAIL = (TAIL + 1) % QUEUE_SIZE：这就是门铃。一次 MMIO 写同时完成“提交任务”和“唤醒设备”。", "en": "The CPU writes TAIL = (TAIL + 1) % QUEUE_SIZE: this is the doorbell. A single MMIO write both \"submits the task\" and \"wakes the device\"."}
+        },
+        {
+          "highlight": ["regs", "ctrl"],
+          "buses": ["b_doorbell"],
+          "text": {"zh": "控制器发现 HEAD != TAIL，STATUS.busy 置 1，开始处理 ring[HEAD]。", "en": "The controller sees HEAD != TAIL, sets STATUS.busy to 1 and starts processing ring[HEAD]."}
+        },
+        {
+          "highlight": ["ctrl", "dma", "ring"],
+          "buses": ["b_ctrl_dma", "b_dma_ring"],
+          "text": {"zh": "DMA 从主存读回 32 字节描述符，控制器解析 opcode 与 M、N、K，把任务拆成 N×N 的 tile。", "en": "The DMA reads the 32-byte descriptor back from main memory; the controller decodes the opcode and M, N, K and splits the task into N×N tiles."}
+        },
+        {
+          "highlight": ["dma", "dram", "buf"],
+          "buses": ["b_dma_dram", "b_dma_buf"],
+          "text": {"zh": "DMA 把 B 的一个 tile（权重）和 A 的对应行搬入片上 buffer。每周期只搬 1 个字：这是整个流程中最慢的部分。", "en": "The DMA moves one tile of B (the weights) and the matching rows of A into the on-chip buffers. Only 1 word moves per cycle: this is the slowest part of the whole flow."}
+        },
+        {
+          "highlight": ["buf", "array"],
+          "buses": ["b_buf_array"],
+          "text": {"zh": "权重装入阵列并保持不动（weight-stationary）；A 的各行按时间斜向（skew）注入，每拍向右传递一列。", "en": "The weights are loaded into the array and stay put (weight-stationary); the rows of A are injected with a time skew, moving one column to the right per beat."}
+        },
+        {
+          "highlight": ["array", "acc"],
+          "buses": ["b_array_acc"],
+          "text": {"zh": "每个 PE 每拍做一次 int8 乘加，部分和向下流动；约 3N 拍后输出 tile 从底部流出，累加进输出 buffer。K 维分块时重复上述两步。", "en": "Every PE performs one int8 multiply-accumulate per beat and the partial sums flow downwards; after about 3N beats the output tile leaves the bottom and is accumulated into the output buffer. With K tiling the previous two steps repeat."}
+        },
+        {
+          "highlight": ["acc", "dma", "dram"],
+          "buses": ["b_acc_dma", "b_dma_dram"],
+          "text": {"zh": "DMA 把 int32 结果 tile 写回 DRAM 中的 C。所有 tile 完成后控制器把 HEAD 加一。", "en": "The DMA writes the int32 result tile back to C in DRAM. When all tiles are done the controller increments HEAD."}
+        },
+        {
+          "highlight": ["ctrl", "regs"],
+          "buses": ["b_doorbell"],
+          "text": {"zh": "HEAD == TAIL：STATUS.busy 清零，IRQ_STATUS.done 置 1。", "en": "HEAD == TAIL: STATUS.busy is cleared and IRQ_STATUS.done is set to 1."}
+        },
+        {
+          "highlight": ["regs", "cpu"],
+          "buses": ["b_irq"],
+          "text": {"zh": "若 IRQ_EN = 1，中断线拉高；否则 CPU 通过轮询 STATUS / HEAD 得知完成。CPU 使 cache 失效后读回 C，与 CPU 端验算结果对比，并比较两者的周期数。", "en": "If IRQ_EN = 1 the interrupt line is raised; otherwise the CPU learns about completion by polling STATUS / HEAD. The CPU invalidates its cache, reads C back, compares it with the result computed on the CPU and compares the cycle counts of both."}
+        }
+      ]
+    },
+    {
+      "id": "completion_notify",
+      "title": {"zh": "完成通知：轮询 vs 中断", "en": "Completion notification: polling vs. interrupt"},
+      "description": {"zh": "同一件事的两种做法：忙等 STATUS，或者让设备用中断打断 CPU。", "en": "Two ways of doing the same thing: busy-wait on STATUS, or let the device interrupt the CPU."},
+      "steps": [
+        {
+          "highlight": ["cpu", "regs"],
+          "buses": ["b_cpu_bus", "b_bus_regs"],
+          "text": {"zh": "轮询：CPU 在循环里反复 ioRead STATUS（或比较 HEAD 与 TAIL）。实现简单、延迟最低，但 CPU 在等待期间什么也做不了，而且每次读都占用总线。", "en": "Polling: the CPU repeatedly does ioRead STATUS in a loop (or compares HEAD with TAIL). Simple and lowest latency, but the CPU can do nothing else while waiting, and every read occupies the bus."}
+        },
+        {
+          "highlight": ["ctrl", "dma", "array"],
+          "buses": ["b_ctrl_dma", "b_dma_buf", "b_buf_array"],
+          "text": {"zh": "与此同时设备在 processorClocked 的每个周期前进一步：DMA 搬数据、阵列算 tile。CPU 的轮询次数大致等于设备耗时 / 轮询循环长度。", "en": "Meanwhile the device advances one step on every processorClocked cycle: the DMA moves data, the array computes tiles. The number of polls is roughly the device's run time divided by the length of the polling loop."}
+        },
+        {
+          "highlight": ["cpu", "regs"],
+          "buses": ["b_cpu_bus", "b_bus_regs"],
+          "text": {"zh": "中断：CPU 先写 IRQ_EN = 1，然后可以去做别的事（或执行 wfi 式的等待）。", "en": "Interrupt: the CPU first writes IRQ_EN = 1 and can then do other work (or execute a wfi-style wait)."}
+        },
+        {
+          "highlight": ["ctrl", "regs"],
+          "buses": ["b_doorbell"],
+          "text": {"zh": "设备完成描述符后置 IRQ_STATUS.done = 1；因为 IRQ_EN = 1，中断线被拉高。", "en": "After finishing the descriptor the device sets IRQ_STATUS.done = 1; because IRQ_EN = 1, the interrupt line is raised."}
+        },
+        {
+          "highlight": ["regs", "cpu"],
+          "buses": ["b_irq"],
+          "text": {"zh": "CPU 进入中断处理程序：读 IRQ_STATUS 确认来源，向 IRQ_STATUS 写 1 清除（W1C），再读取结果。忘记 W1C 会导致中断反复触发。", "en": "The CPU enters its interrupt handler: it reads IRQ_STATUS to confirm the source, writes 1 to IRQ_STATUS to clear it (W1C), then reads the results. Forgetting the W1C makes the interrupt fire again and again."}
+        },
+        {
+          "highlight": ["cpu"],
+          "buses": [],
+          "text": {"zh": "何时值得卸载：只有当 NPU 的计算加速足以抵消“填描述符 + 门铃 + DMA 搬运 + 完成通知”的固定开销时，offload 才划算；矩阵越大、算术强度越高越合适。", "en": "When offloading pays off: only when the NPU's compute speed-up outweighs the fixed overhead of \"fill descriptor + doorbell + DMA transfers + completion notification\". The larger the matrices and the higher the arithmetic intensity, the better the fit."}
+        }
+      ]
+    }
+  ]
+}

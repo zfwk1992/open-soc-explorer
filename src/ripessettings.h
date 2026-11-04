@@ -68,6 +68,12 @@ namespace Ripes {
 // Application color scheme: 0 = follow system, 1 = light, 2 = dark. See the
 // ColorScheme enum below.
 #define RIPES_SETTING_COLORSCHEME ("color_scheme")
+// UI language: "system", "en" or "zh_CN" (see i18n.h). Takes effect on restart.
+#define RIPES_SETTING_LANGUAGE ("ui_language")
+// Show the welcome / quick start panel at the top of the main window on
+// startup. Cleared when the user dismisses the panel; Help > Show welcome and
+// Settings > Environment turn it on again.
+#define RIPES_SETTING_SHOW_WELCOME ("show_welcome")
 
 // ============= Definitions of all default settings within Ripes ==============
 const extern std::map<QString, QVariant> s_defaultSettings;

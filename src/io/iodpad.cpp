@@ -19,22 +19,27 @@ IODPad::IODPad(QWidget *parent) : IOBase(IOType::DPAD, parent) {
 
   for (unsigned i = 0; i < DIRECTIONS; ++i) {
     QString name;
+    QString direction;
     Qt::ArrowType arrow;
     switch (i) {
     case UP:
       name = "UP";
+      direction = tr("up");
       arrow = Qt::UpArrow;
       break;
     case DOWN:
       name = "DOWN";
+      direction = tr("down");
       arrow = Qt::DownArrow;
       break;
     case LEFT:
       name = "LEFT";
+      direction = tr("left");
       arrow = Qt::LeftArrow;
       break;
     case RIGHT:
       name = "RIGHT";
+      direction = tr("right");
       arrow = Qt::RightArrow;
       break;
     }
@@ -54,7 +59,18 @@ IODPad::IODPad(QWidget *parent) : IOBase(IOType::DPAD, parent) {
     connect(button, &QAbstractButton::released, this,
             [this, dir] { setDirection(dir, false); });
 
-    m_regDescs.push_back(RegDesc{name, RegDesc::RW::R, 1, i * 4, true});
+    const QString tip =
+        tr("Button %1 (register %2): press with the mouse or the keyboard "
+           "when the D-pad has focus")
+            .arg(direction, name);
+    button->setToolTip(tip);
+    button->setStatusTip(tip);
+
+    m_regDescs.push_back(RegDesc{
+        name, RegDesc::RW::R, 1, i * 4, true,
+        tr("1 if the %1 button is held or was pressed since the last read "
+           "(reading clears the captured press)")
+            .arg(direction)});
   }
 
   auto *gridLayout = new QGridLayout();
@@ -142,15 +158,14 @@ void IODPad::keyReleaseEvent(QKeyEvent *e) {
 
 QString IODPad::description() const {
   QStringList desc;
-  desc << "Each button maps to a 32-bit register, with the least-significant "
-          "bit indicating the state of the "
-          "button.\n";
-  desc << "If the D-pad window is in focus, the buttons may be pressed using "
-          "the \"WASD\" or arrow keys of the keyboard.\n";
-  desc << "A button register reads as 1 if the button is currently held, or if "
-          "it was pressed at any point since the register was last read "
-          "(edge/press capture). Reading a register clears this captured "
-          "press, so brief taps between polls are not missed.";
+  desc << tr("Each button maps to a 32-bit register, with the "
+             "least-significant bit indicating the state of the button.\n");
+  desc << tr("If the D-pad window is in focus, the buttons may be pressed "
+             "using the \"WASD\" or arrow keys of the keyboard.\n");
+  desc << tr("A button register reads as 1 if the button is currently held, "
+             "or if it was pressed at any point since the register was last "
+             "read (edge/press capture). Reading a register clears this "
+             "captured press, so brief taps between polls are not missed.");
 
   return desc.join('\n');
 }

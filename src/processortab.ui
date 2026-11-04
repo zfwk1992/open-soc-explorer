@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string notr="true">Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <property name="leftMargin">
@@ -74,6 +74,9 @@
         </item>
         <item>
          <widget class="QGroupBox" name="groupBox_2">
+          <property name="toolTip">
+           <string>Execution statistics of the current program run.</string>
+          </property>
           <property name="title">
            <string>Execution info</string>
           </property>
@@ -82,6 +85,9 @@
             <layout class="QGridLayout" name="gridLayout_7">
              <item row="1" column="1">
               <widget class="QLineEdit" name="instructionsRetired">
+               <property name="toolTip">
+                <string>Number of instructions that have completed (left the last pipeline stage).</string>
+               </property>
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -108,6 +114,9 @@
              </item>
              <item row="2" column="1">
               <widget class="QLineEdit" name="cpi">
+               <property name="toolTip">
+                <string>CPI = cycles / retired instructions. Lower is better; 1.0 is ideal for a scalar pipeline.</string>
+               </property>
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -156,6 +165,9 @@
              </item>
              <item row="0" column="1">
               <widget class="QLineEdit" name="cycleCount">
+               <property name="toolTip">
+                <string>Number of clock cycles simulated since the last reset.</string>
+               </property>
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -172,6 +184,9 @@
              </item>
              <item row="3" column="1">
               <widget class="QLineEdit" name="ipc">
+               <property name="toolTip">
+                <string>IPC = retired instructions / cycles (the inverse of CPI).</string>
+               </property>
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                  <horstretch>0</horstretch>
@@ -194,6 +209,9 @@
              </item>
              <item row="0" column="0">
               <widget class="QLabel" name="label_3">
+               <property name="toolTip">
+                <string>Number of clock cycles simulated since the last reset.</string>
+               </property>
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                  <horstretch>0</horstretch>
@@ -210,6 +228,9 @@
              </item>
              <item row="4" column="0">
               <widget class="QLabel" name="label_4">
+               <property name="toolTip">
+                <string>Simulated clock cycles per real second while running (averaged, see Settings &gt; Simulator).</string>
+               </property>
                <property name="text">
                 <string>Clock rate:</string>
                </property>
@@ -217,6 +238,9 @@
              </item>
              <item row="4" column="1">
               <widget class="QLineEdit" name="clockRate">
+               <property name="toolTip">
+                <string>Simulated clock cycles per real second while running (averaged, see Settings &gt; Simulator).</string>
+               </property>
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
                  <horstretch>0</horstretch>

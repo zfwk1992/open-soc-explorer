@@ -41,6 +41,9 @@ public:
   IOBase *createPeripheral(IOType type, unsigned forcedId = UINT_MAX);
   void removePeripheral(IOBase *peripheral, std::atomic<bool> &ok);
   const MemoryMap &memoryMap() const { return m_memoryMap; }
+  /// All instantiated peripherals (used by views to describe memory-map
+  /// entries).
+  const std::set<IOBase *> &peripherals() const { return m_peripherals; }
 
   /**
    * @brief cSymbolsHeaderpath

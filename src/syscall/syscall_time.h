@@ -16,9 +16,9 @@ class CyclesSyscall : public BaseSyscall {
 public:
   CyclesSyscall()
       : BaseSyscall("Cycles",
-                    "Get number of cycles elapsed since program start", {},
-                    {{0, "low 32 bits of cycles elapsed"},
-                     {1, "high 32 bits of cycles elapsed"}}) {}
+                    QT_TRANSLATE_NOOP("Ripes::Syscall", "Get number of cycles elapsed since program start"), {},
+                    {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "low 32 bits of cycles elapsed")},
+                     {1, QT_TRANSLATE_NOOP("Ripes::Syscall", "high 32 bits of cycles elapsed")}}) {}
   void execute() {
     long long cycleCount = ProcessorHandler::getProcessor()->getCycleCount();
     BaseSyscall::setRet(BaseSyscall::REG_FILE, 0, cycleCount & 0xFFFFFFFF);
@@ -34,11 +34,11 @@ class TimeMsSyscall : public BaseSyscall {
 public:
   TimeMsSyscall()
       : BaseSyscall("Time_msec",
-                    "Get the current time since epoch (milliseconds since 1 "
-                    "January 1970)",
+                    QT_TRANSLATE_NOOP("Ripes::Syscall", "Get the current time since epoch (milliseconds since 1 "
+                    "January 1970)"),
                     {},
-                    {{0, "low 32 bits of milliseconds since epoch"},
-                     {1, "high 32 bits of milliseconds since epoch"}}) {}
+                    {{0, QT_TRANSLATE_NOOP("Ripes::Syscall", "low 32 bits of milliseconds since epoch")},
+                     {1, QT_TRANSLATE_NOOP("Ripes::Syscall", "high 32 bits of milliseconds since epoch")}}) {}
   void execute() {
     long long ms = QDateTime::currentMSecsSinceEpoch();
     BaseSyscall::setRet(BaseSyscall::REG_FILE, 0, ms & 0xFFFFFFFF);

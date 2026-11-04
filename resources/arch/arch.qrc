@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/arch">
+        <file>example_minimal.json</file>
+        <file>neogeo.json</file>
+        <file>ps3.json</file>
+        <file>gpu_system.json</file>
+        <file>npu_system.json</file>
+    </qresource>
+</RCC>

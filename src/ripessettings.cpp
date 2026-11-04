@@ -79,7 +79,9 @@ const std::map<QString, QVariant> s_defaultSettings = {
     {RIPES_SETTING_SAVE_BINARY, false},
 
     {RIPES_SETTING_MAINWINDOW_GEOMETRY, QByteArray()},
-    {RIPES_SETTING_COLORSCHEME, static_cast<int>(ColorScheme::System)}};
+    {RIPES_SETTING_COLORSCHEME, static_cast<int>(ColorScheme::System)},
+    {RIPES_SETTING_LANGUAGE, "system"},
+    {RIPES_SETTING_SHOW_WELCOME, true}};
 
 void SettingObserver::setValue(const QVariant &v) {
   QSettings settings;

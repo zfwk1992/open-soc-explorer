@@ -59,9 +59,21 @@ QVariant PeriphParamModel::headerData(int section, Qt::Orientation orientation,
   if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
     switch (section) {
     case Column::Name:
-      return "Name";
+      return tr("Parameter");
     case Column::Value:
-      return "Value";
+      return tr("Value");
+    default:
+      return QVariant();
+    }
+  }
+  if (orientation == Qt::Horizontal && role == Qt::ToolTipRole) {
+    switch (section) {
+    case Column::Name:
+      return tr("Configuration parameter of this peripheral");
+    case Column::Value:
+      return tr("Double-click to edit. Changing a parameter may change the "
+                "peripheral's size and therefore the addresses of the "
+                "peripherals after it; re-assemble your program afterwards.");
     default:
       return QVariant();
     }
@@ -104,6 +116,14 @@ QVariant PeriphParamModel::data(const QModelIndex &index, int role) const {
       return m_peripheral->parameters().at(idx).value;
     case Qt::TextAlignmentRole:
       return Qt::AlignCenter;
+    case Qt::ToolTipRole: {
+      const auto &p = m_peripheral->parameters().at(idx);
+      if (p.hasRange) {
+        return tr("Double-click to edit (range %1 - %2)")
+            .arg(p.min.toString(), p.max.toString());
+      }
+      return tr("Double-click to edit");
+    }
     case Qt::UserRole:
       return QVariant::fromValue(m_peripheral->parameters().at(idx));
     }

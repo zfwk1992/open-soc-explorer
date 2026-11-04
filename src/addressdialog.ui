@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string notr="true">Dialog</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
@@ -19,14 +19,18 @@
      <item>
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>Enter target address:</string>
+        <string>Go to address (hexadecimal):</string>
        </property>
       </widget>
      </item>
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <widget class="QLineEdit" name="address"/>
+        <widget class="QLineEdit" name="address">
+         <property name="toolTip">
+          <string>Hexadecimal address, e.g. 0x10000000</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>

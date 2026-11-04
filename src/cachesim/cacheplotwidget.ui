@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string notr="true">Dialog</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <property name="leftMargin">
@@ -90,7 +90,7 @@
             <item row="2" column="1">
              <widget class="QCheckBox" name="showRatio">
               <property name="toolTip">
-               <string>Show/hide the ratio (numerator/denominator) plot</string>
+               <string>Show/hide the cumulative ratio plot: (numerator / denominator) x 100 %, accumulated from cycle 0</string>
               </property>
               <property name="text">
                <string>Ratio</string>
@@ -144,7 +144,7 @@
               <item>
                <widget class="QToolButton" name="sizeBreakdownButton">
                 <property name="text">
-                 <string>...</string>
+                 <string notr="true">...</string>
                 </property>
                </widget>
               </item>
@@ -270,27 +270,56 @@
       </layout>
      </item>
      <item>
-      <widget class="QPushButton" name="maxCyclesButton">
-       <property name="font">
-        <font>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>Maximum cache plot cycles reached! Click for info...</string>
+      <widget class="QLabel" name="truncationHint">
+       <property name="wordWrap">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="CachePlotView" name="plotView"/>
+      <widget class="CachePlotView" name="plotView">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>220</height>
+        </size>
+       </property>
+      </widget>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,1,0">
+      <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,0,0,0,0,1,0">
+       <item>
+        <widget class="QToolButton" name="ratioCursor">
+         <property name="text">
+          <string notr="true">...</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="mavgCursor">
+         <property name="text">
+          <string notr="true">...</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="copyData">
+         <property name="text">
+          <string notr="true">...</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="savePlot">
+         <property name="text">
+          <string notr="true">...</string>
+         </property>
+        </widget>
+       </item>
        <item>
         <widget class="QSpinBox" name="rangeMin">
          <property name="toolTip">
-          <string>Min. cycle</string>
+          <string>First cycle shown in the plot</string>
          </property>
          <property name="maximum">
           <number>0</number>
@@ -306,7 +335,7 @@
           </sizepolicy>
          </property>
          <property name="toolTip">
-          <string>Plot range (cycles)</string>
+          <string>Drag the handles to choose the range of clock cycles shown in the plot</string>
          </property>
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
@@ -316,57 +345,12 @@
        <item>
         <widget class="QSpinBox" name="rangeMax">
          <property name="toolTip">
-          <string>Max. cycle</string>
+          <string>Last cycle shown in the plot</string>
          </property>
          <property name="maximum">
           <number>0</number>
          </property>
         </widget>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="QToolButton" name="ratioCursor">
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="mavgCursor">
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="copyData">
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="savePlot">
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
        </item>
       </layout>
      </item>

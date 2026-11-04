@@ -38,13 +38,34 @@ QVariant RegisterMapModel::headerData(int section, Qt::Orientation orientation,
   if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
     switch (section) {
     case Column::Name:
-      return "Name";
+      return tr("Name");
     case Column::Address:
-      return "Address";
+      return tr("Offset");
     case Column::RW:
-      return "R/W?";
+      return tr("Access");
     case Column::BitWidth:
-      return "Size";
+      return tr("Bits");
+    case Column::Description:
+      return tr("Description");
+    default:
+      return QVariant();
+    }
+  }
+  if (orientation == Qt::Horizontal && role == Qt::ToolTipRole) {
+    switch (section) {
+    case Column::Name:
+      return tr("Register name. Exported registers can be used in programs "
+                "through the symbols listed under Exported symbols (address and "
+                "offset of each register).");
+    case Column::Address:
+      return tr("Byte offset of the register from the peripheral's base "
+                "address (hexadecimal)");
+    case Column::RW:
+      return tr("R = read-only, W = write-only, R/W = read and write");
+    case Column::BitWidth:
+      return tr("Number of meaningful bits in the register");
+    case Column::Description:
+      return tr("What the register does");
     default:
       return QVariant();
     }
@@ -86,11 +107,11 @@ QVariant RegisterMapModel::data(const QModelIndex &index, int role) const {
     case Qt::DisplayRole: {
       switch (m_peripheral->registers().at(idx).rw) {
       case RegDesc::RW::R:
-        return "R";
+        return tr("R");
       case RegDesc::RW::W:
-        return "W";
+        return tr("W");
       case RegDesc::RW::RW:
-        return "R/W";
+        return tr("R/W");
       default:
         Q_UNREACHABLE();
       }
@@ -107,6 +128,12 @@ QVariant RegisterMapModel::data(const QModelIndex &index, int role) const {
       return QString::number(m_peripheral->registers().at(idx).bitWidth);
     case Qt::TextAlignmentRole:
       return Qt::AlignCenter;
+    }
+    break;
+  }
+  case Column::Description: {
+    if (role == Qt::DisplayRole || role == Qt::ToolTipRole) {
+      return m_peripheral->registers().at(idx).description;
     }
     break;
   }

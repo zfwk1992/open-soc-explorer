@@ -358,8 +358,11 @@ public:
       // systemIO might be called from non-gui thread, so be threadsafe in
       // interacting with the ui.
       postToGUIThread([] {
-        SystemIOStatusManager::setStatusTimed("Waiting for user input...",
-                                              99999999);
+        SystemIOStatusManager::setStatusTimed(
+            QCoreApplication::translate(
+                "Ripes::SystemIO",
+                "Waiting for user input (type in the console)..."),
+            99999999);
       });
       while (myBuffer.size() < lengthRequested) {
         // Lock the stdio objects and try to read from stdio. If no data is

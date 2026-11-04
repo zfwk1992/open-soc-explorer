@@ -30,7 +30,10 @@ EditTab::EditTab(QToolBar *toolbar, QWidget *parent)
 
   m_symbolNavigatorAction = new QAction(this);
   m_symbolNavigatorAction->setIcon(QIcon(":/icons/compass.svg"));
-  m_symbolNavigatorAction->setText("Show symbol navigator");
+  m_symbolNavigatorAction->setText(tr("Show symbol navigator"));
+  m_symbolNavigatorAction->setToolTip(
+      tr("Show symbol navigator: list the labels/symbols of the loaded "
+         "program and jump to their address."));
   connect(m_symbolNavigatorAction, &QAction::triggered, this,
           &EditTab::showSymbolNavigator);
   m_ui->navigatorButton->setDefaultAction(m_symbolNavigatorAction);
@@ -38,10 +41,14 @@ EditTab::EditTab(QToolBar *toolbar, QWidget *parent)
   m_followAction = new QAction(this);
   m_followAction->setIcon(QIcon(":/icons/trace.svg"));
   m_followAction->setCheckable(true);
+  m_followAction->setText(tr("Follow program execution"));
   m_followAction->setToolTip(
-      "Follow program execution.\nEnsures that the instruction present in "
-      "the\nfirst stage of the processor is "
-      "always visible\nin the disassembled view.");
+      tr("Follow program execution.\nEnsures that the instruction present in "
+         "the\nfirst stage of the processor is always visible\nin the "
+         "disassembled view."));
+  m_followAction->setStatusTip(
+      tr("Keep the instruction in the first pipeline stage visible in the "
+         "program view."));
   m_ui->followButton->setDefaultAction(m_followAction);
   connect(m_followAction, &QAction::triggered, m_ui->programViewer,
           &ProgramViewer::setFollowEnabled);
@@ -52,11 +59,22 @@ EditTab::EditTab(QToolBar *toolbar, QWidget *parent)
   m_buildAction->setIcon(QIcon(":/icons/build.svg"));
   m_buildAction->setEnabled(false);
   m_buildAction->setShortcut(QKeySequence("Ctrl+B"));
-  m_buildAction->setText("Compile C program (" +
-                         m_buildAction->shortcut().toString() + ")");
+  m_buildAction->setText(tr("Compile C program (%1)")
+                             .arg(m_buildAction->shortcut().toString(
+                                 QKeySequence::NativeText)));
+  m_buildAction->setToolTip(
+      tr("Compile the C program in the editor with the configured RISC-V "
+         "compiler and load the resulting executable (%1)")
+          .arg(m_buildAction->shortcut().toString(QKeySequence::NativeText)));
+  m_buildAction->setStatusTip(
+      tr("Compile the C program in the editor (requires a RISC-V compiler, "
+         "see Edit > Settings > Compiler)."));
   connect(m_buildAction, &QAction::triggered, this, &EditTab::compile);
   m_toolbar->addAction(m_buildAction);
 
+  m_ui->codeEditor->setPlaceholderText(
+      tr("Write your RISC-V program here, or load one with File > Load "
+         "Example. Assembly is assembled automatically while you type."));
   m_ui->codeEditor->document()->setPlainText(
       RipesSettings::value(RIPES_SETTING_SOURCECODE).toString());
 
@@ -173,8 +191,10 @@ bool EditTab::loadExternalFile(const LoadFileParams &params) {
 bool EditTab::loadFile(const LoadFileParams &fileParams) {
   QFile file(fileParams.filepath);
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    QMessageBox::warning(this, "Error",
-                         "Error: Could not open file " + fileParams.filepath);
+    QMessageBox::warning(
+        this, tr("Error"),
+        tr("Could not open file %1:\n%2")
+            .arg(fileParams.filepath, file.errorString()));
     return false;
   }
 
@@ -192,9 +212,9 @@ bool EditTab::loadFile(const LoadFileParams &fileParams) {
                                      fileParams.binaryLoadAt);
     success = err.isEmpty();
     if (!success) {
-      QMessageBox::warning(this, "Error", err);
+      QMessageBox::warning(this, tr("Error"), err);
     } else {
-      m_ui->curInputSrcLabel->setText("Flat binary");
+      m_ui->curInputSrcLabel->setText(tr("Flat binary"));
       m_ui->inputSrcPath->setText(file.fileName());
       disableEditor();
     }
@@ -209,7 +229,7 @@ bool EditTab::loadFile(const LoadFileParams &fileParams) {
   }
   case SourceType::InternalELF: {
     success &= loadElfFile(*loadedProgram, file);
-    m_ui->curInputSrcLabel->setText("Executable (ELF)");
+    m_ui->curInputSrcLabel->setText(tr("Executable (ELF)"));
     m_ui->inputSrcPath->setText(file.fileName());
     break;
   }
@@ -219,8 +239,8 @@ bool EditTab::loadFile(const LoadFileParams &fileParams) {
     // Move the shared pointer to be the current active program
     ProcessorHandler::loadProgram(loadedProgram);
   } else {
-    QMessageBox::warning(this, "Error",
-                         "Error: Could not load file " + fileParams.filepath);
+    QMessageBox::warning(this, tr("Error"),
+                         tr("Could not load file %1").arg(fileParams.filepath));
   }
   file.close();
   return success;
@@ -259,9 +279,11 @@ void EditTab::sourceTypeChanged() {
   } else if (m_ui->setCInput->isChecked()) {
     // Ensure that we have a validated C compiler available
     if (!CCManager::get().hasValidCC()) {
-      QMessageBox::warning(this, "Error",
-                           "No C compiler set.\n\nProvide a path to a valid C "
-                           "compiler under:\n Edit->Settings->Editor");
+      QMessageBox::warning(
+          this, tr("No C compiler"),
+          tr("No valid RISC-V C compiler is configured.\n\nProvide the path "
+             "to a RISC-V C compiler (e.g. riscv64-unknown-elf-gcc) under:\n"
+             "Edit > Settings > Compiler"));
       // Re-enable assembly input
       m_ui->setAssemblyInput->setChecked(true);
       return;
@@ -334,7 +356,7 @@ void EditTab::compile() {
     // Clean up temporary source and output files
   } else if (!res.aborted) {
     CompilerErrorDialog errDiag(this);
-    errDiag.setText("Compilation failed. Error output was:");
+    errDiag.setText(tr("Compilation failed. Error output was:"));
     errDiag.setErrorText(CCManager::getError());
     errDiag.exec();
   }

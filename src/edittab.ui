@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string notr="true">Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
@@ -63,6 +63,9 @@
               </item>
               <item>
                <widget class="QRadioButton" name="setAssemblyInput">
+                <property name="toolTip">
+                 <string>Write RISC-V assembly in the editor; it is assembled automatically while you type.</string>
+                </property>
                 <property name="text">
                  <string>Assembly</string>
                 </property>
@@ -73,6 +76,9 @@
               </item>
               <item>
                <widget class="QRadioButton" name="setCInput">
+                <property name="toolTip">
+                 <string>Write C in the editor and compile it with a RISC-V C compiler (configure it in Edit &gt; Settings &gt; Compiler).</string>
+                </property>
                 <property name="text">
                  <string>C</string>
                 </property>
@@ -178,7 +184,7 @@
                      <item row="1" column="1">
                       <widget class="QLabel" name="inputSrcPath">
                        <property name="text">
-                        <string>TextLabel</string>
+                        <string notr="true">TextLabel</string>
                        </property>
                        <property name="wordWrap">
                         <bool>true</bool>
@@ -208,7 +214,7 @@
                      <item row="0" column="1">
                       <widget class="QLabel" name="curInputSrcLabel">
                        <property name="text">
-                        <string>Foo</string>
+                        <string notr="true">Foo</string>
                        </property>
                       </widget>
                      </item>
@@ -226,6 +232,9 @@
                       <layout class="QHBoxLayout" name="horizontalLayout">
                        <item>
                         <widget class="QPushButton" name="enableEditor">
+                         <property name="toolTip">
+                          <string>Discard the loaded binary/ELF program and return to editing source code.</string>
+                         </property>
                          <property name="text">
                           <string>Enable editor</string>
                          </property>
@@ -293,6 +302,9 @@
               </item>
               <item>
                <widget class="QRadioButton" name="binaryViewButton">
+                <property name="toolTip">
+                 <string>Show the program as raw machine code (hex words).</string>
+                </property>
                 <property name="text">
                  <string>Binary</string>
                 </property>
@@ -303,6 +315,9 @@
               </item>
               <item>
                <widget class="QRadioButton" name="disassembledViewButton">
+                <property name="toolTip">
+                 <string>Show the program as disassembled instructions with addresses.</string>
+                </property>
                 <property name="text">
                  <string>Disassembled</string>
                 </property>
@@ -317,14 +332,14 @@
               <item>
                <widget class="QToolButton" name="followButton">
                 <property name="text">
-                 <string>...</string>
+                 <string notr="true">...</string>
                 </property>
                </widget>
               </item>
               <item>
                <widget class="QToolButton" name="navigatorButton">
                 <property name="text">
-                 <string>...</string>
+                 <string notr="true">...</string>
                 </property>
                </widget>
               </item>

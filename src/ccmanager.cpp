@@ -35,10 +35,14 @@ QString CCManager::CompileError::toString(const CompileCommand &cc) const {
     }
   };
 
-  indentAdd("Compilation failed", errMsg);
-  indentAdd("Compile command was:", cc.toString());
-  indentAdd("\nstdout output:", _stdout);
-  indentAdd("\nstderr output:", _stderr);
+  indentAdd(QCoreApplication::translate("CCManager", "Compilation failed"),
+            errMsg);
+  indentAdd(QCoreApplication::translate("CCManager", "Compile command was:"),
+            cc.toString());
+  indentAdd("\n" + QCoreApplication::translate("CCManager", "stdout output:"),
+            _stdout);
+  indentAdd("\n" + QCoreApplication::translate("CCManager", "stderr output:"),
+            _stderr);
   return out.join("\n");
 }
 
@@ -148,7 +152,7 @@ CCManager::CCRes CCManager::compile(const QStringList &files, QString outname,
   m_errored = false;
   m_process.close();
   QProgressDialog progressDiag =
-      QProgressDialog("Executing compiler...", "Abort", 0, 0, nullptr);
+      QProgressDialog(tr("Executing compiler..."), tr("Abort"), 0, 0, nullptr);
   connect(&progressDiag, &QProgressDialog::canceled, &m_process,
           &QProcess::kill);
   connect(&progressDiag, &QProgressDialog::canceled, &m_process,
@@ -261,13 +265,14 @@ CCManager::CCRes CCManager::verifyCC(const QString &CCPath) {
   const auto compilerExecInfo = QFileInfo(m_currentCC);
 
   if (m_currentCC.isEmpty()) {
-    res.errorOutput.errMsg = "No path specified";
+    res.errorOutput.errMsg = tr("No path specified");
     res.success = false;
     goto verifyCC_end;
   }
 
   if (!compilerExecInfo.isExecutable()) {
-    res.errorOutput.errMsg = "'" + m_currentCC + "' is not an executable file.";
+    res.errorOutput.errMsg =
+        tr("'%1' is not an executable file.").arg(m_currentCC);
     res.success = false;
     goto verifyCC_end;
   }

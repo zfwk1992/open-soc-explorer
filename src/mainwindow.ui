@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string notr="true">MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="enabled">
@@ -82,12 +82,12 @@
   </widget>
   <action name="actionOpen_wiki">
    <property name="text">
-    <string>Wiki</string>
+    <string>Online Documentation (upstream Ripes)</string>
    </property>
   </action>
   <action name="actionVersion">
    <property name="text">
-    <string>Version</string>
+    <string>About Ripes...</string>
    </property>
   </action>
   <action name="actionSettings">

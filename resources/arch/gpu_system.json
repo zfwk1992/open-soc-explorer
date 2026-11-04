@@ -1,0 +1,349 @@
+{
+  "id": "gpu_system",
+  "title": {"zh": "主机 CPU + SIMT GPU（系统视图）", "en": "Host CPU + SIMT GPU (system view)"},
+  "subtitle": {"zh": "RISC-V 主机 + MMIO 控制的 SIMT GPU：SM / warp / L1 / L2 / 设备内存", "en": "RISC-V host + MMIO-controlled SIMT GPU: SM / warp / L1 / L2 / device memory"},
+  "description": {"zh": "本视图展示模块 A（GPU 运行原理）的系统级结构：RISC-V 主机通过 MMIO 寄存器（IOGpu 外设）启动 kernel，命令处理器把 grid 拆成 thread block 和 warp，分派到各个 SM 上以 SIMT 方式执行；访存经由合并单元 / L1 / L2 到达设备内存。\n\n在 Ripes 的 IOGpu 模型里，“设备内存”并不独立存在：GPU 通过 memRead/memWrite 回调直接读写主机 DRAM（统一内存），因此图中用 DMA 线把两者连起来。\n\n选择左侧的 flow 并按 → 单步，观察 kernel 启动路径与 warp 调度 / 延迟隐藏。", "en": "This view shows the system-level structure of module A (how a GPU works): the RISC-V host launches a kernel through MMIO registers (the IOGpu peripheral), the command processor splits the grid into thread blocks and warps and dispatches them to the SMs, which execute them in SIMT fashion; memory accesses go through the coalescer / L1 / L2 to device memory.\n\nIn Ripes' IOGpu model \"device memory\" does not exist separately: the GPU reads and writes host DRAM directly through the memRead/memWrite callbacks (unified memory), which is why the two are connected by a DMA line.\n\nPick a flow on the left and press → to step through the kernel launch path and warp scheduling / latency hiding."},
+  "blocks": [
+    {
+      "id": "cpu",
+      "label": {"zh": "RISC-V Host CPU", "en": "RISC-V Host CPU"},
+      "sublabel": {"zh": "Ripes 处理器模型（RV32I）", "en": "Ripes processor model (RV32I)"},
+      "kind": "cpu",
+      "x": 40, "y": 40, "w": 220, "h": 80,
+      "details": {"zh": "运行主机程序：准备输入数组，写 GPU 的 MMIO 寄存器启动 kernel，随后轮询 STATUS 或等待中断，最后读回并校验结果。\n\n示例：examples/assembly/gpu_vecadd.s。", "en": "Runs the host program: prepares the input arrays, writes the GPU's MMIO registers to launch the kernel, then polls STATUS or waits for the interrupt, and finally reads back and checks the results.\n\nExample: examples/assembly/gpu_vecadd.s."},
+      "props": [
+        {"key": "ISA", "value": "RV32I"},
+        {"key": "Role", "value": "Host / control"},
+        {"key": "Sync", "value": "poll STATUS or IRQ"}
+      ]
+    },
+    {
+      "id": "gpu_regs",
+      "label": {"zh": "IOGpu MMIO registers", "en": "IOGpu MMIO registers"},
+      "sublabel": {"zh": "CTRL / STATUS / KERNEL_PC / GRID_X / BLOCK_X / ARG0..3", "en": "CTRL / STATUS / KERNEL_PC / GRID_X / BLOCK_X / ARG0..3"},
+      "kind": "io",
+      "x": 600, "y": 40, "w": 240, "h": 80,
+      "details": {"zh": "GPU 对主机暴露的寄存器窗口（IOBase 外设）。\n\nCTRL: bit0 start, bit1 irq_en\nSTATUS: bit0 busy, bit1 done\nKERNEL_PC: kernel 机器码在主存中的地址\nGRID_X / BLOCK_X: 启动多少 block、每 block 多少线程\nARG0..ARG3: 传给 kernel 的参数（通常是数组地址和长度）\nCYCLES / STATS_*: 统计信息（周期数、发散次数、访存事务数、issue slot 利用率）。", "en": "The register window the GPU exposes to the host (an IOBase peripheral).\n\nCTRL: bit0 start, bit1 irq_en\nSTATUS: bit0 busy, bit1 done\nKERNEL_PC: address of the kernel machine code in main memory\nGRID_X / BLOCK_X: how many blocks to launch and how many threads per block\nARG0..ARG3: kernel arguments (usually array addresses and lengths)\nCYCLES / STATS_*: statistics (cycles, divergences, memory transactions, issue-slot utilization)."},
+      "props": [
+        {"key": "CTRL", "value": "bit0 start, bit1 irq_en"},
+        {"key": "STATUS", "value": "bit0 busy, bit1 done"},
+        {"key": "Launch", "value": "KERNEL_PC, GRID_X, BLOCK_X, ARG0..3"},
+        {"key": "Stats", "value": "CYCLES, STATS_*"}
+      ]
+    },
+    {
+      "id": "sysbus",
+      "label": {"zh": "System bus", "en": "System bus"},
+      "sublabel": {"zh": "memory + memory-mapped I/O", "en": "memory + memory-mapped I/O"},
+      "kind": "bus",
+      "x": 40, "y": 160, "w": 700, "h": 46,
+      "details": {"zh": "Ripes 的统一地址空间：主存与外设寄存器都映射在其中。CPU 的 load/store 根据地址落到 DRAM 或外设的 ioRead/ioWrite。", "en": "Ripes' unified address space: both main memory and peripheral registers are mapped into it. Depending on the address, a CPU load/store goes to DRAM or to a peripheral's ioRead/ioWrite."},
+      "props": [
+        {"key": "Width", "value": "32 bit"}
+      ]
+    },
+    {
+      "id": "cp",
+      "label": {"zh": "Command processor", "en": "Command processor"},
+      "sublabel": {"zh": "grid → blocks → warps；warp 调度", "en": "grid → blocks → warps; warp scheduling"},
+      "kind": "gpu",
+      "x": 760, "y": 250, "w": 240, "h": 60,
+      "details": {"zh": "收到 CTRL.start 后：把 grid 拆成 GRID_X 个 thread block，每个 block 再拆成若干 warp（每 warp 8 个 lane，可配置到 32），按 SM 的空闲 warp 槽分派。\n\n每个 SM 内的 warp 调度器以 loose round-robin 方式从就绪 warp 中选一个发射指令。", "en": "On CTRL.start: splits the grid into GRID_X thread blocks, each block into several warps (8 lanes per warp, configurable up to 32), and dispatches them to free warp slots on the SMs.\n\nThe warp scheduler in each SM picks one ready warp per issue in loose round-robin order."},
+      "props": [
+        {"key": "Warp width", "value": "8 lanes (default)"},
+        {"key": "Scheduling", "value": "loose round-robin"},
+        {"key": "Dispatch", "value": "block → SM warp slots"}
+      ]
+    },
+    {
+      "id": "sm0",
+      "label": {"zh": "SM 0", "en": "SM 0"},
+      "sublabel": {"zh": "4 warp slots × 8 lanes；寄存器堆；shared memory", "en": "4 warp slots × 8 lanes; register file; shared memory"},
+      "kind": "gpu",
+      "x": 640, "y": 360, "w": 230, "h": 110,
+      "details": {"zh": "Streaming Multiprocessor：多个 warp 槽共享一组 ALU。每个 warp 持有一个 PC 和一个 active mask；一条指令同时在 8 个 lane 上执行（SIMT）。\n\n分支发散：同一 warp 内 lane 的分支方向不同时，先执行一侧（屏蔽另一侧 lane），再执行另一侧，最后重汇聚。\n\nBAR 指令在 block 内同步；LDS/STS 访问片上 shared memory。", "en": "Streaming Multiprocessor: several warp slots share one set of ALUs. Each warp holds a PC and an active mask; one instruction executes on 8 lanes at the same time (SIMT).\n\nBranch divergence: when the lanes of a warp take different branch directions, one side executes first (with the other side's lanes masked off), then the other side, and finally the paths reconverge.\n\nThe BAR instruction synchronizes within a block; LDS/STS access the on-chip shared memory."},
+      "props": [
+        {"key": "Warp slots", "value": "4"},
+        {"key": "Lanes", "value": "8"},
+        {"key": "Shared memory", "value": "on-chip"},
+        {"key": "Barrier", "value": "BAR"}
+      ]
+    },
+    {
+      "id": "sm1",
+      "label": {"zh": "SM 1", "en": "SM 1"},
+      "sublabel": {"zh": "4 warp slots × 8 lanes；寄存器堆；shared memory", "en": "4 warp slots × 8 lanes; register file; shared memory"},
+      "kind": "gpu",
+      "x": 910, "y": 360, "w": 230, "h": 110,
+      "details": {"zh": "与 SM 0 相同。多个 SM 之间彼此独立，只通过 L2 / 设备内存共享数据。", "en": "Same as SM 0. SMs are independent of each other and share data only through L2 / device memory."},
+      "props": [
+        {"key": "Warp slots", "value": "4"},
+        {"key": "Lanes", "value": "8"}
+      ]
+    },
+    {
+      "id": "l1_0",
+      "label": {"zh": "L1 / coalescer", "en": "L1 / coalescer"},
+      "sublabel": {"zh": "32 B 段合并", "en": "32 B segment coalescing"},
+      "kind": "cache",
+      "x": 640, "y": 510, "w": 230, "h": 50,
+      "details": {"zh": "合并单元把一个 warp 的 8 个 lane 地址按 32 B 段归并成尽量少的访存事务：连续地址 → 1 个事务；跨步或随机地址 → 最多 8 个事务。\n\nSTATS 中的访存事务数就在这里统计。", "en": "The coalescer merges the addresses of a warp's 8 lanes into as few memory transactions as possible by 32 B segment: contiguous addresses → 1 transaction; strided or random addresses → up to 8 transactions.\n\nThe memory-transaction count in STATS is collected here."},
+      "props": [
+        {"key": "Segment", "value": "32 B"},
+        {"key": "Stat", "value": "transactions per LDG"}
+      ]
+    },
+    {
+      "id": "l1_1",
+      "label": {"zh": "L1 / coalescer", "en": "L1 / coalescer"},
+      "sublabel": {"zh": "32 B 段合并", "en": "32 B segment coalescing"},
+      "kind": "cache",
+      "x": 910, "y": 510, "w": 230, "h": 50,
+      "details": {"zh": "SM 1 的 L1 / 合并单元。", "en": "The L1 / coalescer of SM 1."},
+      "props": [
+        {"key": "Segment", "value": "32 B"}
+      ]
+    },
+    {
+      "id": "l2",
+      "label": {"zh": "L2 cache", "en": "L2 cache"},
+      "sublabel": {"zh": "所有 SM 共享", "en": "shared by all SMs"},
+      "kind": "cache",
+      "x": 640, "y": 600, "w": 500, "h": 50,
+      "details": {"zh": "SM 之间共享的末级缓存；L1 未命中后到这里，再未命中则访问设备内存。", "en": "Last-level cache shared by the SMs; L1 misses go here, and L2 misses go to device memory."},
+      "props": [
+        {"key": "Shared by", "value": "all SMs"}
+      ]
+    },
+    {
+      "id": "hbm",
+      "label": {"zh": "Device memory (HBM)", "en": "Device memory (HBM)"},
+      "sublabel": {"zh": "Ripes 模型中映射到主机 DRAM", "en": "mapped to host DRAM in the Ripes model"},
+      "kind": "memory",
+      "x": 640, "y": 690, "w": 500, "h": 60,
+      "details": {"zh": "真实 GPU 上是高带宽的 HBM/GDDR；访存延迟数百周期，需要靠大量 warp 并发来隐藏。\n\n在 Ripes 的 IOGpu 里，kernel 的 LDG/STG 最终通过外设的 memRead/memWrite 回调访问主机内存（统一内存，无需显式拷贝）。", "en": "On a real GPU this is high-bandwidth HBM/GDDR; access latency is hundreds of cycles and must be hidden by running many warps concurrently.\n\nIn Ripes' IOGpu, a kernel's LDG/STG ultimately accesses host memory through the peripheral's memRead/memWrite callbacks (unified memory, no explicit copies needed)."},
+      "props": [
+        {"key": "Latency", "value": "hundreds of cycles"},
+        {"key": "Ripes", "value": "memRead/memWrite → host DRAM"}
+      ]
+    },
+    {
+      "id": "dram",
+      "label": {"zh": "Host DRAM", "en": "Host DRAM"},
+      "sublabel": {"zh": "kernel 机器码、A / B / C 数组", "en": "kernel code, arrays A / B / C"},
+      "kind": "memory",
+      "x": 40, "y": 650, "w": 220, "h": 60,
+      "details": {"zh": "主机主存。主程序把预汇编的 kernel 机器码（.word）和输入数组放在这里，并把地址通过 ARG 寄存器告诉 GPU。", "en": "Host main memory. The host program places the pre-assembled kernel machine code (.word) and the input arrays here and passes their addresses to the GPU through the ARG registers."},
+      "props": [
+        {"key": "Contents", "value": "kernel code, A, B, C"}
+      ]
+    }
+  ],
+  "buses": [
+    {
+      "id": "b_cpu_bus",
+      "from": "cpu",
+      "to": "sysbus",
+      "label": {"zh": "load / store", "en": "load / store"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_bus_dram",
+      "from": "sysbus",
+      "to": "dram",
+      "label": {"zh": "内存", "en": "memory"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_bus_regs",
+      "from": "sysbus",
+      "to": "gpu_regs",
+      "label": {"zh": "MMIO (ioRead / ioWrite)", "en": "MMIO (ioRead / ioWrite)"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_regs_cp",
+      "from": "gpu_regs",
+      "to": "cp",
+      "label": {"zh": "launch(grid, block, pc, args)", "en": "launch(grid, block, pc, args)"},
+      "kind": "link",
+      "bidirectional": false
+    },
+    {
+      "id": "b_cp_sm0",
+      "from": "cp",
+      "to": "sm0",
+      "label": {"zh": "分派 warp", "en": "dispatch warps"},
+      "kind": "link",
+      "bidirectional": false
+    },
+    {
+      "id": "b_cp_sm1",
+      "from": "cp",
+      "to": "sm1",
+      "label": {"zh": "分派 warp", "en": "dispatch warps"},
+      "kind": "link",
+      "bidirectional": false
+    },
+    {
+      "id": "b_sm0_l1",
+      "from": "sm0",
+      "to": "l1_0",
+      "label": {"zh": "LDG / STG", "en": "LDG / STG"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_sm1_l1",
+      "from": "sm1",
+      "to": "l1_1",
+      "label": {"zh": "LDG / STG", "en": "LDG / STG"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_l1_0_l2",
+      "from": "l1_0",
+      "to": "l2",
+      "label": {"zh": "miss / write-back", "en": "miss / write-back"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_l1_1_l2",
+      "from": "l1_1",
+      "to": "l2",
+      "label": {"zh": "miss / write-back", "en": "miss / write-back"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_l2_hbm",
+      "from": "l2",
+      "to": "hbm",
+      "label": {"zh": "cache 行", "en": "lines"},
+      "kind": "bus",
+      "bidirectional": true
+    },
+    {
+      "id": "b_hbm_dram",
+      "from": "hbm",
+      "to": "dram",
+      "label": {"zh": "统一内存（memRead / memWrite）", "en": "unified memory (memRead / memWrite)"},
+      "kind": "dma",
+      "bidirectional": true
+    },
+    {
+      "id": "b_irq",
+      "from": "gpu_regs",
+      "to": "cpu",
+      "label": {"zh": "完成中断（CTRL.irq_en）", "en": "done IRQ (CTRL.irq_en)"},
+      "kind": "irq",
+      "bidirectional": false
+    }
+  ],
+  "flows": [
+    {
+      "id": "kernel_launch",
+      "title": {"zh": "启动一个 kernel（vecadd）", "en": "Launching a kernel (vecadd)"},
+      "description": {"zh": "从主机准备数据到读回结果的完整提交路径：MMIO 启动 → 分派 warp → SIMT 执行 → 完成通知。", "en": "The complete submission path from preparing data on the host to reading back the results: MMIO launch → warp dispatch → SIMT execution → completion notification."},
+      "steps": [
+        {
+          "highlight": ["cpu", "dram"],
+          "buses": ["b_cpu_bus", "b_bus_dram"],
+          "text": {"zh": "主机程序把 kernel 机器码（.word）和输入数组 A、B 写入 DRAM，并为输出数组 C 预留空间。", "en": "The host program writes the kernel machine code (.word) and the input arrays A and B into DRAM and reserves space for the output array C."}
+        },
+        {
+          "highlight": ["cpu", "gpu_regs"],
+          "buses": ["b_cpu_bus", "b_bus_regs"],
+          "text": {"zh": "CPU 通过 MMIO 写 KERNEL_PC、GRID_X、BLOCK_X 和 ARG0..ARG3：告诉 GPU 代码在哪、启动多少线程、数据在哪。", "en": "The CPU writes KERNEL_PC, GRID_X, BLOCK_X and ARG0..ARG3 via MMIO: telling the GPU where the code is, how many threads to launch and where the data is."}
+        },
+        {
+          "highlight": ["gpu_regs", "cp"],
+          "buses": ["b_regs_cp"],
+          "text": {"zh": "CPU 写 CTRL.start = 1。命令处理器把 grid 拆成 GRID_X 个 thread block，每个 block 再拆成若干 warp（每 warp 8 个 lane）。STATUS.busy 置 1。", "en": "The CPU writes CTRL.start = 1. The command processor splits the grid into GRID_X thread blocks and each block into several warps (8 lanes per warp). STATUS.busy is set to 1."}
+        },
+        {
+          "highlight": ["cp", "sm0", "sm1"],
+          "buses": ["b_cp_sm0", "b_cp_sm1"],
+          "text": {"zh": "warp 被分派到各 SM 的空闲 warp 槽。每个 warp 有自己的 PC 和 active mask；同一 warp 的 8 个 lane 以 lockstep 执行同一条指令（SIMT）。", "en": "Warps are dispatched to free warp slots on the SMs. Each warp has its own PC and active mask; the 8 lanes of a warp execute the same instruction in lockstep (SIMT)."}
+        },
+        {
+          "highlight": ["sm0"],
+          "buses": [],
+          "text": {"zh": "每个线程用 S_TID / S_BID / S_NTID 算出自己的全局索引 i = blockIdx × blockDim + threadIdx，并与 ARG 中的长度比较（SETP + @P BRA）。", "en": "Each thread computes its global index i = blockIdx × blockDim + threadIdx from S_TID / S_BID / S_NTID and compares it with the length in ARG (SETP + @P BRA)."}
+        },
+        {
+          "highlight": ["sm0", "l1_0", "l2", "hbm"],
+          "buses": ["b_sm0_l1", "b_l1_0_l2", "b_l2_hbm"],
+          "text": {"zh": "warp 执行 LDG 读 A[i]、B[i]：8 个 lane 的地址被合并（coalesce）成 32 B 段事务，经 L1 → L2 → 设备内存。", "en": "The warp executes LDG to read A[i] and B[i]: the 8 lane addresses are coalesced into 32 B segment transactions, which go through L1 → L2 → device memory."}
+        },
+        {
+          "highlight": ["hbm", "dram"],
+          "buses": ["b_hbm_dram"],
+          "text": {"zh": "在 Ripes 的 IOGpu 模型里，“设备内存”就是主机内存：GPU 用 memRead/memWrite 回调直接访问主机 DRAM（统一内存）。", "en": "In Ripes' IOGpu model \"device memory\" is host memory: the GPU accesses host DRAM directly through the memRead/memWrite callbacks (unified memory)."}
+        },
+        {
+          "highlight": ["sm0", "sm1"],
+          "buses": ["b_sm0_l1", "b_sm1_l1"],
+          "text": {"zh": "ADD 计算 C[i] = A[i] + B[i]，STG 把结果写回；warp 执行到 EXIT 后释放 warp 槽，命令处理器继续分派剩余的 block。", "en": "ADD computes C[i] = A[i] + B[i] and STG writes the result back; when a warp reaches EXIT its slot is freed and the command processor keeps dispatching the remaining blocks."}
+        },
+        {
+          "highlight": ["gpu_regs", "cpu"],
+          "buses": ["b_irq"],
+          "text": {"zh": "所有 warp 退出后，STATUS.done = 1、busy = 0；若 CTRL.irq_en = 1 则拉高中断线。CPU 轮询 STATUS 或在中断处理程序中得知完成。", "en": "When all warps have exited, STATUS.done = 1 and busy = 0; if CTRL.irq_en = 1 the interrupt line is raised. The CPU learns about completion by polling STATUS or in its interrupt handler."}
+        },
+        {
+          "highlight": ["cpu", "dram"],
+          "buses": ["b_cpu_bus", "b_bus_dram"],
+          "text": {"zh": "CPU 读回 C 数组并与 CPU 端的参考结果对比，再读 CYCLES / STATS_* 观察利用率，最后通过 ecall 打印。", "en": "The CPU reads back array C and compares it with the reference computed on the CPU, then reads CYCLES / STATS_* to look at utilization, and finally prints via ecall."}
+        }
+      ]
+    },
+    {
+      "id": "latency_hiding",
+      "title": {"zh": "warp 调度与延迟隐藏", "en": "Warp scheduling and latency hiding"},
+      "description": {"zh": "一个 SM 内部：一次全局访存如何被合并，访存等待期间调度器如何切换到其他 warp，以及分支发散的代价。", "en": "Inside one SM: how a global memory access is coalesced, how the scheduler switches to other warps while waiting for memory, and the cost of branch divergence."},
+      "steps": [
+        {
+          "highlight": ["cp"],
+          "buses": [],
+          "text": {"zh": "SM 的 warp 调度器按 loose round-robin 在就绪 warp 之间轮转，每个周期发射一条指令。", "en": "The SM's warp scheduler rotates among ready warps in loose round-robin order and issues one instruction per cycle."}
+        },
+        {
+          "highlight": ["sm0"],
+          "buses": [],
+          "text": {"zh": "warp 0 执行 LDG：8 个 lane 各自给出一个地址（A + 4×i）。", "en": "Warp 0 executes LDG: each of the 8 lanes supplies an address (A + 4×i)."}
+        },
+        {
+          "highlight": ["sm0", "l1_0"],
+          "buses": ["b_sm0_l1"],
+          "text": {"zh": "合并单元把 8 个地址按 32 B 段归并：连续地址 → 1 个事务；跨步访问（如 i×64）→ 8 个事务。事务数计入 STATS。", "en": "The coalescer merges the 8 addresses by 32 B segment: contiguous addresses → 1 transaction; strided access (e.g. i×64) → 8 transactions. The transaction count goes into STATS."}
+        },
+        {
+          "highlight": ["l1_0", "l2", "hbm"],
+          "buses": ["b_l1_0_l2", "b_l2_hbm"],
+          "text": {"zh": "L1 未命中 → L2 → 设备内存，往返要几百个周期。warp 0 进入等待，不再就绪。", "en": "L1 miss → L2 → device memory: the round trip takes hundreds of cycles. Warp 0 starts waiting and is no longer ready."}
+        },
+        {
+          "highlight": ["sm0"],
+          "buses": [],
+          "text": {"zh": "调度器切换到 warp 1 / 2 / 3，发射它们的 ADD / MUL / FMA。访存延迟被其他 warp 的计算掩盖（latency hiding）；驻留的 warp 越多（occupancy 越高）越容易掩盖。", "en": "The scheduler switches to warps 1 / 2 / 3 and issues their ADD / MUL / FMA. The memory latency is covered by the other warps' computation (latency hiding); the more resident warps (the higher the occupancy), the easier it is to hide."}
+        },
+        {
+          "highlight": ["sm0", "l1_0"],
+          "buses": ["b_sm0_l1"],
+          "text": {"zh": "数据返回寄存器堆，warp 0 重新就绪，下一轮被调度继续执行。", "en": "The data returns to the register file, warp 0 becomes ready again and is scheduled to continue in the next round."}
+        },
+        {
+          "highlight": ["sm0"],
+          "buses": [],
+          "text": {"zh": "若某条 @P BRA 让 warp 内 lane 的方向不一致（divergence），warp 先执行一条路径（屏蔽另一侧 lane），再执行另一条，最后重汇聚；issue slot 利用率下降，STATS 中的发散计数 +1。", "en": "If a @P BRA sends the lanes of a warp in different directions (divergence), the warp executes one path first (with the other lanes masked off), then the other, and finally reconverges; issue-slot utilization drops and the divergence counter in STATS is incremented."}
+        }
+      ]
+    }
+  ]
+}

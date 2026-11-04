@@ -91,31 +91,31 @@ CacheSim::CacheSize CacheSim::getCacheSize() const {
 
   // Valid bits
   unsigned componentBits = entries; // 1 bit per entry
-  size.components.push_back("Valid bits: " + QString::number(componentBits));
+  size.components.push_back(tr("Valid bits: %1").arg(componentBits));
   size.bits += componentBits;
 
   if (m_wrPolicy == WritePolicy::WriteBack) {
     // Dirty bits
     componentBits = entries; // 1 bit per entry
-    size.components.push_back("Dirty bits: " + QString::number(componentBits));
+    size.components.push_back(tr("Dirty bits: %1").arg(componentBits));
     size.bits += componentBits;
   }
 
   if (m_replPolicy == ReplPolicy::LRU) {
     // LRU bits
     componentBits = vsrtl::ceillog2(getWays()) * entries;
-    size.components.push_back("LRU bits: " + QString::number(componentBits));
+    size.components.push_back(tr("LRU bits: %1").arg(componentBits));
     size.bits += componentBits;
   }
 
   // Tag bits
   componentBits = vsrtl::bitcount(m_tagMask) * entries;
-  size.components.push_back("Tag bits: " + QString::number(componentBits));
+  size.components.push_back(tr("Tag bits: %1").arg(componentBits));
   size.bits += componentBits;
 
   // Data bits
   componentBits = m_wordBits * entries * getBlocks();
-  size.components.push_back("Data bits: " + QString::number(componentBits));
+  size.components.push_back(tr("Data bits: %1").arg(componentBits));
   size.bits += componentBits;
 
   return size;
@@ -293,6 +293,7 @@ void CacheSim::pushAccessTrace(const CacheTransaction &transaction) {
     auto it = m_accessTrace.begin();
     std::advance(it, m_accessTrace.size() - targetSize);
     m_accessTrace.erase(m_accessTrace.begin(), it);
+    m_accessTraceTruncated = true;
   }
 
   if (!ProcessorHandler::isRunning()) {
@@ -527,6 +528,7 @@ void CacheSim::reset() {
 
   m_cacheLines.clear();
   m_accessTrace.clear();
+  m_accessTraceTruncated = false;
   m_traceStack.clear();
 
   m_wordBits = ProcessorHandler::currentISA()->bits();

@@ -1,0 +1,1 @@
+create_ripes_lib(accel_gpu LINK_TO_RIPES_LIB)

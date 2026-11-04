@@ -177,6 +177,10 @@ public:
   const std::map<unsigned, CacheAccessTrace> &getAccessTrace() const {
     return m_accessTrace;
   }
+  /// True if older entries of the access trace were dropped to bound memory
+  /// use (see RIPES_SETTING_CACHE_MAXTRACES) since the last reset. The
+  /// remaining entries still hold cumulative counts from cycle 0.
+  bool isAccessTraceTruncated() const { return m_accessTraceTruncated; }
 
   double getHitRate() const;
   unsigned getHits() const;
@@ -308,6 +312,7 @@ private:
    * cycle. Contrary to the TraceStack (m_traceStack).
    */
   std::map<unsigned, CacheAccessTrace> m_accessTrace;
+  bool m_accessTraceTruncated = false;
 
   /**
    * @brief m_traceStack
@@ -334,14 +339,14 @@ private:
 };
 
 const static std::map<ReplPolicy, QString> s_cacheReplPolicyStrings{
-    {ReplPolicy::Random, "Random"}, {ReplPolicy::LRU, "LRU"}};
+    {ReplPolicy::Random, QT_TRANSLATE_NOOP("Ripes::CacheConfigWidget", "Random")}, {ReplPolicy::LRU, QT_TRANSLATE_NOOP("Ripes::CacheConfigWidget", "LRU")}};
 const static std::map<WriteAllocPolicy, QString> s_cacheWriteAllocateStrings{
-    {WriteAllocPolicy::WriteAllocate, "Write allocate"},
-    {WriteAllocPolicy::NoWriteAllocate, "No write allocate"}};
+    {WriteAllocPolicy::WriteAllocate, QT_TRANSLATE_NOOP("Ripes::CacheConfigWidget", "Write allocate")},
+    {WriteAllocPolicy::NoWriteAllocate, QT_TRANSLATE_NOOP("Ripes::CacheConfigWidget", "No write allocate")}};
 
 const static std::map<WritePolicy, QString> s_cacheWritePolicyStrings{
-    {WritePolicy::WriteThrough, "Write-through"},
-    {WritePolicy::WriteBack, "Write-back"}};
+    {WritePolicy::WriteThrough, QT_TRANSLATE_NOOP("Ripes::CacheConfigWidget", "Write-through")},
+    {WritePolicy::WriteBack, QT_TRANSLATE_NOOP("Ripes::CacheConfigWidget", "Write-back")}};
 
 } // namespace Ripes
 

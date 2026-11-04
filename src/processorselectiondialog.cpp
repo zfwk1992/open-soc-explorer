@@ -13,7 +13,10 @@ namespace Ripes {
 ProcessorSelectionDialog::ProcessorSelectionDialog(QWidget *parent)
     : QDialog(parent), m_ui(new Ui::ProcessorSelectionDialog) {
   m_ui->setupUi(this);
-  setWindowTitle("Select Processor");
+  setWindowTitle(tr("Select Processor"));
+  m_ui->processors->setToolTip(
+      tr("Available processor models, grouped by ISA and register width. "
+         "Double-click a processor to select it."));
 
   // Initialize top level ISA items
   m_ui->processors->setHeaderHidden(true);
@@ -54,7 +57,7 @@ ProcessorSelectionDialog::ProcessorSelectionDialog(QWidget *parent)
     if (isaRegWidthItem == regWidthItemsForISA.end()) {
       // Create reg width item
       auto *widthItem = new QTreeWidgetItem(
-          {QString::number(desc.second->isaInfo().isa->bits()) + "-bit"});
+          {tr("%1-bit").arg(desc.second->isaInfo().isa->bits())});
       widthItem->setFlags(widthItem->flags() & ~(Qt::ItemIsSelectable));
       regWidthItemsForISA[desc.second->isaInfo().isa->bits()] = widthItem;
       isaRegWidthItem =

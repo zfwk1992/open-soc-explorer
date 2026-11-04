@@ -11,6 +11,17 @@
 namespace Ripes {
 class FancyPolyLine;
 
+/// Theme-aware colours used by the cache diagram (shared with the legend in
+/// the cache tab).
+namespace CacheColors {
+bool darkMode();
+QColor indexingColor();
+QColor hitColor();
+QColor missColor();
+QColor dirtyColor();
+} // namespace CacheColors
+
+
 class CacheGraphic : public QGraphicsObject {
 public:
   CacheGraphic(CacheSim &cache);

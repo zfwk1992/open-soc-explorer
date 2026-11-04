@@ -8,6 +8,7 @@
 QT_FORWARD_DECLARE_CLASS(QToolBar)
 QT_FORWARD_DECLARE_CLASS(QStackedWidget)
 QT_FORWARD_DECLARE_CLASS(QActionGroup)
+QT_FORWARD_DECLARE_CLASS(QFrame)
 
 namespace Ripes {
 namespace Ui {
@@ -19,6 +20,7 @@ class MemoryTab;
 class ProcessorTab;
 class CacheTab;
 class IOTab;
+class ArchExplorerTab;
 class ProcessorHandler;
 class RipesTab;
 struct LoadFileParams;
@@ -37,6 +39,7 @@ class MainWindow : public QMainWindow {
     CacheTabID,
     MemoryTabID,
     IOTabID,
+    ArchTabID,
     NTabsID
   };
 
@@ -55,8 +58,12 @@ public:
    */
   void restoreWindowGeometry();
 
+  /// Shows or hides the welcome / quick start panel above the tabs.
+  void setWelcomeVisible(bool visible);
+
 protected:
   void showEvent(QShowEvent *event) override;
+  bool eventFilter(QObject *watched, QEvent *event) override;
 
 signals:
   void prepareSave();
@@ -64,6 +71,7 @@ signals:
 private slots:
   void wiki();
   void version();
+  void userGuide();
 
   void loadFileTriggered();
 
@@ -79,6 +87,12 @@ private:
   void setupStatusBar();
   void setupMenus();
   void setupExamplesMenu(QMenu *parent);
+  void setupHelpMenu();
+  QFrame *createWelcomePanel();
+  /// Tooltip describing what the tab at @p index is for.
+  QString tabToolTip(int index) const;
+
+  QFrame *m_welcomePanel = nullptr;
 
   Ui::MainWindow *m_ui = nullptr;
   QActionGroup *m_binaryStoreAction;

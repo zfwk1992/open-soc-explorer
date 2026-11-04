@@ -5,6 +5,7 @@
 #include <QWidget>
 
 QT_FORWARD_DECLARE_CLASS(QGraphicsScene)
+QT_FORWARD_DECLARE_CLASS(QLabel)
 
 using RVMemory = vsrtl::core::RVMemory<32, 32>;
 
@@ -29,7 +30,13 @@ public:
   QGraphicsScene *getScene() { return m_scene.get(); }
 
 private:
+  /// Updates the "last access" status line (text + colour) from a cache
+  /// transaction. A transaction of type None shows the empty-state hint.
+  void updateLastAccess(const CacheSim::CacheTransaction &transaction);
+  void showIdleHint();
+
   Ui::CacheWidget *m_ui;
+  QLabel *m_lastAccess = nullptr;
   std::shared_ptr<CacheSim> m_cacheSim;
   std::unique_ptr<QGraphicsScene> m_scene;
 };

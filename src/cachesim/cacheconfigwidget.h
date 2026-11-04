@@ -26,6 +26,8 @@ public slots:
 
 private:
   void setupPresets();
+  void setupToolTips();
+  void updateSummary();
   void showSizeBreakdown();
   std::shared_ptr<CacheSim> m_cache;
   Ui::CacheConfigWidget *m_ui = nullptr;

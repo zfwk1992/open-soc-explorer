@@ -124,13 +124,13 @@ void CodeEditor::onSave() {
     clangFormatArgs << tmpSrc.fileName();
     auto [stdOut, stdErr] = FormatterManager::run(clangFormatArgs);
     if (!stdErr.isEmpty()) {
-      QMessageBox::warning(this, "Ripes",
-                           "Error while executing formatter. Make sure the "
-                           "formatter path points to a "
-                           "valid version of clang-format\n"
-                           "Error message was:\n" +
-                               stdErr,
-                           QMessageBox::Ok);
+      QMessageBox::warning(
+          this, tr("Formatter error"),
+          tr("Error while executing the formatter. Make sure the formatter "
+             "path (Edit > Settings > Editor) points to a valid version of "
+             "clang-format.\nError message was:\n%1")
+              .arg(stdErr),
+          QMessageBox::Ok);
       return;
     }
 

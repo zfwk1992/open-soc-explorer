@@ -3,15 +3,23 @@
 
 #include "processorhandler.h"
 
+#include <QCoreApplication>
 #include <QTableWidgetItem>
 
 namespace Ripes {
+
+// Syscall descriptions are marked with QT_TRANSLATE_NOOP("Ripes::Syscall", ...)
+// where they are defined (src/syscall/*.h) and translated here, at display
+// time.
+static QString trSyscall(const QString &text) {
+  return QCoreApplication::translate("Ripes::Syscall", text.toUtf8().constData());
+}
 
 SyscallViewer::SyscallViewer(QWidget *parent)
     : QDialog(parent), m_ui(new Ui::SyscallViewer) {
   m_ui->setupUi(this);
 
-  setWindowTitle("Supported system calls");
+  setWindowTitle(tr("Supported system calls"));
 
   m_ui->splitter->setStretchFactor(0, 0);
   m_ui->splitter->setStretchFactor(1, 1);
@@ -34,7 +42,7 @@ SyscallViewer::SyscallViewer(QWidget *parent)
   if (auto reg = ProcessorHandler::currentISA()->syscallReg();
       reg.has_value()) {
     m_ui->syscallList->setHorizontalHeaderLabels(
-        {"Func. (" + reg->file->regAlias(reg->index) + ")", "Name"});
+        {tr("Func. (%1)").arg(reg->file->regAlias(reg->index)), tr("Name")});
   }
   m_ui->syscallList->horizontalHeader()->setStretchLastSection(true);
   connect(m_ui->syscallList, &QTableWidget::currentItemChanged, this,
@@ -45,7 +53,7 @@ SyscallViewer::SyscallViewer(QWidget *parent)
   m_ui->syscallArguments->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_ui->syscallArguments->horizontalHeader()->setStretchLastSection(true);
   m_ui->syscallArguments->setHorizontalHeaderLabels(
-      {"Arg. #", "Reg.", "Description"});
+      {tr("Arg. #"), tr("Reg."), tr("Description")});
   m_ui->syscallArguments->verticalHeader()->hide();
 
   // Setup syscall returns styling
@@ -53,7 +61,7 @@ SyscallViewer::SyscallViewer(QWidget *parent)
   m_ui->syscallReturns->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_ui->syscallReturns->horizontalHeader()->setStretchLastSection(true);
   m_ui->syscallReturns->setHorizontalHeaderLabels(
-      {"Ret. #", "Reg.", "Description"});
+      {tr("Ret. #"), tr("Reg."), tr("Description")});
   m_ui->syscallReturns->verticalHeader()->hide();
 
   // Select first row to set the initial state
@@ -78,12 +86,12 @@ void SyscallViewer::setCurrentSyscall(const Syscall *syscall) {
   m_ui->syscallReturns->setRowCount(0);
 
   m_ui->syscallTitle->setText(syscall->name());
-  m_ui->syscallDescription->setText(syscall->description());
+  m_ui->syscallDescription->setText(trSyscall(syscall->description()));
   for (const auto &iter : syscall->argumentDescriptions()) {
-    addItemToTable(m_ui->syscallArguments, iter.first, iter.second);
+    addItemToTable(m_ui->syscallArguments, iter.first, trSyscall(iter.second));
   }
   for (const auto &iter : syscall->returnDescriptions()) {
-    addItemToTable(m_ui->syscallReturns, iter.first, iter.second);
+    addItemToTable(m_ui->syscallReturns, iter.first, trSyscall(iter.second));
   }
   m_ui->syscallArguments->resizeColumnToContents(0);
   m_ui->syscallArguments->resizeColumnToContents(1);
@@ -123,6 +131,7 @@ void SyscallViewer::addSyscall(unsigned id, const Syscall *syscall) {
 
   idItem->setData(Qt::EditRole, QString::number(id));
   textItem->setData(Qt::DisplayRole, syscall->name());
+  textItem->setToolTip(trSyscall(syscall->description()));
   idItem->setData(Qt::UserRole, QVariant::fromValue(syscall));
   textItem->setData(Qt::UserRole, QVariant::fromValue(syscall));
 

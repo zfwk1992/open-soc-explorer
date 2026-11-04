@@ -13,17 +13,17 @@ SymbolNavigator::SymbolNavigator(const ReverseSymbolMap &symbolmap,
     : QDialog(parent), m_ui(new Ui::SymbolNavigator) {
   m_ui->setupUi(this);
 
-  setWindowTitle("Symbol navigator");
+  setWindowTitle(tr("Symbol navigator"));
 
   m_ui->symbolTable->setColumnCount(2);
   m_ui->symbolTable->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_ui->symbolTable->setSelectionMode(QAbstractItemView::SingleSelection);
   m_ui->symbolTable->verticalHeader()->hide();
-  m_ui->symbolTable->setHorizontalHeaderLabels({"Address", "Symbol"});
+  m_ui->symbolTable->setHorizontalHeaderLabels({tr("Address"), tr("Symbol")});
   m_ui->symbolTable->horizontalHeader()->setStretchLastSection(true);
   m_ui->symbolTable->horizontalHeader()->setSectionResizeMode(
       QHeaderView::ResizeToContents);
-  m_ui->buttonBox->button(QDialogButtonBox::Ok)->setText("Go to symbol");
+  m_ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Go to symbol"));
 
   for (const auto &iter : symbolmap) {
     addSymbol(iter.first, iter.second);

@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string notr="true">Dialog</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
    <item row="0" column="0">
@@ -23,6 +23,9 @@
        </item>
        <item>
         <widget class="QPushButton" name="openFile">
+         <property name="toolTip">
+          <string>Browse for the file to load.</string>
+         </property>
          <property name="text">
           <string>Open...</string>
          </property>
@@ -48,6 +51,9 @@
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
         <widget class="QRadioButton" name="elfRadioButton">
+         <property name="toolTip">
+          <string>A RISC-V executable in ELF format, e.g. compiled outside Ripes with riscv64-unknown-elf-gcc.</string>
+         </property>
          <property name="text">
           <string>Executable (ELF)</string>
          </property>
@@ -55,6 +61,9 @@
        </item>
        <item>
         <widget class="QRadioButton" name="binaryRadioButton">
+         <property name="toolTip">
+          <string>Raw machine code without any header; you choose the load address and entry point below.</string>
+         </property>
          <property name="text">
           <string>Flat binary</string>
          </property>
@@ -62,6 +71,9 @@
        </item>
        <item>
         <widget class="QRadioButton" name="sourceRadioButton">
+         <property name="toolTip">
+          <string>An assembly (.s/.asm) or C (.c) source file, opened in the editor.</string>
+         </property>
          <property name="text">
           <string>Source file</string>
          </property>

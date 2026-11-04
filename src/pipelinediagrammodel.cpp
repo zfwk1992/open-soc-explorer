@@ -3,6 +3,9 @@
 #include "processorhandler.h"
 #include "ripessettings.h"
 
+#include <QApplication>
+#include <QPalette>
+
 #include <vector>
 
 namespace Ripes {
@@ -115,6 +118,30 @@ void PipelineDiagramModel::gatherStageInfo() {
         ProcessorHandler::getProcessor()->stageInfo(idx);
 }
 
+static bool pipelineDarkMode() {
+  return QApplication::palette().color(QPalette::Base).lightness() < 128;
+}
+
+QColor PipelineDiagramModel::stageColor(int ordinal, int count) {
+  const int hue = count > 0 ? (ordinal * 300 / std::max(count, 1)) % 360 : 0;
+  return pipelineDarkMode() ? QColor::fromHsv(hue, 120, 110)
+                            : QColor::fromHsv(hue, 70, 250);
+}
+
+QColor PipelineDiagramModel::stallColor() {
+  return QApplication::palette().color(QPalette::Mid);
+}
+
+int PipelineDiagramModel::stageOrdinal(const StageIndex &stage) {
+  int i = 0;
+  for (auto idx : ProcessorHandler::getProcessor()->structure().stageIt()) {
+    if (idx == stage)
+      return i;
+    ++i;
+  }
+  return -1;
+}
+
 QVariant PipelineDiagramModel::data(const QModelIndex &index, int role) const {
   if (!index.isValid())
     return QVariant();
@@ -123,16 +150,54 @@ QVariant PipelineDiagramModel::data(const QModelIndex &index, int role) const {
     return Qt::AlignCenter;
   }
 
-  if (role != Qt::DisplayRole)
+  if (role != Qt::DisplayRole && role != Qt::BackgroundRole &&
+      role != Qt::ToolTipRole)
     return QVariant();
 
-  if (!m_cycleStageInfos.count(index.column()))
+  const CellInfo info = cellInfo(index);
+  if (info.stages.size() == 0) {
     return QVariant();
+  }
+
+  if (role == Qt::BackgroundRole) {
+    if (info.stalled && info.firstStageOrdinal < 0)
+      return QBrush(stallColor());
+    if (info.firstStageOrdinal >= 0) {
+      int count = 0;
+      for (auto idx : ProcessorHandler::getProcessor()->structure().stageIt()) {
+        Q_UNUSED(idx);
+        ++count;
+      }
+      return QBrush(stageColor(info.firstStageOrdinal, count));
+    }
+    return QVariant();
+  }
+
+  if (role == Qt::ToolTipRole) {
+    QString tip = tr("Cycle %1: %2 is in stage %3")
+                      .arg(index.column())
+                      .arg(headerData(index.row(), Qt::Vertical).toString())
+                      .arg(info.stages.join('/'));
+    if (info.stalled) {
+      tip += "\n" + tr("\"-\" = the instruction stayed in the same stage as "
+                       "in the previous cycle (stall).");
+    }
+    return tip;
+  }
+
+  return info.stages.join('/');
+}
+
+PipelineDiagramModel::CellInfo
+PipelineDiagramModel::cellInfo(const QModelIndex &index) const {
+  CellInfo info;
+  if (!m_cycleStageInfos.count(index.column()))
+    return info;
 
   const AInt addr = indexToAddress(index.row());
   const auto &stageInfo = m_cycleStageInfos.at(index.column());
 
-  QStringList stagesForAddr;
+  QStringList &stagesForAddr = info.stages;
   QString stageStr;
   for (const auto &si : stageInfo) {
     if (si.second.pc == addr && si.second.stage_valid &&
@@ -147,6 +212,7 @@ QVariant PipelineDiagramModel::data(const QModelIndex &index, int role) const {
             stageStr += " (" + si.second.namedState + ")";
           }
           stagesForAddr << stageStr;
+          info.stalled = true;
           continue;
         }
       }
@@ -155,14 +221,11 @@ QVariant PipelineDiagramModel::data(const QModelIndex &index, int role) const {
         stageStr += " (" + si.second.namedState + ")";
       }
       stagesForAddr << stageStr;
+      if (info.firstStageOrdinal < 0)
+        info.firstStageOrdinal = stageOrdinal(si.first);
     }
   }
-
-  if (stagesForAddr.size() == 0) {
-    return QVariant();
-  }
-
-  return stagesForAddr.join('/');
+  return info;
 }
 
 QString PipelineDiagramModel::toString() const {

@@ -1,12 +1,15 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QFileInfo>
+#include <QFontDatabase>
+#include <QGuiApplication>
 #include <QMessageBox>
 #include <QResource>
 #include <iostream>
 
 #include "src/cli/clioptions.h"
 #include "src/cli/clirunner.h"
+#include "src/i18n.h"
 #include "src/mainwindow.h"
 #include "src/ripessettings.h"
 
@@ -55,7 +58,32 @@ CommandLineParseResult parseCommandLine(QCommandLineParser &parser,
   }
 }
 
+// The "offscreen" platform plugin (used for headless runs and screenshots)
+// only knows the fonts shipped with Qt, which have no CJK glyphs. Register a
+// system CJK font as fallback so that the Chinese UI renders there too.
+static void addOffscreenCJKFallbackFont() {
+  if (QGuiApplication::platformName() != "offscreen")
+    return;
+  const QStringList candidates = {
+      "C:/Windows/Fonts/msyh.ttc", "C:/Windows/Fonts/simsun.ttc",
+      "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+      "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+      "/System/Library/Fonts/PingFang.ttc"};
+  for (const QString &file : candidates) {
+    if (!QFileInfo::exists(file))
+      continue;
+    const int id = QFontDatabase::addApplicationFont(file);
+    const QStringList families = QFontDatabase::applicationFontFamilies(id);
+    if (families.isEmpty())
+      continue;
+    for (auto script : {QChar::Script_Han, QChar::Script_Common})
+      QFontDatabase::addApplicationFallbackFontFamily(script, families.first());
+    return;
+  }
+}
+
 int guiMode(QApplication &app) {
+  addOffscreenCJKFallbackFont();
   // Use the Fusion style, which respects the system light/dark palette and looks good with both. Combined
   // with QStyleHints::setColorScheme (see applyColorScheme) this gives the
   // application proper light/dark theming.
@@ -80,12 +108,20 @@ int guiMode(QApplication &app) {
   return app.exec();
 }
 
+// QCommandLineParser::showHelp() shows a message box on Windows GUI builds
+// (which blocks forever under QT_QPA_PLATFORM=offscreen) and exits the
+// process. Print the help text to the console instead and let the caller pick
+// the exit code.
+static void printHelp(QCommandLineParser &parser, std::ostream &out) {
+  out << parser.helpText().toStdString() << std::flush;
+}
+
 int CLIMode(QCommandLineParser &parser, Ripes::CLIModeOptions &options) {
   QString err;
   if (!Ripes::parseCLIOptions(parser, err, options)) {
     std::cerr << "ERROR: " << err.toStdString() << std::endl;
-    parser.showHelp();
-    return 0;
+    printHelp(parser, std::cerr);
+    return 1;
   }
   return Ripes::CLIRunner(options).run();
 }
@@ -98,6 +134,7 @@ int main(int argc, char **argv) {
 
   QApplication app(argc, argv);
   QCoreApplication::setApplicationName("Ripes");
+  Ripes::installTranslators(app);
 
   QCommandLineParser parser;
   Ripes::CLIModeOptions options;
@@ -106,14 +143,16 @@ int main(int argc, char **argv) {
   switch (parseCommandLine(parser, err)) {
   case CommandLineError:
     std::cerr << "ERROR: " << err.toStdString() << std::endl;
-    parser.showHelp();
-    return 0;
+    printHelp(parser, std::cerr);
+    return 1;
   case CommandLineHelpRequested:
-    parser.showHelp();
+    printHelp(parser, std::cout);
     return 0;
   case CommandLineGUI:
     return guiMode(app);
   case CommandLineCLI:
     return CLIMode(parser, options);
   }
+  Q_UNREACHABLE();
+  return 0;
 }

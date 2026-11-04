@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string notr="true">Dialog</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
@@ -20,6 +20,9 @@
       <enum>Qt::Horizontal</enum>
      </property>
      <widget class="QTableWidget" name="syscallList">
+      <property name="toolTip">
+       <string>System calls supported by Ripes. Put the function number in the register shown in the header (a7 on RISC-V) and execute ecall.</string>
+      </property>
       <property name="sizePolicy">
        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -32,14 +35,14 @@
        <item>
         <widget class="QLabel" name="syscallTitle">
          <property name="text">
-          <string>title</string>
+          <string notr="true">title</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QLabel" name="syscallDescription">
          <property name="text">
-          <string>description</string>
+          <string notr="true">description</string>
          </property>
          <property name="wordWrap">
           <bool>true</bool>

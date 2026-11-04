@@ -2,6 +2,8 @@
 
 #include "processorhandler.h"
 
+#include <QCoreApplication>
+
 namespace Ripes {
 
 bool SyscallManager::execute(SyscallID id) {
@@ -9,13 +11,14 @@ bool SyscallManager::execute(SyscallID id) {
     postToGUIThread([id] {
       if (auto reg = ProcessorHandler::currentISA()->syscallReg();
           reg.has_value()) {
-        QMessageBox::warning(nullptr, "Error",
-                             "Unknown system call in register '" +
-                                 reg->file->regAlias(reg->index) +
-                                 "': " + QString::number(id) +
-                                 "\nRefer to \"Help->System calls\" for a list "
-                                 "of support system "
-                                 "calls.");
+        QMessageBox::warning(
+            nullptr, QCoreApplication::translate("Ripes::Syscall", "Error"),
+            QCoreApplication::translate(
+                "Ripes::Syscall",
+                "Unknown system call in register '%1': %2\nRefer to "
+                "\"Help > System calls\" for a list of supported system "
+                "calls.")
+                .arg(reg->file->regAlias(reg->index), QString::number(id)));
       }
     });
     return false;
@@ -27,8 +30,9 @@ bool SyscallManager::execute(SyscallID id) {
       // pseudo-permanent until explicitly cleared... The best way to do so is
       // to just have a very large timeout.
       SyscallStatusManager::setStatusTimed(
-          "Handling system call: " + syscallName + " (" + QString::number(id) +
-              ")",
+          QCoreApplication::translate("Ripes::Syscall",
+                                      "Handling system call: %1 (%2)")
+              .arg(syscallName, QString::number(id)),
           99999999);
     });
     syscall->execute();

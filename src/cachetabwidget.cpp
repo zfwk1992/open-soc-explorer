@@ -41,7 +41,7 @@ CacheTabWidget::CacheTabWidget(QWidget *parent)
   m_l1iShim->setNextLevelCache(m_ui->instructionCacheWidget->getCacheSim());
 
 #ifdef N_CACHES_ENABLED
-  m_addTabIdx = m_ui->tabWidget->addTab(new QLabel("Placeholder"),
+  m_addTabIdx = m_ui->tabWidget->addTab(new QLabel(tr("Placeholder")),
                                         QIcon((":/icons/plus.svg")), QString());
 #endif
 
@@ -51,6 +51,13 @@ CacheTabWidget::CacheTabWidget(QWidget *parent)
           &CacheTabWidget::handleTabCloseRequest);
 
   m_ui->tabWidget->setTabsClosable(true);
+  m_ui->tabWidget->setTabToolTip(
+      DataCache, tr("Level-1 data cache: serves the loads and stores "
+                    "executed by the program (lw/sw/...)."));
+  m_ui->tabWidget->setTabToolTip(
+      InstrCache, tr("Level-1 instruction cache: serves the instruction "
+                     "fetches of the processor (one access per fetched "
+                     "instruction)."));
 
   if (auto *tabButton =
           m_ui->tabWidget->tabBar()->tabButton(0, QTabBar::RightSide)) {
@@ -98,7 +105,7 @@ void CacheTabWidget::handleTabIndexChanged(int index) {
     // Add new level of cache
     auto *cw = new CacheWidget(this);
     m_ui->tabWidget->insertTab(m_addTabIdx, cw,
-                               QString("L%1 Cache").arg(m_nextCacheLevel));
+                               tr("L%1 Cache").arg(m_nextCacheLevel));
     m_nextCacheLevel++;
 
     // The new cache is the deleteable cache, the one below it is thus no longer

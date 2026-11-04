@@ -23,12 +23,26 @@ public:
   /// Returns a tab-separated stringified version of this pipeline diagram.
   QString toString() const;
 
+  /// Theme-aware background colour for the @p ordinal'th of @p count
+  /// pipeline stages (shared with the legend of the diagram widget).
+  static QColor stageColor(int ordinal, int count);
+  /// Background colour of cells where an instruction stalls ("-").
+  static QColor stallColor();
+
 public slots:
   void processorWasClocked();
   void reset();
 
 private:
   void gatherStageInfo();
+  /// Ordinal (0..n-1) of @p stage in the processor's stage order.
+  static int stageOrdinal(const StageIndex &stage);
+  struct CellInfo {
+    QStringList stages;
+    int firstStageOrdinal = -1;
+    bool stalled = false;
+  };
+  CellInfo cellInfo(const QModelIndex &index) const;
 
   /**
    * @brief m_cycleStageInfos

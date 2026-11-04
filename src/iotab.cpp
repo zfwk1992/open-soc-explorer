@@ -2,9 +2,15 @@
 #include "ui_iotab.h"
 
 #include <QDockWidget>
+
+#include <algorithm>
 #include <QGraphicsItem>
+#include <QHeaderView>
+#include <QLabel>
 #include <QMdiSubWindow>
+#include <QPushButton>
 #include <QScreen>
+#include <QTimer>
 #include <QToolBar>
 
 #include "fonts.h"
@@ -12,6 +18,7 @@
 #include "ioperipheraltab.h"
 #include "processorhandler.h"
 #include "ripessettings.h"
+#include "tabheader.h"
 
 #include "cereal/archives/json.hpp"
 #include "cereal/types/map.hpp"
@@ -23,8 +30,29 @@ IOTab::IOTab(QToolBar *toolbar, QWidget *parent)
     : RipesTab(toolbar, parent), m_ui(new Ui::IOTab) {
   m_ui->setupUi(this);
 
+  m_ui->gridLayout_2->addWidget(
+      createTabHeader(
+          tr("I/O peripherals"),
+          tr("Add memory-mapped devices (LEDs, switches, a screen, "
+             "accelerators...) that your program controls by reading and "
+             "writing their registers. Pick a device on the left and click "
+             "\"Add selected device\" (or double-click it); its parameters, register map and "
+             "exported symbols appear in the panel on the right. Base "
+             "addresses are assigned in the order devices are added and are "
+             "reassigned when a parameter changes a device's size - always "
+             "use the exported symbols instead of hard-coded addresses."),
+          "08-mmio-peripherals", this),
+      0, 0);
+  m_ui->gridLayout_2->setRowStretch(1, 1);
+
   m_ui->mdiArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   m_ui->mdiArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  // Device windows added while the tab was hidden are sized once the area
+  // has its real size.
+  new ResizeHook(m_ui->mdiArea->viewport(), [this] {
+    if (!m_pendingFit.empty())
+      QTimer::singleShot(0, this, [this] { fitPendingSubWindows(); });
+  });
 
   // QMdiArea captures its backdrop brush (QPalette::Dark) once at construction
   // and does not refresh it when the application palette changes. Set it
@@ -39,26 +67,94 @@ IOTab::IOTab(QToolBar *toolbar, QWidget *parent)
 
   m_ui->peripheralsTab->clear();
 
-  // Setup peripheral selection window
+  // Setup peripheral selection window: one row per device type with its
+  // title and a one-sentence description.
   m_ui->peripheralsTable->setRowCount(IOTypeTitles.size());
-  m_ui->peripheralsTable->setColumnCount(1);
+  m_ui->peripheralsTable->setColumnCount(2);
+  m_ui->peripheralsTable->setHorizontalHeaderLabels(
+      {tr("Device"), tr("What it does")});
   m_ui->peripheralsTable->horizontalHeader()->setSectionResizeMode(
-      QHeaderView::Stretch);
-  m_ui->peripheralsTable->horizontalHeader()->hide();
+      0, QHeaderView::ResizeToContents);
+  m_ui->peripheralsTable->horizontalHeader()->setSectionResizeMode(
+      1, QHeaderView::Stretch);
   m_ui->peripheralsTable->verticalHeader()->hide();
+  m_ui->peripheralsTable->setWordWrap(true);
+  m_ui->peripheralsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+  m_ui->peripheralsTable->setSelectionMode(
+      QAbstractItemView::SingleSelection);
+  m_ui->peripheralsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
   int row = 0;
   for (const auto &it : IOTypeTitles) {
-    QTableWidgetItem *periphItem = new QTableWidgetItem(it.second);
+    const QString title = ioTypeTitle(it.first);
+    const QString desc = ioTypeDescription(it.first);
+    const QString tip = tr("%1: %2\nDouble-click (or select and click Add) "
+                           "to add this device to the system.")
+                            .arg(title, desc);
+    QTableWidgetItem *periphItem = new QTableWidgetItem(title);
     periphItem->setData(Qt::UserRole, QVariant::fromValue(it.first));
-    periphItem->setToolTip("Double-click to create");
+    periphItem->setToolTip(tip);
+    periphItem->setStatusTip(tip);
+    QFont f = periphItem->font();
+    f.setBold(true);
+    periphItem->setFont(f);
     periphItem->setFlags(periphItem->flags() & ~Qt::ItemIsEditable);
-    m_ui->peripheralsTable->setItem(row++, 0, periphItem);
+    m_ui->peripheralsTable->setItem(row, 0, periphItem);
+
+    QTableWidgetItem *descItem = new QTableWidgetItem(desc);
+    descItem->setData(Qt::UserRole, QVariant::fromValue(it.first));
+    descItem->setToolTip(tip);
+    descItem->setStatusTip(tip);
+    descItem->setFlags(descItem->flags() & ~Qt::ItemIsEditable);
+    m_ui->peripheralsTable->setItem(row, 1, descItem);
+    row++;
   }
+  m_ui->peripheralsTable->resizeRowsToContents();
+  new ResizeHook(m_ui->peripheralsTable->viewport(), [this] {
+    QTimer::singleShot(0, m_ui->peripheralsTable,
+                       [this] { m_ui->peripheralsTable->resizeRowsToContents(); });
+  });
+  m_ui->peripheralsTable->selectRow(0);
 
   connect(m_ui->peripheralsTable, &QTableWidget::itemDoubleClicked, this,
           [this](QTableWidgetItem *item) {
             this->createPeripheral(item->data(Qt::UserRole).value<IOType>());
           });
+
+  // Explicit "Add" button, so that adding a device does not rely on knowing
+  // about double-clicking.
+  m_addButton = new QPushButton(QIcon(":/icons/plus.svg"),
+                                tr("Add selected device"), this);
+  setTips(m_addButton,
+          tr("Create an instance of the selected device. It is placed at the "
+             "next free address after the previous peripherals, so base "
+             "addresses depend on the order in which devices are added and "
+             "are reassigned when a parameter changes a device's size. Its "
+             "base address and register symbols are listed under I/O "
+             "exports."));
+  m_addButton->setObjectName("addPeripheralButton");
+  m_ui->gridLayout->addWidget(m_addButton, 1, 0);
+  connect(m_addButton, &QPushButton::clicked, this, [this] {
+    const auto items = m_ui->peripheralsTable->selectedItems();
+    if (!items.isEmpty()) {
+      createPeripheral(items.first()->data(Qt::UserRole).value<IOType>());
+    }
+  });
+  connect(m_ui->peripheralsTable, &QTableWidget::itemSelectionChanged, this,
+          [this] {
+            m_addButton->setEnabled(
+                !m_ui->peripheralsTable->selectedItems().isEmpty());
+          });
+
+  // Empty-state hint shown in the device area while no peripheral exists.
+  m_emptyHint = new QLabel(
+      tr("No peripherals yet.\nSelect a device in the list on the left and "
+         "click \"Add selected device\" (or double-click it)."),
+      this);
+  m_emptyHint->setAlignment(Qt::AlignCenter);
+  m_emptyHint->setWordWrap(true);
+  m_emptyHint->setAttribute(Qt::WA_TransparentForMouseEvents);
+  m_emptyHint->setStyleSheet("QLabel { font-style: italic; padding: 12px; }");
+  m_ui->dockArea->addWidget(m_emptyHint, 0, 0, Qt::AlignCenter);
 
   // Setup MDI area
   connect(m_ui->mdiArea, &QMdiArea::subWindowActivated, this,
@@ -86,9 +182,16 @@ IOTab::IOTab(QToolBar *toolbar, QWidget *parent)
 
   // Disable instantiating new peripherals during processor running
   connect(ProcessorHandler::get(), &ProcessorHandler::runStarted, this,
-          [this] { m_ui->peripheralsTable->setEnabled(false); });
+          [this] {
+            m_ui->peripheralsTable->setEnabled(false);
+            m_addButton->setEnabled(false);
+          });
   connect(ProcessorHandler::get(), &ProcessorHandler::runFinished, this,
-          [this] { m_ui->peripheralsTable->setEnabled(true); });
+          [this] {
+            m_ui->peripheralsTable->setEnabled(true);
+            m_addButton->setEnabled(
+                !m_ui->peripheralsTable->selectedItems().isEmpty());
+          });
 
   // Store peripheral state before exiting the program
   connect(RipesSettings::getObserver(RIPES_GLOBALSIGNAL_QUIT),
@@ -98,16 +201,29 @@ IOTab::IOTab(QToolBar *toolbar, QWidget *parent)
   loadPeripheralState();
 
   m_ui->ioSymbols->setFont(QFont(Fonts::monospace, 11));
-  m_ui->ioSymbols->setToolTip(
-      "Exported symbols for all I/O devices.\nThese symbols may be referenced "
-      "in Assembly\nor C-language programs.");
+  setTips(m_ui->ioSymbols,
+          tr("Exported symbols for all I/O devices.\nThese symbols may be "
+             "referenced in Assembly\nor C-language programs (C: #include "
+             "\"ripes_system.h\")."));
+  setTips(m_ui->peripheralsTab,
+          tr("Details of each added device: description, editable "
+             "parameters, register map (offset, access, meaning) and the "
+             "symbols exported for your program."));
+  setTips(m_ui->mdiArea,
+          tr("Live view of every added device. Close a device window to "
+             "remove the device."));
+  updateEmptyHint();
 
   // The default sizing of the splitter is fairly unuseable due to the MDIArea
-  // minimizing the left-hand side layout. Manually size it to ensure that the
-  // left-hand side layout is reasonably sized, and the right hand side is
-  // minimally sized.
-  const int largeWidth = QGuiApplication::primaryScreen()->size().width();
-  m_ui->splitter->setSizes({largeWidth, static_cast<int>(largeWidth * 3), 0});
+  // minimizing the left-hand side layout. Size it once the tab has its real
+  // width: the device list on the left and the details panel on the right
+  // (register map, exports; it scrolls when narrow) get about a fifth each,
+  // and the device area in the middle, where the large accelerator widgets
+  // live, gets the rest. Extra width from resizing goes to the middle.
+  m_ui->splitter->setStretchFactor(0, 0);
+  m_ui->splitter->setStretchFactor(1, 1);
+  m_ui->splitter->setStretchFactor(2, 0);
+  new ResizeHook(m_ui->splitter, [this] { sizeSplitterOnce(); });
 }
 
 void IOTab::updateIOSymbolFilePreview() {
@@ -170,7 +286,58 @@ IOBase *IOTab::createPeripheral(IOType type, int forcedID) {
           });
 
   m_subWindows[peripheralTab] = mdiw;
+  updateEmptyHint();
+  m_pendingFit.push_back(mdiw);
+  QTimer::singleShot(0, this, [this] { fitPendingSubWindows(); });
   return peripheral;
+}
+
+void IOTab::tabVisibilityChanged(bool visible) {
+  if (visible)
+    sizeSplitterOnce();
+}
+
+void IOTab::sizeSplitterOnce() {
+  const int w = m_ui->splitter->width();
+  // Hidden tab pages are laid out too; wait for the real window size.
+  if (m_splitterSized || !m_ui->splitter->window()->isVisible() || w < 600)
+    return;
+  m_splitterSized = true;
+  const int left = std::max(
+      m_ui->verticalLayoutWidget->minimumSizeHint().width(), w * 22 / 100);
+  const int right =
+      std::max(m_ui->peripheralsTab->minimumWidth(), w * 25 / 100);
+  m_ui->splitter->setSizes({left, std::max(0, w - left - right), right});
+}
+
+void IOTab::fitPendingSubWindows() {
+  const QSize avail = m_ui->mdiArea->viewport()->size();
+  // Not laid out yet (tab never shown): try again on the next resize.
+  if (!m_ui->mdiArea->isVisible() || avail.width() < 100 ||
+      avail.height() < 100)
+    return;
+  for (const auto &w : m_pendingFit) {
+    if (!w)
+      continue;
+    const QSize minSize = w->minimumSizeHint();
+    const QSize size =
+        w->sizeHint().boundedTo(avail).expandedTo(minSize);
+    w->resize(size);
+    // Keep the window's top-left corner visible; anything beyond the area is
+    // reached with the device area's scroll bars.
+    const int x = std::clamp(w->x(), 0, std::max(0, avail.width() - size.width()));
+    const int y =
+        std::clamp(w->y(), 0, std::max(0, avail.height() - size.height()));
+    w->move(x, y);
+  }
+  m_pendingFit.clear();
+}
+
+void IOTab::updateEmptyHint() {
+  if (m_emptyHint) {
+    m_emptyHint->setVisible(m_periphToTab.empty());
+    m_emptyHint->raise();
+  }
 }
 
 void IOTab::loadPeripheralState() {
@@ -265,6 +432,7 @@ void IOTab::removePeripheral(QObject *peripheral) {
   m_subWindows.erase(tab);
   m_periphToTab.at(peripheral)->deleteLater();
   m_periphToTab.erase(peripheral);
+  updateEmptyHint();
 }
 
 IOTab::~IOTab() {

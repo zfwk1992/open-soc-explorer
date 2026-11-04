@@ -72,11 +72,25 @@ QVariant RegisterModel::headerData(int section, Qt::Orientation orientation,
   if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
     switch (section) {
     case Column::Name:
-      return "Name";
+      return tr("Name");
     case Column::Alias:
-      return "Alias";
+      return tr("Alias");
     case Column::Value:
-      return "Value";
+      return tr("Value");
+    default:
+      return QVariant();
+    }
+  }
+  if (orientation == Qt::Horizontal && role == Qt::ToolTipRole) {
+    switch (section) {
+    case Column::Name:
+      return tr("Architectural register name (x0-x31, f0-f31, ...)");
+    case Column::Alias:
+      return tr("ABI name used in assembly by convention (zero, ra, sp, a0, "
+                "t0, ...)");
+    case Column::Value:
+      return tr("Current value in the selected display type. Double-click to "
+                "edit; the most recently written register is highlighted.");
     default:
       return QVariant();
     }

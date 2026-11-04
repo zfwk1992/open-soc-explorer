@@ -46,6 +46,7 @@ protected:
    */
   void paintEvent(QPaintEvent *event) override;
   QSize minimumSizeHint() const override;
+  bool event(QEvent *e) override;
 
 private:
   VInt regRead(AInt offset) const;

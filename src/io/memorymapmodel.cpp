@@ -5,6 +5,7 @@
 #include "fonts.h"
 #include "iobase.h"
 #include "iomanager.h"
+#include "ioregistry.h"
 #include "processorhandler.h"
 #include "radix.h"
 
@@ -23,6 +24,17 @@ void MemoryMapModel::memoryMapChanged() {
   emit layoutChanged();
 }
 
+QString MemoryMapModel::rangeText(AInt start, AInt size, unsigned byteWidth) {
+  const QString first = encodeRadixValue(start, Radix::Hex, byteWidth);
+  if (size == 0) {
+    //: Address range of a zero-sized memory map entry, e.g. an empty .data
+    //: section. %1 is the start address.
+    return tr("%1 (empty)").arg(first);
+  }
+  // Display memory range as (first @ - last @) (inclusive range).
+  return first + " - " + encodeRadixValue(start + size - 1, Radix::Hex, byteWidth);
+}
+
 int MemoryMapModel::columnCount(const QModelIndex &) const { return NColumns; }
 
 int MemoryMapModel::rowCount(const QModelIndex &) const {
@@ -34,16 +46,54 @@ QVariant MemoryMapModel::headerData(int section, Qt::Orientation orientation,
   if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
     switch (section) {
     case Column::Name:
-      return "Name";
+      return tr("Name");
     case Column::AddressRange:
-      return "Range";
+      return tr("Address range");
     case Column::Size:
-      return "Size";
+      return tr("Size (bytes)");
+    case Column::Description:
+      return tr("Description");
+    default:
+      return QVariant();
+    }
+  }
+  if (orientation == Qt::Horizontal && role == Qt::ToolTipRole) {
+    switch (section) {
+    case Column::Name:
+      return tr("Program section (e.g. .text, .data) or memory-mapped "
+                "peripheral");
+    case Column::AddressRange:
+      return tr("First and last byte address occupied by the entry "
+                "(hexadecimal, inclusive)");
+    case Column::Size:
+      return tr("Number of bytes occupied by the entry (decimal)");
+    case Column::Description:
+      return tr("What this region of the address space is used for");
     default:
       return QVariant();
     }
   }
   return QVariant();
+}
+
+QString MemoryMapModel::describe(const QString &name) const {
+  if (name == ".text")
+    return tr("Program code (instructions)");
+  if (name == ".data" || name == ".sdata")
+    return tr("Initialized global data");
+  if (name == ".bss" || name == ".sbss")
+    return tr("Zero-initialized global data");
+  if (name.startsWith(".rodata") || name == ".srodata")
+    return tr("Read-only constants");
+  if (name.startsWith("."))
+    return tr("Program section");
+  for (const auto *periph : m_ioManager->peripherals()) {
+    if (periph->name() == name) {
+      return tr("Memory-mapped peripheral: %1")
+          .arg(ioTypeDescription(static_cast<IOType>(periph->iotype())));
+    }
+  }
+  return QString();
 }
 
 QVariant MemoryMapModel::data(const QModelIndex &index, int role) const {
@@ -63,13 +113,8 @@ QVariant MemoryMapModel::data(const QModelIndex &index, int role) const {
   case Column::AddressRange: {
     switch (role) {
     case Qt::DisplayRole:
-      // Display memory range as (first @ - last @) (exclusive range).
-      return encodeRadixValue(memoryMapEntry->first, Radix::Hex,
-                              ProcessorHandler::currentISA()->bytes()) +
-             " - " +
-             encodeRadixValue(
-                 memoryMapEntry->first + memoryMapEntry->second.size - 1,
-                 Radix::Hex, ProcessorHandler::currentISA()->bytes());
+      return rangeText(memoryMapEntry->first, memoryMapEntry->second.size,
+                       ProcessorHandler::currentISA()->bytes());
     case Qt::FontRole:
       return QFont(Fonts::monospace, 11);
     case Qt::TextAlignmentRole:
@@ -84,6 +129,12 @@ QVariant MemoryMapModel::data(const QModelIndex &index, int role) const {
     }
     case Qt::TextAlignmentRole:
       return Qt::AlignCenter;
+    }
+    break;
+  }
+  case Column::Description: {
+    if (role == Qt::DisplayRole || role == Qt::ToolTipRole) {
+      return describe(memoryMapEntry->second.name);
     }
     break;
   }

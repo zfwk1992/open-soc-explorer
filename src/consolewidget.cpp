@@ -18,7 +18,10 @@ ConsoleWidget::ConsoleWidget(QWidget *parent)
   connect(m_ui->clearConsoleButton, &QPushButton::clicked, m_ui->console,
           &Console::clearConsole);
   m_ui->clearConsoleButton->setIcon(QIcon(":/icons/clear.svg"));
-  m_ui->clearConsoleButton->setToolTip("Clear console");
+  m_ui->clearConsoleButton->setToolTip(tr("Clear console"));
+  m_ui->console->setToolTip(
+      tr("Program input/output: text printed by ecall print syscalls appears "
+         "here; type here to provide input to read syscalls."));
 
   // Send input data from the console to the SystemIO stdin stream.
   connect(m_ui->console, &Console::sendData, &SystemIO::get(),

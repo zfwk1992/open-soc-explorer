@@ -12,5 +12,13 @@
         <file>ELF/RanPi-RV32</file>
         <file>ELF/RanPi-RV64</file>
         <file>assembly/consoleReading.s</file>
+        <file>assembly/neogeo_mailbox.s</file>
+        <file>C/spe_double_buffer.c</file>
+        <file>assembly/gpu_vecadd.s</file>
+        <file>C/npu_matmul.c</file>
+        <file>assembly/npu_matmul.s</file>
+        <file>assembly/exercise_gpu_saxpy.s</file>
+        <file>assembly/exercise_gpu_divergence.s</file>
+        <file>assembly/exercise_npu_batch.s</file>
     </qresource>
 </RCC>

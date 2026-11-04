@@ -73,11 +73,22 @@ add_subdirectory(cachesim)
 add_subdirectory(editor)
 add_subdirectory(syscall)
 add_subdirectory(assembler)
+add_subdirectory(accel/gpu)
+add_subdirectory(accel/npu)
 add_subdirectory(io)
+add_subdirectory(archexplorer)
 add_subdirectory(utilities)
 add_subdirectory(processors)
 add_subdirectory(version)
 add_subdirectory(cli)
+
+# The peripheral widgets (io_lib) and the architecture explorer call back into
+# ripes_lib (e.g. Ripes::showHelp in src/help.cpp). Declaring the dependency
+# makes ripes_lib <-> sub-library a link cycle, which CMake resolves by
+# repeating the static libraries on the link line; otherwise an executable
+# that does not itself reference help.o fails to link.
+target_link_libraries(io_lib PUBLIC ${RIPES_LIB})
+target_link_libraries(archexplorer_lib PUBLIC ${RIPES_LIB})
 
 # Also link Qt and VSRTL libraries.
 target_link_libraries(${RIPES_LIB} PUBLIC

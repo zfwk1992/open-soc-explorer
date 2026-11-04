@@ -19,7 +19,7 @@ class IOBase;
 class RegisterMapModel : public QAbstractTableModel {
   Q_OBJECT
 public:
-  enum Column { Name, Address, RW, BitWidth, NColumns };
+  enum Column { Name, Address, RW, BitWidth, Description, NColumns };
   RegisterMapModel(QPointer<IOBase> peripheral, QObject *parent = nullptr);
 
   int rowCount(const QModelIndex &parent = QModelIndex()) const override;

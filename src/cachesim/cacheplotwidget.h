@@ -14,6 +14,7 @@ QT_FORWARD_DECLARE_CLASS(QAction);
 class QChartView;
 class QChart;
 class QLineSeries;
+class QValueAxis;
 
 template <typename T>
 class FixedQueue : public std::deque<T> {
@@ -58,6 +59,18 @@ public:
   void setCache(const std::shared_ptr<CacheSim> &cache);
   ~CachePlotWidget();
 
+  /// Number of points of the ratio series (for tests).
+  int plottedPointCount() const;
+  /// First and last clock cycle of the plotted ratio series; {0, 0} if empty.
+  std::pair<int, int> plottedCycleRange() const;
+  /// True if the plot does not reach back to the first cache access, because
+  /// the plot window ("Max. cache plot cycles") or the cache's access trace
+  /// ("Max. cache access traces") dropped older cycles. A hint naming the
+  /// settings is then shown above the plot.
+  bool isPlotTruncated() const;
+  /// Text of the hint shown above the plot (empty if hidden).
+  QString truncationHintText() const;
+
 public slots:
 
 private slots:
@@ -79,7 +92,10 @@ private:
   void updateRatioPlot();
   void updatePlotAxes();
   void updateAllowedRange(const RangeChangeSource src);
-  void updatePlotWarningButton();
+  void updateTruncationHint();
+  /// Removes points before the plot window (see
+  /// RIPES_SETTING_CACHE_MAXCYCLES) from both series.
+  void dropPointsBeforeWindow();
 
   /**
    * @brief resampleToScreen
@@ -90,10 +106,15 @@ private:
 
   void resetRatioPlot();
   void applyPlotTheme();
+  void setupToolTips();
+  /// Translated display name of a plot variable.
+  static QString variableName(Variable v);
 
 private:
   QChart *m_plot = nullptr;
   QLineSeries *m_series = nullptr;
+  QValueAxis *m_axisX = nullptr;
+  QValueAxis *m_axisY = nullptr;
   double m_maxY = -DBL_MAX;
   double m_minY = DBL_MAX;
   int64_t m_lastCyclePlotted = 0;
@@ -107,8 +128,8 @@ private:
   Ui::CachePlotWidget *m_ui;
   std::shared_ptr<CacheSim> m_cache;
 
-  CachePlotWidget::Variable m_numerator;
-  CachePlotWidget::Variable m_denominator;
+  CachePlotWidget::Variable m_numerator = Variable::Hits;
+  CachePlotWidget::Variable m_denominator = Variable::Accesses;
 
   QAction *m_copyDataAction = nullptr;
   QAction *m_savePlotAction = nullptr;
@@ -120,15 +141,15 @@ private:
 
 const static std::map<CachePlotWidget::Variable, QString>
     s_cacheVariableStrings{
-        {CachePlotWidget::Variable::Writes, "Writes"},
-        {CachePlotWidget::Variable::Reads, "Reads"},
-        {CachePlotWidget::Variable::Hits, "Hits"},
-        {CachePlotWidget::Variable::Misses, "Misses"},
-        {CachePlotWidget::Variable::Writebacks, "Writebacks"},
-        {CachePlotWidget::Variable::Accesses, "Access count"},
+        {CachePlotWidget::Variable::Writes, QT_TRANSLATE_NOOP("Ripes::CachePlotWidget", "Writes")},
+        {CachePlotWidget::Variable::Reads, QT_TRANSLATE_NOOP("Ripes::CachePlotWidget", "Reads")},
+        {CachePlotWidget::Variable::Hits, QT_TRANSLATE_NOOP("Ripes::CachePlotWidget", "Hits")},
+        {CachePlotWidget::Variable::Misses, QT_TRANSLATE_NOOP("Ripes::CachePlotWidget", "Misses")},
+        {CachePlotWidget::Variable::Writebacks, QT_TRANSLATE_NOOP("Ripes::CachePlotWidget", "Writebacks")},
+        {CachePlotWidget::Variable::Accesses, QT_TRANSLATE_NOOP("Ripes::CachePlotWidget", "Access count")},
         {CachePlotWidget::Variable::Unary, "1"},
-        {CachePlotWidget::Variable::WasHit, "Was hit"},
-        {CachePlotWidget::Variable::WasMiss, "Was miss"}};
+        {CachePlotWidget::Variable::WasHit, QT_TRANSLATE_NOOP("Ripes::CachePlotWidget", "Was hit")},
+        {CachePlotWidget::Variable::WasMiss, QT_TRANSLATE_NOOP("Ripes::CachePlotWidget", "Was miss")}};
 
 } // namespace Ripes
 

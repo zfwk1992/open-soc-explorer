@@ -112,14 +112,20 @@ QVariant InstructionModel::headerData(int section, Qt::Orientation orientation,
       (role == Qt::DisplayRole || role == Qt::ToolTipRole)) {
     switch (section) {
     case Column::Breakpoint:
-      return role == Qt::DisplayRole ? "BP" : "Breakpoints";
+      return role == Qt::DisplayRole
+                 ? tr("BP")
+                 : tr("Breakpoints: click to stop execution before this "
+                      "instruction");
     case Column::PC:
-      return role == Qt::DisplayRole ? "Addr" : "Instruction Address";
+      return role == Qt::DisplayRole ? tr("Addr")
+                                     : tr("Instruction address");
     case Column::Stage:
-      return role == Qt::DisplayRole ? "Stage"
-                                     : "Stages currently executing instructon";
+      return role == Qt::DisplayRole
+                 ? tr("Stage")
+                 : tr("Pipeline stage(s) currently executing the "
+                      "instruction");
     case Column::Instruction:
-      return "Instruction";
+      return tr("Instruction");
     default:
       return QVariant();
     }

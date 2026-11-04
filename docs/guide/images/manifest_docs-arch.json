@@ -1,0 +1,302 @@
+[
+  {
+    "file": "11-arch-explorer-overview.zh.png",
+    "lang": "zh",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "actions": [
+      "select topology 'neogeo'",
+      "fit to view (F)",
+      "grab whole tab incl. header with '?' button, left Topology/Data flow column, step panel, right details/legend column and status row"
+    ],
+    "caption": "架构浏览器整体布局：左侧拓扑/flow 列表，中间框图与图例，右侧方块详情，底部步骤栏",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "arch fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "11-arch-explorer-overview.en.png",
+    "lang": "en",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "actions": [
+      "select topology 'neogeo'",
+      "fit to view (F)",
+      "grab whole tab incl. header with '?' button, left Topology/Data flow column, step panel, right details/legend column and status row"
+    ],
+    "caption": "Architecture Explorer layout: topology/flow list on the left, diagram and legend in the centre, block details on the right, step bar at the bottom",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "arch fit",
+      "grab window"
+    ]
+  },
+  {
+    "file": "11-arch-explorer-legend.zh.png",
+    "lang": "zh",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "actions": [
+      "select topology 'neogeo'",
+      "fit to view (F)",
+      "grab the diagram view together with the right-hand Legend panel"
+    ],
+    "caption": "Neo Geo 框图与图例（方块种类颜色、连线线型）",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "arch fit",
+      "grab tab"
+    ],
+    "shot_note": "Whole Architecture tab (diagram + Legend panel on the right)."
+  },
+  {
+    "file": "11-arch-explorer-legend.en.png",
+    "lang": "en",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "actions": [
+      "select topology 'neogeo'",
+      "fit to view (F)",
+      "grab the diagram view together with the right-hand Legend panel"
+    ],
+    "caption": "Neo Geo diagram and legend (block-kind colours, bus line styles)",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "arch fit",
+      "grab tab"
+    ],
+    "shot_note": "Whole Architecture tab (diagram + Legend panel on the right)."
+  },
+  {
+    "file": "11-arch-explorer-details.zh.png",
+    "lang": "zh",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "actions": [
+      "select topology 'neogeo'",
+      "click block 'm68k' (Motorola 68000)",
+      "grab the right-hand Block details panel (Properties + Connections + Description)"
+    ],
+    "caption": "右侧方块详情面板：Motorola 68000 的类型、属性表与说明",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "arch block m68k",
+      "grab tab"
+    ],
+    "shot_note": "Whole Architecture tab with block m68k selected."
+  },
+  {
+    "file": "11-arch-explorer-details.en.png",
+    "lang": "en",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "actions": [
+      "select topology 'neogeo'",
+      "click block 'm68k' (Motorola 68000)",
+      "grab the right-hand Block details panel (Properties + Connections + Description)"
+    ],
+    "caption": "Block details panel: kind, properties and details of the Motorola 68000",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "arch block m68k",
+      "grab tab"
+    ],
+    "shot_note": "Whole Architecture tab with block m68k selected."
+  },
+  {
+    "file": "11-arch-explorer-step.zh.png",
+    "lang": "zh",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "flow": "sound_cmd",
+    "step": 2,
+    "actions": [
+      "select topology 'neogeo'",
+      "select flow 'sound_cmd' (first flow, auto-selected)",
+      "press Right twice (step list ▶ on row 2)",
+      "grab whole tab (step list, step panel, block details visible)"
+    ],
+    "caption": "单步高亮：68000 写 REG_SOUND，sound latch 与连线高亮，其余变暗，底部显示 Step 2 / 7",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "arch flow sound_cmd",
+      "arch next 2",
+      "grab tab"
+    ]
+  },
+  {
+    "file": "11-arch-explorer-step.en.png",
+    "lang": "en",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "flow": "sound_cmd",
+    "step": 2,
+    "actions": [
+      "select topology 'neogeo'",
+      "select flow 'sound_cmd' (first flow, auto-selected)",
+      "press Right twice (step list ▶ on row 2)",
+      "grab whole tab (step list, step panel, block details visible)"
+    ],
+    "caption": "Single-step highlight: the 68000 writes REG_SOUND; latch and bus highlighted, everything else dimmed, bottom bar shows Step 2 / 7",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "arch flow sound_cmd",
+      "arch next 2",
+      "grab tab"
+    ]
+  },
+  {
+    "file": "12-neogeo-overview.zh.png",
+    "lang": "zh",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "actions": [
+      "select topology 'SNK Neo Geo (MVS/AES)'",
+      "fit to view",
+      "grab the diagram view"
+    ],
+    "caption": "Neo Geo 拓扑全图：68000 / Z80 / LSPC 三个区域",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "grab archexport maxwidth 1400"
+    ],
+    "shot_note": "Rendered with the Architecture tab's own Export PNG (exportDiagram, 2x) and scaled to 1400 px wide; the in-tab view is too small at 1280x800."
+  },
+  {
+    "file": "12-neogeo-overview.en.png",
+    "lang": "en",
+    "tab": "architecture",
+    "topology": "neogeo",
+    "actions": [
+      "select topology 'SNK Neo Geo (MVS/AES)'",
+      "fit to view",
+      "grab the diagram view"
+    ],
+    "caption": "The full Neo Geo topology: 68000 / Z80 / LSPC regions",
+    "script": [
+      "tab architecture",
+      "arch topology neogeo",
+      "grab archexport maxwidth 1400"
+    ],
+    "shot_note": "Rendered with the Architecture tab's own Export PNG (exportDiagram, 2x) and scaled to 1400 px wide; the in-tab view is too small at 1280x800."
+  },
+  {
+    "file": "12-neogeo-mailbox-leds.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "LED Matrix",
+    "example": "examples/assembly/neogeo_mailbox.s",
+    "actions": [
+      "create peripheral 'LED Matrix' (default size)",
+      "load example",
+      "assemble",
+      "run ~20000 cycles (stop while the 68000 waits for an ack, so the blue/magenta LEDs and reply row are lit)",
+      "grab I/O tab"
+    ],
+    "caption": "I/O 标签页中的 LED 矩阵：第 3 行应答锁存、第 5 行状态灯、第 7 行 FIFO 占用",
+    "script": [
+      "peripheral \"LED Matrix\"",
+      "load :/examples/assembly/neogeo_mailbox.s",
+      "break sym:mt_acked",
+      "tab io",
+      "run",
+      "grab window"
+    ],
+    "shot_note": "Stopped at the breakpoint mt_acked (the 68000 has just read the first reply): reply latch row 3 and the status LEDs in row 5 are lit."
+  },
+  {
+    "file": "12-neogeo-mailbox-leds.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "LED Matrix",
+    "example": "examples/assembly/neogeo_mailbox.s",
+    "actions": [
+      "create peripheral 'LED Matrix' (default size)",
+      "load example",
+      "assemble",
+      "run ~20000 cycles (stop while the 68000 waits for an ack, so the blue/magenta LEDs and reply row are lit)",
+      "grab I/O tab"
+    ],
+    "caption": "LED matrix in the I/O tab: reply latch in row 3, status LEDs in row 5, FIFO occupancy in row 7",
+    "script": [
+      "peripheral \"LED Matrix\"",
+      "load :/examples/assembly/neogeo_mailbox.s",
+      "break sym:mt_acked",
+      "tab io",
+      "run",
+      "grab window"
+    ],
+    "shot_note": "Stopped at the breakpoint mt_acked (the 68000 has just read the first reply): reply latch row 3 and the status LEDs in row 5 are lit."
+  },
+  {
+    "file": "13-ps3-overview.zh.png",
+    "lang": "zh",
+    "tab": "architecture",
+    "topology": "ps3",
+    "actions": [
+      "select topology 'Sony PlayStation 3 / Cell Broadband Engine'",
+      "fit to view",
+      "grab the diagram view"
+    ],
+    "caption": "PS3 / Cell 拓扑全图：SPE0 内部、EIB、PPE/MIC/BEI、XDR/RSX/GDDR3",
+    "script": [
+      "tab architecture",
+      "arch topology ps3",
+      "grab archexport maxwidth 1400"
+    ],
+    "shot_note": "Rendered with the Architecture tab's own Export PNG (exportDiagram, 2x) and scaled to 1400 px wide; the in-tab view is too small at 1280x800."
+  },
+  {
+    "file": "13-ps3-overview.en.png",
+    "lang": "en",
+    "tab": "architecture",
+    "topology": "ps3",
+    "actions": [
+      "select topology 'Sony PlayStation 3 / Cell Broadband Engine'",
+      "fit to view",
+      "grab the diagram view"
+    ],
+    "caption": "The full PS3 / Cell topology: SPE0 internals, EIB, PPE/MIC/BEI, XDR/RSX/GDDR3",
+    "script": [
+      "tab architecture",
+      "arch topology ps3",
+      "grab archexport maxwidth 1400"
+    ],
+    "shot_note": "Rendered with the Architecture tab's own Export PNG (exportDiagram, 2x) and scaled to 1400 px wide; the in-tab view is too small at 1280x800."
+  },
+  {
+    "file": "14-authoring-example.png",
+    "lang": "none",
+    "tab": "none",
+    "tool": "tools/arch_render",
+    "topology": "dual_cpu_dma (JSON embedded in docs/guide/*/14-authoring-topologies.md section 14.9, plain-string English variant)",
+    "actions": [
+      "save the example JSON from docs/guide/en/14-authoring-topologies.md section 14.9 as dual_cpu_dma.json",
+      "bash tools/arch_render/build.sh",
+      "arch_render --lang en --step 0:5 dual_cpu_dma.json 14-authoring-example.png"
+    ],
+    "caption": "arch_render rendering of the chapter-14 example topology, step 5 highlighted / 第 14 章示例拓扑的 arch_render 渲染图（第 5 步高亮）",
+    "note": "Not a GUI screenshot; rendered with tools/arch_render (any-file mode). --step f:n counts flows from 0 and steps from 1, so 0:5 is \"Step 5 of 7\" (DMA copies shared memory -> CPU1 SRAM). Run with QT_QPA_FONTDIR=C:/Windows/Fonts; without system fonts the dump reports elided labels. run.ps1 regenerates it when build/arch_render/arch_render.exe exists.",
+    "arch_render": {
+      "json_from": "docs/guide/en/14-authoring-topologies.md",
+      "heading": "## 14.9",
+      "args": [
+        "--lang",
+        "en",
+        "--step",
+        "0:5"
+      ]
+    }
+  }
+]

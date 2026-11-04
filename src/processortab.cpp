@@ -300,8 +300,8 @@ void ProcessorTab::loadLayout(const Layout &layout) {
   QTemporaryFile *tmpLayoutFile =
       QTemporaryFile::createNativeFile(layoutResourceFile);
   if (!tmpLayoutFile->open()) {
-    QMessageBox::warning(this, "Error",
-                         "Could not create temporary layout file");
+    QMessageBox::warning(this, tr("Error"),
+                         tr("Could not create temporary layout file"));
     return;
   }
 
@@ -323,41 +323,60 @@ void ProcessorTab::loadLayout(const Layout &layout) {
 void ProcessorTab::setupSimulatorActions(QToolBar *controlToolbar) {
   const QIcon processorIcon = QIcon(":/icons/cpu.svg");
   m_selectProcessorAction =
-      new QAction(processorIcon, "Select processor", this);
+      new QAction(processorIcon, tr("Select processor"), this);
+  m_selectProcessorAction->setToolTip(
+      tr("Select processor: choose the processor model (single-cycle, "
+         "pipelined, ...), ISA extensions and diagram layout"));
+  m_selectProcessorAction->setStatusTip(
+      tr("Choose the processor model, ISA extensions and diagram layout."));
   connect(m_selectProcessorAction, &QAction::triggered, this,
           &ProcessorTab::processorSelection);
   controlToolbar->addAction(m_selectProcessorAction);
   controlToolbar->addSeparator();
 
-  m_resetAction = new QAction("Reset (F3)", this);
+  m_resetAction = new QAction(tr("Reset (F3)"), this);
   connect(m_resetAction, &QAction::triggered, this, [this] {
     RipesSettings::getObserver(RIPES_GLOBALSIGNAL_REQRESET)->trigger();
   });
   m_resetAction->setShortcut(QKeySequence("F3"));
-  m_resetAction->setToolTip("Reset the simulator (F3)");
+  m_resetAction->setToolTip(
+      tr("Reset the simulator (F3): restart the program from its first "
+         "instruction and reset registers and memory"));
+  m_resetAction->setStatusTip(
+      tr("Reset the processor, registers and memory to the program's initial "
+         "state."));
   controlToolbar->addAction(m_resetAction);
 
-  m_reverseAction = new QAction("Reverse (F4)", this);
+  m_reverseAction = new QAction(tr("Reverse (F4)"), this);
   connect(m_reverseAction, &QAction::triggered, this, &ProcessorTab::reverse);
   m_reverseAction->setShortcut(QKeySequence("F4"));
-  m_reverseAction->setToolTip("Undo a clock cycle (F4)");
+  m_reverseAction->setToolTip(tr("Undo a clock cycle (F4)"));
+  m_reverseAction->setStatusTip(
+      tr("Step the simulation one clock cycle backwards (limited by "
+         "Settings > Simulator > Max. undo cycles)."));
   controlToolbar->addAction(m_reverseAction);
 
-  m_clockAction = new QAction("Clock (F5)", this);
+  m_clockAction = new QAction(tr("Clock (F5)"), this);
   connect(m_clockAction, &QAction::triggered, this,
           [] { ProcessorHandler::clock(); });
   m_clockAction->setShortcut(QKeySequence("F5"));
-  m_clockAction->setToolTip("Clock the circuit (F5)");
+  m_clockAction->setToolTip(
+      tr("Clock the circuit (F5): advance the simulation by one clock cycle"));
+  m_clockAction->setStatusTip(
+      tr("Advance the simulation by exactly one clock cycle."));
   controlToolbar->addAction(m_clockAction);
 
   m_autoClockTimer = new QTimer(this);
   connect(m_autoClockTimer, &QTimer::timeout, this,
           [this] { autoClockTimeout(); });
 
-  m_autoClockAction = new QAction("Auto clock (F6)", this);
+  m_autoClockAction = new QAction(tr("Auto clock (F6)"), this);
   m_autoClockAction->setShortcut(QKeySequence("F6"));
   m_autoClockAction->setToolTip(
-      "Clock the circuit with the selected frequency (F6)");
+      tr("Clock the circuit with the selected frequency (F6)"));
+  m_autoClockAction->setStatusTip(
+      tr("Start/stop clocking automatically, one cycle per interval set in "
+         "the box next to this button. The UI updates every cycle."));
   m_autoClockAction->setCheckable(true);
   m_autoClockAction->setChecked(false);
   connect(m_autoClockAction, &QAction::toggled, this, &ProcessorTab::autoClock);
@@ -365,8 +384,12 @@ void ProcessorTab::setupSimulatorActions(QToolBar *controlToolbar) {
 
   m_autoClockInterval = new QSpinBox(this);
   m_autoClockInterval->setRange(1, 10000);
-  m_autoClockInterval->setSuffix(" ms");
-  m_autoClockInterval->setToolTip("Auto clock interval");
+  m_autoClockInterval->setSuffix(tr(" ms"));
+  m_autoClockInterval->setToolTip(
+      tr("Auto clock interval: time between two automatic clock cycles, in "
+         "milliseconds"));
+  m_autoClockInterval->setStatusTip(
+      tr("Time between two automatic clock cycles (milliseconds)."));
   connect(m_autoClockInterval, qOverload<int>(&QSpinBox::valueChanged), this,
           [this](int msec) {
             RipesSettings::setValue(RIPES_SETTING_AUTOCLOCK_INTERVAL, msec);
@@ -376,14 +399,16 @@ void ProcessorTab::setupSimulatorActions(QToolBar *controlToolbar) {
       RipesSettings::value(RIPES_SETTING_AUTOCLOCK_INTERVAL).toInt());
   controlToolbar->addWidget(m_autoClockInterval);
 
-  m_runAction = new QAction("Run (F8)", this);
+  m_runAction = new QAction(tr("Run (F8)"), this);
   m_runAction->setShortcut(QKeySequence("F8"));
   m_runAction->setCheckable(true);
   m_runAction->setChecked(false);
   m_runAction->setToolTip(
-      "Execute simulator without updating UI (fast execution) (F8).\n Running "
-      "will stop once the program exits or a "
-      "breakpoint is hit.");
+      tr("Execute simulator without updating UI (fast execution) (F8).\n"
+         "Running will stop once the program exits or a breakpoint is hit."));
+  m_runAction->setStatusTip(
+      tr("Run at full speed without updating the UI until the program exits "
+         "or a breakpoint is hit."));
   connect(m_runAction, &QAction::toggled, this, &ProcessorTab::run);
   controlToolbar->addAction(m_runAction);
 
@@ -394,7 +419,11 @@ void ProcessorTab::setupSimulatorActions(QToolBar *controlToolbar) {
           [this] { updateToolbarIcons(); });
 
   // Setup processor-tab only actions
-  m_displayValuesAction = new QAction("Show processor signal values", this);
+  m_displayValuesAction =
+      new QAction(tr("Show processor signal values"), this);
+  m_displayValuesAction->setStatusTip(
+      tr("Show the current value of every signal (wire) in the processor "
+         "diagram."));
   m_displayValuesAction->setCheckable(true);
   connect(m_displayValuesAction, &QAction::toggled, m_vsrtlWidget,
           [this](bool checked) {
@@ -407,7 +436,13 @@ void ProcessorTab::setupSimulatorActions(QToolBar *controlToolbar) {
 
   const QIcon tableIcon = QIcon(":/icons/spreadsheet.svg");
   m_pipelineDiagramAction =
-      new QAction(tableIcon, "Show pipeline diagram", this);
+      new QAction(tableIcon, tr("Show pipeline diagram"), this);
+  m_pipelineDiagramAction->setToolTip(
+      tr("Show pipeline diagram: a table of which instruction was in which "
+         "pipeline stage in every cycle"));
+  m_pipelineDiagramAction->setStatusTip(
+      tr("Open a table showing which instruction occupied each pipeline stage "
+         "in every cycle."));
   connect(m_pipelineDiagramAction, &QAction::triggered, this,
           &ProcessorTab::showPipelineDiagram);
   m_toolbar->addAction(m_pipelineDiagramAction);
@@ -639,10 +674,10 @@ void ProcessorTab::updateInstructionLabels() {
     if (stageInfo.state != StageInfo::State::None) {
       /* clang-format off */
             switch (stageInfo.state) {
-                case StageInfo::State::Flushed: instrString = "nop (flush)"; break;
-                case StageInfo::State::Stalled: instrString = "nop (stall)"; break;
-                case StageInfo::State::WayHazard: if(stageInfo.stage_valid) {instrString = "nop (way hazard)";} break;
-                case StageInfo::State::Unused: instrString = "nop (unused)"; break;
+                case StageInfo::State::Flushed: instrString = tr("nop (flush)"); break;
+                case StageInfo::State::Stalled: instrString = tr("nop (stall)"); break;
+                case StageInfo::State::WayHazard: if(stageInfo.stage_valid) {instrString = tr("nop (way hazard)");} break;
+                case StageInfo::State::Unused: instrString = tr("nop (unused)"); break;
                 case StageInfo::State::None: Q_UNREACHABLE();
             }
       /* clang-format on */

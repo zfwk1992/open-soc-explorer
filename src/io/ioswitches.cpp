@@ -138,7 +138,8 @@ void ToggleButton::enterEvent(QEnterEvent *event) {
 
 IOSwitches::IOSwitches(QWidget *parent) : IOBase(IOType::SWITCHES, parent) {
   // Parameters
-  m_parameters[SWITCHES] = IOParam(SWITCHES, "# Switches", 8, true, 1, 32);
+  m_parameters[SWITCHES] =
+      IOParam(SWITCHES, tr("Number of switches"), 8, true, 1, 32);
 
   m_switchLayout = new QGridLayout(this);
   setLayout(m_switchLayout);
@@ -148,9 +149,9 @@ IOSwitches::IOSwitches(QWidget *parent) : IOBase(IOType::SWITCHES, parent) {
 
 QString IOSwitches::description() const {
   QStringList desc;
-  desc << "Each switch maps to a bit in the memory-mapped register of the "
-          "peripheral.";
-  desc << "switch n = bit n";
+  desc << tr("Each switch maps to a bit in the memory-mapped register of the "
+             "peripheral. Click a switch to toggle it.");
+  desc << tr("switch n = bit n (1 = on, 0 = off)");
 
   return desc.join('\n');
 }
@@ -161,6 +162,11 @@ void IOSwitches::updateSwitches() {
     if (m_switches.count(i) == 0) {
       auto *sw = new ToggleButton(10, 8, true, this);
       auto *label = new QLabel(QString::number(i), this);
+      const QString tip =
+          tr("Switch %1: bit %1 of the register. Click to toggle.").arg(i);
+      sw->setToolTip(tip);
+      sw->setStatusTip(tip);
+      label->setToolTip(tip);
       m_switches[i] = {label, sw};
       m_switchLayout->addWidget(label, 0, i, Qt::AlignCenter);
       m_switchLayout->addWidget(sw, 1, i, Qt::AlignCenter);
@@ -188,7 +194,9 @@ void IOSwitches::updateSwitches() {
 
   // No reason to export the register, since the base pointer already points to
   // it, and it is the only register of this component.
-  m_regDescs = {RegDesc{"Switches", RegDesc::RW::R, nSwitches, 0, false}};
+  m_regDescs = {RegDesc{"Switches", RegDesc::RW::R, nSwitches, 0, false,
+                        tr("State of all switches: bit n = 1 when switch n "
+                           "is on")}};
   updateGeometry();
 
   emit regMapChanged();

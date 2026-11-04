@@ -1,6 +1,8 @@
 #include "ioledmatrix.h"
 
+#include <QHelpEvent>
 #include <QPainter>
+#include <QToolTip>
 #include <QPen>
 
 #include "STLExtras.h"
@@ -13,10 +15,13 @@ IOLedMatrix::IOLedMatrix(QWidget *parent) : IOBase(IOType::LED_MATRIX, parent) {
 
   // Parameters
   m_parameters[HEIGHT] =
-      IOParam(WIDTH, "Height", defaultWidth, true, 1, m_maxSideWidth);
+      IOParam(WIDTH, tr("Height (LEDs)"), defaultWidth, true, 1,
+              m_maxSideWidth);
   m_parameters[WIDTH] =
-      IOParam(WIDTH, "Width", defaultWidth + 10, true, 1, m_maxSideWidth);
-  m_parameters[SIZE] = IOParam(SIZE, "LED size", 8, true, 1, 100);
+      IOParam(WIDTH, tr("Width (LEDs)"), defaultWidth + 10, true, 1,
+              m_maxSideWidth);
+  m_parameters[SIZE] =
+      IOParam(SIZE, tr("LED size (pixels)"), 8, true, 1, 100);
 
   m_pen.setWidth(1);
   m_pen.setColor(Qt::black);
@@ -34,11 +39,11 @@ uint32_t IOLedMatrix::byteSize() const {
 
 QString IOLedMatrix::description() const {
   QStringList desc;
-  desc << "Each LED maps to a 24-bit register storing an RGB color value, with "
-          "B stored in the least significant "
-          "byte.";
-  desc << "The byte offset of the LED at coordinates (x, y) is:";
-  desc << "    offset = (y + x*N_LEDS_ROW) * 4";
+  desc << tr("Each LED maps to a 24-bit register storing an RGB color value "
+             "(0xRRGGBB), with B stored in the least significant byte.");
+  desc << tr("The byte offset of the LED at column x, row y is:");
+  desc << "    offset = (y * WIDTH + x) * 4";
+  desc << tr("Hover over an LED to see its coordinates, offset and colour.");
 
   return desc.join('\n');
 }
@@ -80,6 +85,10 @@ void IOLedMatrix::updateLEDRegs() {
     regdesc.bitWidth = 24;
     regdesc.address = mRegDesc.index() * 4;
     regdesc.exported = false;
+    regdesc.description =
+        tr("Colour of the LED at x = %1, y = %2 (0xRRGGBB)")
+            .arg(mRegDesc.index() % width)
+            .arg(mRegDesc.index() / width);
     mRegDesc.value() = regdesc;
   }
 
@@ -94,6 +103,34 @@ QSize IOLedMatrix::minimumSizeHint() const {
   const int pixelWidth = width * (size + m_pen.width());
   const int pixelHeight = height * (size + m_pen.width());
   return QSize(pixelWidth, pixelHeight);
+}
+
+bool IOLedMatrix::event(QEvent *e) {
+  if (e->type() == QEvent::ToolTip) {
+    auto *helpEvent = static_cast<QHelpEvent *>(e);
+    const int width = m_parameters.at(WIDTH).value.toInt();
+    const int height = m_parameters.at(HEIGHT).value.toInt();
+    const int step = m_parameters.at(SIZE).value.toInt() + m_pen.width();
+    const int x = step > 0 ? helpEvent->pos().x() / step : -1;
+    const int y = step > 0 ? helpEvent->pos().y() / step : -1;
+    if (x >= 0 && y >= 0 && x < width && y < height) {
+      const unsigned idx = y * width + x;
+      const uint32_t value = idx < m_ledRegs.size() ? m_ledRegs.at(idx) : 0;
+      QToolTip::showText(
+          helpEvent->globalPos(),
+          tr("LED x = %1, y = %2\nOffset: 0x%3\nColour: 0x%4")
+              .arg(x)
+              .arg(y)
+              .arg(QString::number(idx * 4, 16))
+              .arg(QString::number(value & 0xFFFFFF, 16).rightJustified(6, '0')),
+          this);
+    } else {
+      QToolTip::hideText();
+      e->ignore();
+    }
+    return true;
+  }
+  return IOBase::event(e);
 }
 
 void IOLedMatrix::paintEvent(QPaintEvent *) {

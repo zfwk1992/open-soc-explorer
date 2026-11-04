@@ -57,6 +57,13 @@ struct RegDesc {
    * assembler, which targets this register.
    */
   bool exported = false;
+  /**
+   * @brief description
+   * Optional, human readable (translated) meaning of the register, shown in
+   * the "Description" column of the register map in the I/O tab. The register
+   * name above is used for exported symbols and must never be translated.
+   */
+  QString description = QString();
 };
 
 class IOBase : public QWidget {

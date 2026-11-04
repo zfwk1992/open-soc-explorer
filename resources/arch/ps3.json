@@ -1,0 +1,840 @@
+{
+  "id": "ps3",
+  "title": {"zh": "Sony PlayStation 3 / Cell 宽带引擎", "en": "Sony PlayStation 3 / Cell Broadband Engine"},
+  "subtitle": {"zh": "2006, 异构多核: PPE + 8×SPE + EIB, RSX GPU, XDR/GDDR3 双内存", "en": "2006, heterogeneous multicore: PPE + 8×SPE + EIB, RSX GPU, dual XDR/GDDR3 memory"},
+  "description": {"zh": "PlayStation 3 由 Sony/Toshiba/IBM 合作的 Cell Broadband Engine (3.2 GHz) 和 NVIDIA G70 派生的 RSX GPU 组成。\n\nCell 内部: 1 个通用 PowerPC 核 (PPE) 负责调度和串行代码; 8 个 SPE (PS3 启用 7 个, 游戏可用 6 个) 各自带 256 KB Local Store 与 DMA 引擎 (MFC), 没有 cache, 所有数据搬运由软件显式发起; 4 环 EIB 把 12 个单元连在一起 (可持续 204.8 GB/s)。\n\n主存是 256 MB XDR (25.6 GB/s), RSX 另有 256 MB GDDR3 (20.8 GB/s); 两者通过 FlexIO 相连, Cell 写 GDDR3 约 4 GB/s 但读只有约 16 MB/s。\n\n点击块查看规格; 在左侧选择 flow 并逐步播放, 观察 mailbox 派发、双缓冲 DMA 和命令缓冲提交的过程。", "en": "The PlayStation 3 consists of the Cell Broadband Engine (3.2 GHz), co-developed by Sony/Toshiba/IBM, and the RSX GPU, derived from NVIDIA's G70.\n\nInside Cell: 1 general-purpose PowerPC core (PPE) handles scheduling and serial code; 8 SPEs (7 enabled on PS3, 6 available to games) each have a 256 KB Local Store and a DMA engine (MFC), with no cache — all data movement is explicitly initiated by software; the 4-ring EIB connects 12 units (204.8 GB/s sustained).\n\nMain memory is 256 MB XDR (25.6 GB/s); the RSX has a separate 256 MB GDDR3 (20.8 GB/s). The two are connected via FlexIO; Cell writes GDDR3 at about 4 GB/s but reads it at only about 16 MB/s.\n\nClick a block to view its specs; select a flow on the left and step through it to watch mailbox dispatch, double-buffered DMA and command buffer submission."},
+  "blocks": [
+    {
+      "id": "spe_group",
+      "label": {"zh": "SPE1–SPE5 (×5, 游戏可用)", "en": "SPE1–SPE5 (×5, for games)"},
+      "sublabel": {"zh": "每个: SPU + 256 KB LS + MFC", "en": "each: SPU + 256 KB LS + MFC"},
+      "kind": "accel",
+      "x": 600, "y": 455, "w": 240, "h": 80,
+      "details": {"zh": "与 SPE0 结构完全相同的 5 个 Synergistic Processing Element。加上 SPE0, 游戏总共可以使用 6 个 SPE。\n\n每个 SPE 是独立的核: 自己的 PC、自己的程序 (放在自己的 Local Store 中)、自己的 DMA 引擎。它们之间没有共享 cache, 通过 EIB 上的 DMA (主存或彼此的 LS) 和 mailbox/signal 通信。\n\n典型分工 (SPURS job 系统下是动态的): 顶点处理/剔除、物理、动画蒙皮、音频混音、视频解码、后处理。", "en": "5 Synergistic Processing Elements identical in structure to SPE0. Together with SPE0, games can use 6 SPEs in total.\n\nEach SPE is an independent core: its own PC, its own program (held in its own Local Store), its own DMA engine. They share no cache and communicate via DMA over the EIB (to main memory or each other's LS) and via mailboxes/signals.\n\nTypical division of work (dynamic under the SPURS job system): vertex processing/culling, physics, animation skinning, audio mixing, video decoding, post-processing."},
+      "props": [
+        {
+          "key": {"zh": "数量", "en": "Count"},
+          "value": {"zh": "5 (+ SPE0 = 6 个游戏可用)", "en": "5 (+ SPE0 = 6 for games)"}
+        },
+        {
+          "key": {"zh": "单核峰值", "en": "Per-core peak"},
+          "value": "25.6 GFLOPS fp32"
+        },
+        {
+          "key": {"zh": "合计", "en": "Total"},
+          "value": "6 × 25.6 = 153.6 GFLOPS"
+        },
+        {
+          "key": "Local Store",
+          "value": {"zh": "256 KB each, 无 cache", "en": "256 KB each, no cache"}
+        },
+        {
+          "key": {"zh": "调度", "en": "Scheduling"},
+          "value": {"zh": "SPURS kernel 常驻, job/task 队列", "en": "Resident SPURS kernel, job/task queues"}
+        }
+      ]
+    },
+    {
+      "id": "spe_os",
+      "label": {"zh": "SPE6（系统保留）", "en": "SPE6 (Hypervisor/GameOS)"},
+      "sublabel": {"zh": "安全、解密、系统功能", "en": "Security, decryption, system"},
+      "kind": "accel",
+      "x": 720, "y": 140, "w": 200, "h": 80,
+      "details": {"zh": "第 7 个启用的 SPE 被 lv1 Hypervisor 独占, 游戏不可见。它常运行在 isolation mode (隔离模式): Local Store 对外部完全不可见, 只有经过硬件认证的 secure loader 才能载入代码。\n\n用途: 固件/游戏解密、签名验证、BD 播放的 AACS、部分系统 OS 功能。这也是 PS3 安全体系比同代主机更坚固的原因之一。", "en": "The 7th enabled SPE is owned exclusively by the lv1 Hypervisor and is invisible to games. It often runs in isolation mode: its Local Store is completely invisible from outside, and only a hardware-authenticated secure loader can load code into it.\n\nUses: firmware/game decryption, signature verification, AACS for BD playback, some system OS functions. This is one reason the PS3's security was more robust than that of its contemporaries."},
+      "props": [
+        {
+          "key": {"zh": "所有者", "en": "Owner"},
+          "value": "lv1 Hypervisor"
+        },
+        {
+          "key": {"zh": "模式", "en": "Mode"},
+          "value": "Isolation mode (secure loader)"
+        },
+        {
+          "key": {"zh": "对游戏", "en": "To games"},
+          "value": {"zh": "不可见", "en": "Invisible"}
+        }
+      ]
+    },
+    {
+      "id": "spe_fused",
+      "label": {"zh": "SPE7 (良率屏蔽, 不可用)", "en": "SPE7 (yield, disabled)"},
+      "sublabel": {"zh": "芯片有 8 个, PS3 启用 7 个", "en": "Chip has 8, PS3 enables 7"},
+      "kind": "misc",
+      "x": 950, "y": 140, "w": 190, "h": 80,
+      "details": {"zh": "Cell 芯片物理上有 8 个 SPE。为提高 90 nm 工艺下的良率, Sony 规定 PS3 只启用 7 个: 一个 SPE 有缺陷的芯片仍然可用, 没有缺陷的芯片则熔断掉一个。\n\n这是「冗余设计提升良率」的经典案例, 与 GPU 屏蔽部分 SM、CPU 屏蔽部分核心的做法相同。", "en": "The Cell chip physically has 8 SPEs. To improve yield on the 90 nm process, Sony specified that PS3 enables only 7: a chip with one defective SPE is still usable, and on a defect-free chip one SPE is fused off.\n\nThis is a classic case of \"redundancy to improve yield\", the same approach as GPUs disabling some SMs or CPUs disabling some cores."},
+      "props": [
+        {
+          "key": {"zh": "状态", "en": "Status"},
+          "value": {"zh": "熔断 (fused off)", "en": "Fused off"}
+        },
+        {
+          "key": {"zh": "原因", "en": "Reason"},
+          "value": {"zh": "良率 (yield)", "en": "Yield"}
+        }
+      ]
+    },
+    {
+      "id": "spu0",
+      "label": {"zh": "SPE0: SPU", "en": "SPE0: SPU"},
+      "sublabel": {"zh": "128×128-bit regs, even/odd pipes", "en": "128×128-bit regs, even/odd pipes"},
+      "kind": "accel",
+      "x": 20, "y": 20, "w": 180, "h": 80,
+      "details": {"zh": "Synergistic Processing Unit: SPE 的执行单元。\n\n- 128 个 128-bit 统一寄存器 (整数、浮点、地址全在一个文件里)。\n- 顺序双发射: even pipeline (算术/浮点/逻辑/移位) + odd pipeline (load/store、shuffle、分支、channel 指令)。\n- 4×fp32 FMA / cycle → 25.6 GFLOPS @3.2 GHz; fp64 极慢 (~1.8 GFLOPS)。\n- 没有硬件分支预测, 用 hbr/hbra/hbrr branch hint 指令; 错预测约 18 周期。\n- load/store 只能访问 Local Store (18-bit 地址), 没有任何访问主存的指令。\n- 通过 channel 指令 (rdch/wrch/rchcnt) 与 MFC 对话: 发 DMA、读 mailbox、等 tag。", "en": "Synergistic Processing Unit: the SPE's execution unit.\n\n- 128 unified 128-bit registers (integer, floating point and addresses all in one file).\n- In-order dual issue: even pipeline (arithmetic/FP/logic/shift) + odd pipeline (load/store, shuffle, branch, channel instructions).\n- 4×fp32 FMA / cycle → 25.6 GFLOPS @3.2 GHz; fp64 is very slow (~1.8 GFLOPS).\n- No hardware branch prediction; uses hbr/hbra/hbrr branch hint instructions; a misprediction costs about 18 cycles.\n- load/store can only access the Local Store (18-bit addresses); there are no instructions that access main memory.\n- Talks to the MFC via channel instructions (rdch/wrch/rchcnt): issue DMA, read mailboxes, wait on tags."},
+      "props": [
+        {
+          "key": "ISA",
+          "value": {"zh": "SPU ISA (独立于 PowerPC)", "en": "SPU ISA (separate from PowerPC)"}
+        },
+        {
+          "key": {"zh": "寄存器", "en": "Registers"},
+          "value": "128 × 128-bit"
+        },
+        {
+          "key": {"zh": "发射", "en": "Issue"},
+          "value": "in-order, 2-wide (even + odd)"
+        },
+        {"key": "SIMD", "value": "16×8b / 8×16b / 4×32b / 2×64b"},
+        {
+          "key": {"zh": "fp32 峰值", "en": "fp32 peak"},
+          "value": "25.6 GFLOPS"
+        },
+        {
+          "key": {"zh": "分支", "en": "Branch"},
+          "value": {"zh": "无预测器, branch hint", "en": "No predictor, branch hints"}
+        },
+        {
+          "key": {"zh": "LS load 延迟", "en": "LS load latency"},
+          "value": "6 cycles"
+        }
+      ]
+    },
+    {
+      "id": "ls0",
+      "label": {"zh": "SPE0: Local Store", "en": "SPE0: Local Store"},
+      "sublabel": {"zh": "256 KB SRAM, 无 cache, 软件管理", "en": "256 KB SRAM, no cache, SW-managed"},
+      "kind": "memory",
+      "x": 20, "y": 160, "w": 180, "h": 70,
+      "details": {"zh": "SPU 唯一能直接 load/store 的存储。代码、数据、栈、DMA 缓冲区全部共享这 256 KB。\n\n- 单端口, 优先级 DMA > load/store > 取指。\n- SPU 访问每周期 16 B; DMA 访问每周期 128 B。\n- 没有保护、没有 TLB、越界回绕。\n- 同时映射在 PPE 的实地址空间 (problem-state MMIO), 所以 PPE 和其他 SPE 可以 DMA 到这里 (LS→LS 传输不经过主存)。\n\n典型布局: 代码 32–64 KB, 栈 8–16 KB, 其余是双/三缓冲 DMA 缓冲区 (128 B 对齐)。", "en": "The only storage the SPU can load/store directly. Code, data, stack and DMA buffers all share these 256 KB.\n\n- Single-ported; priority DMA > load/store > instruction fetch.\n- SPU access is 16 B per cycle; DMA access is 128 B per cycle.\n- No protection, no TLB; out-of-range addresses wrap around.\n- Also mapped into the PPE's real address space (problem-state MMIO), so the PPE and other SPEs can DMA into it (LS→LS transfers bypass main memory).\n\nTypical layout: code 32–64 KB, stack 8–16 KB, the rest double/triple-buffered DMA buffers (128 B aligned)."},
+      "props": [
+        {
+          "key": {"zh": "容量", "en": "Capacity"},
+          "value": "256 KB"
+        },
+        {
+          "key": {"zh": "SPU 带宽", "en": "SPU bandwidth"},
+          "value": "16 B/cycle"
+        },
+        {
+          "key": {"zh": "DMA 带宽", "en": "DMA bandwidth"},
+          "value": "128 B/cycle"
+        },
+        {
+          "key": {"zh": "地址", "en": "Address"},
+          "value": {"zh": "18-bit LSA, 同时映射到 EA", "en": "18-bit LSA, also mapped to EA"}
+        },
+        {
+          "key": {"zh": "保护", "en": "Protection"},
+          "value": {"zh": "无", "en": "None"}
+        }
+      ]
+    },
+    {
+      "id": "mfc0",
+      "label": {"zh": "SPE0: MFC", "en": "SPE0: MFC"},
+      "sublabel": {"zh": "DMA queue 16, mailboxes, signals, MMU", "en": "DMA queue 16, mailboxes, signals, MMU"},
+      "kind": "dma",
+      "x": 400, "y": 20, "w": 200, "h": 80,
+      "details": {"zh": "Memory Flow Controller: SPE 与外界的唯一通道。\n\nDMA:\n- SPU 命令队列 16 项 (SPU 发起), proxy 命令队列 8 项 (PPE 经 MMIO 发起)。\n- 单条命令 1/2/4/8 B 或 16 B 倍数, 最大 16 KB; 128 B 对齐性能最佳。\n- DMA list (getl/putl): 一条命令最多 2048 个元素, 做 scatter/gather。\n- 5-bit tag group (0–31): MFC_WrTagMask + MFC_WrTagUpdate + MFC_RdTagStat 等待完成。\n- fence (getf/putf) 与 barrier (getb/putb) 控制同 tag 内顺序。\n- 内置 MMU (SLB/TLB), DMA 使用有效地址, 受页表保护。\n\n通信:\n- SPU inbound mailbox 4 项 (PPE→SPU, SPU_RdInMbox)。\n- SPU outbound mailbox 1 项 (SPU→PPE, SPU_WrOutMbox)。\n- SPU outbound interrupt mailbox 1 项 (SPU→PPE 并触发中断, SPU_WrOutIntrMbox)。\n- Signal notification 1/2: 两个 32-bit 寄存器, overwrite 或 OR 模式。\n- 原子命令 getllar/putllc/putlluc (128 B line) 用于锁。", "en": "Memory Flow Controller: the SPE's only channel to the outside world.\n\nDMA:\n- SPU command queue of 16 entries (issued by the SPU), proxy command queue of 8 entries (issued by the PPE via MMIO).\n- A single command moves 1/2/4/8 B or a multiple of 16 B, up to 16 KB; 128 B alignment performs best.\n- DMA list (getl/putl): up to 2048 elements per command, for scatter/gather.\n- 5-bit tag group (0–31): wait for completion with MFC_WrTagMask + MFC_WrTagUpdate + MFC_RdTagStat.\n- fence (getf/putf) and barrier (getb/putb) control ordering within a tag.\n- Built-in MMU (SLB/TLB); DMA uses effective addresses, protected by page tables.\n\nCommunication:\n- SPU inbound mailbox, 4 entries (PPE→SPU, SPU_RdInMbox).\n- SPU outbound mailbox, 1 entry (SPU→PPE, SPU_WrOutMbox).\n- SPU outbound interrupt mailbox, 1 entry (SPU→PPE and raises an interrupt, SPU_WrOutIntrMbox).\n- Signal notification 1/2: two 32-bit registers, overwrite or OR mode.\n- Atomic commands getllar/putllc/putlluc (128 B line) for locks."},
+      "props": [
+        {"key": "SPU cmd queue", "value": "16 entries"},
+        {"key": "Proxy cmd queue", "value": "8 entries"},
+        {"key": "Max DMA", "value": "16 KB / cmd, list ≤ 2048 elems"},
+        {
+          "key": {"zh": "对齐", "en": "Alignment"},
+          "value": {"zh": "16 B 必需, 128 B 最佳", "en": "16 B required, 128 B best"}
+        },
+        {"key": "Tag groups", "value": "32 (5-bit)"},
+        {"key": "Mailbox", "value": "in 4 / out 1 / out-intr 1 (32-bit)"},
+        {"key": "Signal", "value": "2 × 32-bit (OR / overwrite)"},
+        {"key": "MMU", "value": "SLB + TLB, EA → RA"}
+      ]
+    },
+    {
+      "id": "iic",
+      "label": {"zh": "IIC 内部中断控制器", "en": "IIC interrupt ctrl"},
+      "sublabel": {"zh": "SPE / RSX / 外设 → PPE 线程", "en": "SPE / RSX / I/O → PPE threads"},
+      "kind": "misc",
+      "x": 1190, "y": 20, "w": 180, "h": 80,
+      "details": {"zh": "Cell 的 Internal Interrupt Controller, 每个 PPE 硬件线程各有一个。收集来自各 SPE (outbound interrupt mailbox、DMA 事件、SPU 停止/错误)、IOIF (RSX 的 VSYNC/flip 完成、南桥设备) 的中断, 按优先级送到 PPE 的外部中断入口。\n\n在 PS3 上, 所有中断先进入 Hypervisor, 再由其转发给 GameOS。", "en": "Cell's Internal Interrupt Controller, one per PPE hardware thread. It collects interrupts from the SPEs (outbound interrupt mailbox, DMA events, SPU stop/error) and from the IOIFs (RSX VSYNC/flip completion, south bridge devices), and delivers them by priority to the PPE's external interrupt entry.\n\nOn PS3, all interrupts first go to the Hypervisor, which then forwards them to GameOS."},
+      "props": [
+        {
+          "key": {"zh": "实例", "en": "Instances"},
+          "value": {"zh": "每 PPE 线程 1 个", "en": "1 per PPE thread"}
+        },
+        {
+          "key": {"zh": "来源", "en": "Sources"},
+          "value": {"zh": "SPE MFC, IOIF0 (RSX), IOIF1 (南桥)", "en": "SPE MFC, IOIF0 (RSX), IOIF1 (south bridge)"}
+        },
+        {
+          "key": {"zh": "目标", "en": "Target"},
+          "value": {"zh": "PPE 外部中断", "en": "PPE external interrupt"}
+        }
+      ]
+    },
+    {
+      "id": "eib",
+      "label": {"zh": "EIB — Element Interconnect Bus", "en": "EIB — Element Interconnect Bus"},
+      "sublabel": {"zh": "4 rings × 16 B (2 CW + 2 CCW), 12 nodes, 1.6 GHz; 96 B/cycle peak, 204.8 GB/s sustained", "en": "4 rings × 16 B (2 CW + 2 CCW), 12 nodes, 1.6 GHz; 96 B/cycle peak, 204.8 GB/s sustained"},
+      "kind": "bus",
+      "x": 20, "y": 345, "w": 1350, "h": 50,
+      "details": {"zh": "片上互连: 4 条 16 B 宽单向环 (2 顺时针 + 2 逆时针) 加一条树状地址/命令总线。\n\n- 12 个节点: PPE、8 SPE、MIC、IOIF0、IOIF1; 每节点每总线周期 16 B 入 + 16 B 出。\n- 每环最多 3 个不重叠的并发传输 → 全片 12 个。\n- 总线时钟 = 核心时钟 / 2 (1.6 GHz): 12 × 16 B / 2 周期 = 96 B / 核心周期 → 307.2 GB/s 瞬时峰值; IBM 公布的可持续峰值 204.8 GB/s。\n- 中央 data arbiter 选择最短方向, 不允许传输跨越超过半环。\n- 只有 PPE L2 与 MFC 原子单元参与 cache 一致性; DMA 流量会被 snoop, 保证读到 PPE 已写回的数据。", "en": "On-chip interconnect: 4 unidirectional 16 B-wide rings (2 clockwise + 2 counterclockwise) plus a tree-structured address/command bus.\n\n- 12 nodes: PPE, 8 SPEs, MIC, IOIF0, IOIF1; each node moves 16 B in + 16 B out per bus cycle.\n- Up to 3 non-overlapping concurrent transfers per ring → 12 chip-wide.\n- Bus clock = core clock / 2 (1.6 GHz): 12 × 16 B / 2 cycles = 96 B / core cycle → 307.2 GB/s instantaneous peak; IBM's published sustained peak is 204.8 GB/s.\n- A central data arbiter picks the shortest direction; no transfer may span more than half a ring.\n- Only the PPE L2 and the MFC atomic units take part in cache coherence; DMA traffic is snooped, ensuring it reads data the PPE has written back."},
+      "props": [
+        {
+          "key": {"zh": "环", "en": "Rings"},
+          "value": "4 × 16 B"
+        },
+        {
+          "key": {"zh": "并发", "en": "Concurrency"},
+          "value": "3 / ring → 12 total"
+        },
+        {
+          "key": {"zh": "时钟", "en": "Clock"},
+          "value": "1.6 GHz (core/2)"
+        },
+        {
+          "key": {"zh": "瞬时峰值", "en": "Instant peak"},
+          "value": "96 B/cycle = 307.2 GB/s"
+        },
+        {
+          "key": {"zh": "可持续", "en": "Sustained"},
+          "value": "204.8 GB/s"
+        },
+        {
+          "key": {"zh": "单节点", "en": "Per node"},
+          "value": {"zh": "25.6 GB/s 每方向", "en": "25.6 GB/s per direction"}
+        }
+      ]
+    },
+    {
+      "id": "ppe",
+      "label": {"zh": "PPE（PowerPC 主核）", "en": "PPE (PowerPC core)"},
+      "sublabel": {"zh": "PowerPC 64, in-order 2-issue, 2-way SMT, VMX", "en": "PowerPC 64, in-order 2-issue, 2-way SMT, VMX"},
+      "kind": "cpu",
+      "x": 20, "y": 435, "w": 200, "h": 100,
+      "details": {"zh": "Cell 中唯一的通用核, 运行 Hypervisor (lv1)、GameOS (lv2) 和游戏主线程。\n\n- 64-bit PowerPC Architecture v2.02 (与 PowerPC 970 同一 ISA 族), 含 VMX/AltiVec 128-bit SIMD。\n- 顺序双发射, 约 23 级流水线, 为高频设计; 2-way SMT 用来掩盖停顿。\n- L1: 32 KB I + 32 KB D; L2: 512 KB 8-way 写回 (Cell 中唯一的 cache 层次)。\n- 单线程性能约为同频 970 的一半; 设计意图是把向量化工作全部交给 SPE。\n\n与 SPE 的交互全部通过 MMIO: 写 SPU 的 inbound mailbox、signal、proxy DMA、运行控制寄存器; 读 outbound mailbox 和状态; 通过 IIC 接收 SPE 中断。", "en": "The only general-purpose core in Cell; it runs the Hypervisor (lv1), GameOS (lv2) and the game's main thread.\n\n- 64-bit PowerPC Architecture v2.02 (same ISA family as the PowerPC 970), with VMX/AltiVec 128-bit SIMD.\n- In-order dual issue, about 23 pipeline stages, designed for high clock speed; 2-way SMT hides stalls.\n- L1: 32 KB I + 32 KB D; L2: 512 KB 8-way write-back (the only cache hierarchy in Cell).\n- Single-thread performance is about half that of a 970 at the same clock; the design intent is to hand all vectorized work to the SPEs.\n\nAll interaction with the SPEs goes through MMIO: writing the SPU inbound mailbox, signals, proxy DMA and run control registers; reading the outbound mailbox and status; receiving SPE interrupts via the IIC."},
+      "props": [
+        {"key": "ISA", "value": "PowerPC 2.02 + VMX"},
+        {
+          "key": {"zh": "频率", "en": "Clock"},
+          "value": "3.2 GHz"
+        },
+        {
+          "key": {"zh": "发射", "en": "Issue"},
+          "value": "in-order, dual-issue"
+        },
+        {"key": "SMT", "value": "2 threads"},
+        {"key": "L1", "value": "32 KB I / 32 KB D"},
+        {"key": "L2", "value": "512 KB, 8-way"},
+        {
+          "key": {"zh": "fp32 峰值", "en": "fp32 peak"},
+          "value": "25.6 GFLOPS (VMX)"
+        }
+      ]
+    },
+    {
+      "id": "mic",
+      "label": {"zh": "MIC（内存控制器）", "en": "MIC (memory ctrl)"},
+      "sublabel": {"zh": "2 × XDR channel, 25.6 GB/s", "en": "2 × XDR channel, 25.6 GB/s"},
+      "kind": "bridge",
+      "x": 340, "y": 455, "w": 220, "h": 80,
+      "details": {"zh": "片上内存控制器, 驱动两条 32-bit Rambus XDR 通道 (3.2 Gbps/pin), 合计 25.6 GB/s。\n\n所有 PPE cache miss、SPE DMA、RSX 经 FlexIO 对主存的读写都汇聚到这里。读写方向在 XDR 上共享同一带宽。", "en": "On-chip memory controller driving two 32-bit Rambus XDR channels (3.2 Gbps/pin), 25.6 GB/s in total.\n\nAll PPE cache misses, SPE DMA, and RSX reads/writes of main memory via FlexIO converge here. Reads and writes share the same XDR bandwidth."},
+      "props": [
+        {
+          "key": {"zh": "通道", "en": "Channels"},
+          "value": "2 × 32-bit"
+        },
+        {
+          "key": {"zh": "数据率", "en": "Data rate"},
+          "value": "3.2 Gbps/pin"
+        },
+        {
+          "key": {"zh": "带宽", "en": "Bandwidth"},
+          "value": "25.6 GB/s"
+        }
+      ]
+    },
+    {
+      "id": "bei",
+      "label": {"zh": "BEI / FlexIO", "en": "BEI / FlexIO"},
+      "sublabel": {"zh": "IOIF0 → RSX (20/15 GB/s), IOIF1 → 南桥", "en": "IOIF0 → RSX (20/15 GB/s), IOIF1 → SB"},
+      "kind": "bridge",
+      "x": 880, "y": 455, "w": 170, "h": 80,
+      "details": {"zh": "Broadband Engine Interface: Rambus FlexIO 并行差分接口 (12 byte lanes, 7 出 + 5 入, 6.4 Gbps/pin), 在 PS3 上配置成两个逻辑 I/O 接口:\n\n- IOIF0 (可 coherent): 连接 RSX。Cell→RSX 20 GB/s, RSX→Cell 15 GB/s (实测约 15.8 / 11.9 GB/s @128 B 包)。RSX 对 XDR 的读写、PPE/SPE 对 RSX 寄存器与 GDDR3 的访问都走这里。\n- IOIF1: 连接南桥, 约 2.5 GB/s 每方向 (二手来源)。\n\nCell 读 GDDR3 只有 ~16 MB/s 的原因在于 RSX 侧非流水的 host 读路径, 而不是 FlexIO 本身。", "en": "Broadband Engine Interface: a Rambus FlexIO parallel differential interface (12 byte lanes, 7 out + 5 in, 6.4 Gbps/pin), configured on PS3 as two logical I/O interfaces:\n\n- IOIF0 (coherent-capable): connects to the RSX. Cell→RSX 20 GB/s, RSX→Cell 15 GB/s (measured about 15.8 / 11.9 GB/s @128 B packets). RSX reads/writes of XDR and PPE/SPE accesses to RSX registers and GDDR3 all go through here.\n- IOIF1: connects to the south bridge, about 2.5 GB/s per direction (secondary sources).\n\nThe reason Cell reads GDDR3 at only ~16 MB/s is the non-pipelined host read path on the RSX side, not FlexIO itself."},
+      "props": [
+        {
+          "key": {"zh": "物理", "en": "Physical"},
+          "value": "FlexIO, 7 out + 5 in byte lanes"
+        },
+        {"key": "IOIF0 → RSX", "value": "20 GB/s out / 15 GB/s in"},
+        {
+          "key": {"zh": "IOIF1 → 南桥", "en": "IOIF1 → south bridge"},
+          "value": {"zh": "~2.5 GB/s (未经官方确认)", "en": "~2.5 GB/s (not officially confirmed)"}
+        }
+      ]
+    },
+    {
+      "id": "southbridge",
+      "label": {"zh": "South Bridge", "en": "South Bridge"},
+      "sublabel": {"zh": "USB / BD / SATA HDD / GbE / Wi-Fi / BT", "en": "USB / BD / SATA HDD / GbE / Wi-Fi / BT"},
+      "kind": "io",
+      "x": 1190, "y": 455, "w": 180, "h": 80,
+      "details": {"zh": "PS3 的 I/O 芯片 (Sony/Toshiba 定制), 经 FlexIO IOIF1 挂在 Cell 上。\n\n挂载的设备: 4 × USB 2.0、Blu-ray 光驱 (ATAPI)、2.5\" SATA 硬盘、千兆以太网、802.11b/g Wi-Fi、蓝牙 2.0 (手柄)、Memory Stick/SD/CF 读卡器 (早期型号)、启动用 NAND/NOR 闪存。\n\n设备 DMA 和中断都经 IOIF1 进入 Cell, 中断最终到 IIC。", "en": "The PS3's I/O chip (custom Sony/Toshiba), attached to Cell via FlexIO IOIF1.\n\nAttached devices: 4 × USB 2.0, Blu-ray drive (ATAPI), 2.5\" SATA hard disk, Gigabit Ethernet, 802.11b/g Wi-Fi, Bluetooth 2.0 (controllers), Memory Stick/SD/CF card reader (early models), and NAND/NOR flash for boot.\n\nDevice DMA and interrupts enter Cell via IOIF1; interrupts ultimately reach the IIC."},
+      "props": [
+        {
+          "key": {"zh": "链路", "en": "Link"},
+          "value": "FlexIO IOIF1"
+        },
+        {"key": "USB", "value": "4 × USB 2.0"},
+        {
+          "key": {"zh": "存储", "en": "Storage"},
+          "value": "BD-ROM, SATA HDD, Flash"
+        },
+        {
+          "key": {"zh": "网络", "en": "Network"},
+          "value": "GbE, Wi-Fi, Bluetooth"
+        }
+      ]
+    },
+    {
+      "id": "xdr",
+      "label": {"zh": "XDR DRAM 256 MB", "en": "XDR DRAM 256 MB"},
+      "sublabel": {"zh": "Rambus XDR, 25.6 GB/s, 主存", "en": "Rambus XDR, 25.6 GB/s, main memory"},
+      "kind": "memory",
+      "x": 340, "y": 575, "w": 220, "h": 80,
+      "details": {"zh": "系统主存。PPE 代码/数据、SPE DMA 的源与目标、SPURS 作业队列、RSX 命令缓冲、以及给 RSX 读取的顶点/纹理数据通常都放在这里。\n\nGameOS 占用一部分 (约 43–50 MB, 随固件版本变化), 游戏可用约 213 MB。", "en": "System main memory. PPE code/data, sources and destinations of SPE DMA, SPURS job queues, RSX command buffers, and vertex/texture data for the RSX to read usually all live here.\n\nGameOS occupies a portion (about 43–50 MB, varying by firmware version), leaving about 213 MB for games."},
+      "props": [
+        {
+          "key": {"zh": "容量", "en": "Capacity"},
+          "value": "256 MB"
+        },
+        {
+          "key": {"zh": "类型", "en": "Type"},
+          "value": "XDR (Rambus)"
+        },
+        {
+          "key": {"zh": "带宽", "en": "Bandwidth"},
+          "value": "25.6 GB/s"
+        },
+        {
+          "key": {"zh": "访问者", "en": "Accessed by"},
+          "value": {"zh": "PPE, 8 × MFC, RSX (经 FlexIO)", "en": "PPE, 8 × MFC, RSX (via FlexIO)"}
+        }
+      ]
+    },
+    {
+      "id": "rsx",
+      "label": {"zh": "RSX — Reality Synthesizer", "en": "RSX — Reality Synthesizer"},
+      "sublabel": {"zh": "NVIDIA G70/NV47 派生, 500 MHz, 24 PS + 8 VS", "en": "NVIDIA G70/NV47-based, 500 MHz, 24 PS + 8 VS"},
+      "kind": "gpu",
+      "x": 880, "y": 575, "w": 200, "h": 80,
+      "details": {"zh": "NVIDIA 为 Sony 定制的 GeForce 7800 (G70/NV47) 派生 GPU。\n\n- 500 MHz 核心 (发布会口径 550 MHz)。\n- 24 个 pixel shader 管线 (6 quad), 8 个 vertex shader, 8 ROP, 24 TMU; Shader Model 3.0, 没有统一 shader。\n- 显存接口 128-bit GDDR3 (桌面 7800 GTX 为 256-bit)。\n- 可通过 FlexIO 读 XDR (~15 GB/s) 和写 XDR (~20 GB/s)。\n\n命令提交: NVIDIA 式 push buffer / FIFO。CPU (PPE 或 SPE) 把 32-bit 命令字写到 XDR 或 GDDR3 中的环形缓冲区, 写 PUT 寄存器; RSX 比较 GET/PUT, 经 FlexIO DMA 取回命令并执行, 推进 GET。帧末 flip 命令在 VSYNC 时切换扫描输出缓冲并向 PPE 发中断。\n\n不对称: Cell 写 GDDR3 约 4 GB/s (posted write), Cell 读 GDDR3 仅约 16 MB/s (非流水 host read)。因此 GPU 产生的数据若要给 CPU 用, 应由 RSX 写回 XDR。", "en": "A GPU derived from the GeForce 7800 (G70/NV47), customized by NVIDIA for Sony.\n\n- 500 MHz core (550 MHz as announced at launch).\n- 24 pixel shader pipelines (6 quads), 8 vertex shaders, 8 ROPs, 24 TMUs; Shader Model 3.0, no unified shaders.\n- 128-bit GDDR3 memory interface (the desktop 7800 GTX is 256-bit).\n- Can read XDR (~15 GB/s) and write XDR (~20 GB/s) via FlexIO.\n\nCommand submission: NVIDIA-style push buffer / FIFO. The CPU (PPE or SPE) writes 32-bit command words into a ring buffer in XDR or GDDR3 and writes the PUT register; the RSX compares GET/PUT, fetches the commands via FlexIO DMA, executes them and advances GET. The end-of-frame flip command switches the scanout buffer at VSYNC and raises an interrupt to the PPE.\n\nAsymmetry: Cell writes GDDR3 at about 4 GB/s (posted writes), but reads GDDR3 at only about 16 MB/s (non-pipelined host reads). So if GPU-produced data is needed by the CPU, the RSX should write it back to XDR."},
+      "props": [
+        {
+          "key": {"zh": "架构", "en": "Architecture"},
+          "value": "G70 / NV47 (GeForce 7800)"
+        },
+        {
+          "key": {"zh": "核心频率", "en": "Core clock"},
+          "value": "500 MHz"
+        },
+        {"key": "Pixel shader", "value": "24 pipes"},
+        {"key": "Vertex shader", "value": "8"},
+        {"key": "ROP / TMU", "value": "8 / 24"},
+        {"key": "Shader Model", "value": "3.0 (Cg)"},
+        {
+          "key": {"zh": "读 XDR", "en": "XDR read"},
+          "value": "~15 GB/s"
+        },
+        {
+          "key": {"zh": "Cell 读 GDDR3", "en": "Cell reads GDDR3"},
+          "value": "~16 MB/s (!)"
+        },
+        {
+          "key": {"zh": "工艺", "en": "Process"},
+          "value": "90 → 65 → 40 → 28 nm"
+        }
+      ]
+    },
+    {
+      "id": "gddr3",
+      "label": {"zh": "GDDR3 256 MB", "en": "GDDR3 256 MB"},
+      "sublabel": {"zh": "128-bit, 650 MHz, 20.8 GB/s", "en": "128-bit, 650 MHz, 20.8 GB/s"},
+      "kind": "memory",
+      "x": 880, "y": 695, "w": 200, "h": 80,
+      "details": {"zh": "RSX 的本地显存: 帧缓冲、深度缓冲、渲染目标、大部分纹理。\n\n128-bit × 1.3 Gbps = 20.8 GB/s (早期公开规格为 700 MHz → 22.4 GB/s)。28 nm 版 RSX 改用 64-bit GDDR5 达到同样带宽。\n\nCell 可以 DMA 写入 (~4 GB/s), 但读取只有 ~16 MB/s。", "en": "The RSX's local video memory: frame buffers, depth buffers, render targets, and most textures.\n\n128-bit × 1.3 Gbps = 20.8 GB/s (early public specs said 700 MHz → 22.4 GB/s). The 28 nm RSX switched to 64-bit GDDR5 to reach the same bandwidth.\n\nCell can DMA-write into it (~4 GB/s), but reads only at ~16 MB/s."},
+      "props": [
+        {
+          "key": {"zh": "容量", "en": "Capacity"},
+          "value": "256 MB"
+        },
+        {
+          "key": {"zh": "总线", "en": "Bus"},
+          "value": "128-bit"
+        },
+        {
+          "key": {"zh": "频率", "en": "Clock"},
+          "value": "650 MHz (1.3 Gbps/pin)"
+        },
+        {
+          "key": {"zh": "带宽", "en": "Bandwidth"},
+          "value": "20.8 GB/s"
+        },
+        {
+          "key": {"zh": "Cell 写 / 读", "en": "Cell write / read"},
+          "value": "~4 GB/s / ~16 MB/s"
+        }
+      ]
+    },
+    {
+      "id": "hdmi",
+      "label": {"zh": "HDMI / AV Out", "en": "HDMI / AV Out"},
+      "sublabel": {"zh": "HDMI 1.3a, 最高 1080p", "en": "HDMI 1.3a, up to 1080p"},
+      "kind": "video",
+      "x": 600, "y": 575, "w": 200, "h": 80,
+      "details": {"zh": "RSX 的显示控制器 (CRTC) 在每次 VSYNC 从 GDDR3 的 front buffer 扫描输出, 经 HDMI 1.3a (数字) 或 Multi AV 接口 (模拟 component/S-Video/composite) 输出。\n\nflip 命令把 front/back buffer 互换; VSYNC 中断经 IOIF0 → IIC 到达 PPE, 游戏主循环据此节拍运行。", "en": "The RSX's display controller (CRTC) scans out the front buffer from GDDR3 at every VSYNC, outputting through HDMI 1.3a (digital) or the Multi AV connector (analog component/S-Video/composite).\n\nThe flip command swaps the front/back buffers; the VSYNC interrupt reaches the PPE via IOIF0 → IIC, and the game's main loop runs to this beat."},
+      "props": [
+        {
+          "key": {"zh": "数字", "en": "Digital"},
+          "value": "HDMI 1.3a"
+        },
+        {
+          "key": {"zh": "模拟", "en": "Analog"},
+          "value": "Multi AV (component / S-Video / composite)"
+        },
+        {
+          "key": {"zh": "最高分辨率", "en": "Max resolution"},
+          "value": "1920×1080"
+        }
+      ]
+    }
+  ],
+  "buses": [
+    {
+      "id": "b_spu_ls",
+      "from": "spu0",
+      "to": "ls0",
+      "label": {"zh": "load/store 16 B/cycle", "en": "load/store 16 B/cycle"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": [
+        {"key": "Width", "value": "128 bit"},
+        {"key": "Latency", "value": "6 cycles"}
+      ]
+    },
+    {
+      "id": "b_ls_mfc",
+      "from": "ls0",
+      "to": "mfc0",
+      "label": {"zh": "DMA 128 B/cycle", "en": "DMA 128 B/cycle"},
+      "kind": "dma",
+      "bidirectional": true,
+      "props": [
+        {"key": "Width", "value": "128 B/cycle"},
+        {"key": "Priority", "value": "DMA > load/store > fetch"}
+      ]
+    },
+    {
+      "id": "b_spu_mfc",
+      "from": "spu0",
+      "to": "mfc0",
+      "label": {"zh": "channel 指令 rdch/wrch", "en": "channel instr rdch/wrch"},
+      "kind": "link",
+      "bidirectional": true,
+      "props": [
+        {
+          "key": "Channels",
+          "value": "MFC_LSA/EAH/EAL/Size/TagID/Cmd, WrTagMask, RdTagStat, RdInMbox, WrOutMbox, WrOutIntrMbox"
+        }
+      ]
+    },
+    {
+      "id": "b_mfc_eib",
+      "from": "mfc0",
+      "to": "eib",
+      "label": {"zh": "16 B in + 16 B out / bus cycle", "en": "16 B in + 16 B out / bus cycle"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": [
+        {"key": "Bandwidth", "value": "25.6 GB/s per direction"}
+      ]
+    },
+    {
+      "id": "b_group_eib",
+      "from": "spe_group",
+      "to": "eib",
+      "label": {"zh": "×5 MFC ports", "en": "×5 MFC ports"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": [
+        {"key": "Bandwidth", "value": "25.6 GB/s per direction each"}
+      ]
+    },
+    {
+      "id": "b_os_eib",
+      "from": "spe_os",
+      "to": "eib",
+      "label": {"zh": "MFC port", "en": "MFC port"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": {}
+    },
+    {
+      "id": "b_fused_eib",
+      "from": "spe_fused",
+      "to": "eib",
+      "label": {"zh": "(熔断, 不可用)", "en": "(fused off, disabled)"},
+      "kind": "link",
+      "bidirectional": false,
+      "props": [
+        {"key": "State", "value": "disabled"}
+      ]
+    },
+    {
+      "id": "b_ppe_eib",
+      "from": "ppe",
+      "to": "eib",
+      "label": {"zh": "L2 ↔ EIB", "en": "L2 ↔ EIB"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": [
+        {"key": "Bandwidth", "value": "25.6 GB/s per direction"},
+        {"key": "Coherent", "value": "yes"}
+      ]
+    },
+    {
+      "id": "b_mic_eib",
+      "from": "mic",
+      "to": "eib",
+      "label": {"zh": "MIC port", "en": "MIC port"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": [
+        {"key": "Bandwidth", "value": "25.6 GB/s"}
+      ]
+    },
+    {
+      "id": "b_bei_eib",
+      "from": "bei",
+      "to": "eib",
+      "label": {"zh": "IOIF0 + IOIF1 ports", "en": "IOIF0 + IOIF1 ports"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": [
+        {"key": "Nodes", "value": "2 (IOIF0, IOIF1)"}
+      ]
+    },
+    {
+      "id": "b_mic_xdr",
+      "from": "mic",
+      "to": "xdr",
+      "label": {"zh": "2 × XDR, 25.6 GB/s", "en": "2 × XDR, 25.6 GB/s"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": [
+        {"key": "Width", "value": "2 × 32 bit"},
+        {"key": "Rate", "value": "3.2 Gbps/pin"}
+      ]
+    },
+    {
+      "id": "b_bei_rsx",
+      "from": "bei",
+      "to": "rsx",
+      "label": {"zh": "FlexIO IOIF0: 20 GB/s ↓ / 15 GB/s ↑", "en": "FlexIO IOIF0: 20 GB/s ↓ / 15 GB/s ↑"},
+      "kind": "link",
+      "bidirectional": true,
+      "props": [
+        {"key": "Cell→RSX", "value": "20 GB/s"},
+        {"key": "RSX→Cell", "value": "15 GB/s"},
+        {"key": "Cell read GDDR3", "value": "~16 MB/s"}
+      ]
+    },
+    {
+      "id": "b_bei_sb",
+      "from": "bei",
+      "to": "southbridge",
+      "label": {"zh": "FlexIO IOIF1", "en": "FlexIO IOIF1"},
+      "kind": "link",
+      "bidirectional": true,
+      "props": [
+        {"key": "Bandwidth", "value": "~2.5 GB/s per direction (unverified)"}
+      ]
+    },
+    {
+      "id": "b_rsx_gddr",
+      "from": "rsx",
+      "to": "gddr3",
+      "label": {"zh": "128-bit GDDR3, 20.8 GB/s", "en": "128-bit GDDR3, 20.8 GB/s"},
+      "kind": "bus",
+      "bidirectional": true,
+      "props": [
+        {"key": "Width", "value": "128 bit"},
+        {"key": "Clock", "value": "650 MHz"}
+      ]
+    },
+    {
+      "id": "b_rsx_hdmi",
+      "from": "rsx",
+      "to": "hdmi",
+      "label": {"zh": "scanout", "en": "scanout"},
+      "kind": "link",
+      "bidirectional": false,
+      "props": [
+        {"key": "Source", "value": "front buffer in GDDR3"}
+      ]
+    },
+    {
+      "id": "b_mbox",
+      "from": "ppe",
+      "to": "mfc0",
+      "label": {"zh": "inbound mailbox (4) / signal (2)", "en": "inbound mailbox (4) / signal (2)"},
+      "kind": "mailbox",
+      "bidirectional": false,
+      "props": [
+        {"key": "Inbound mailbox", "value": "4 × 32-bit"},
+        {"key": "Signal notify", "value": "2 × 32-bit"}
+      ]
+    },
+    {
+      "id": "b_mbox_out",
+      "from": "mfc0",
+      "to": "ppe",
+      "label": {"zh": "outbound mailbox (1)", "en": "outbound mailbox (1)"},
+      "kind": "mailbox",
+      "bidirectional": false,
+      "props": [
+        {"key": "Outbound mailbox", "value": "1 × 32-bit, PPE polls"}
+      ]
+    },
+    {
+      "id": "b_intr",
+      "from": "mfc0",
+      "to": "iic",
+      "label": {"zh": "outbound interrupt mailbox", "en": "outbound interrupt mailbox"},
+      "kind": "irq",
+      "bidirectional": false,
+      "props": [
+        {"key": "Depth", "value": "1 × 32-bit"},
+        {"key": "Also", "value": "DMA events, SPU stop"}
+      ]
+    },
+    {
+      "id": "b_iic_ppe",
+      "from": "iic",
+      "to": "ppe",
+      "label": {"zh": "external interrupt", "en": "external interrupt"},
+      "kind": "irq",
+      "bidirectional": false,
+      "props": [
+        {"key": "Path", "value": "IIC → Hypervisor → GameOS"}
+      ]
+    },
+    {
+      "id": "b_rsx_irq",
+      "from": "rsx",
+      "to": "iic",
+      "label": {"zh": "VSYNC / flip 中断", "en": "VSYNC / flip IRQ"},
+      "kind": "irq",
+      "bidirectional": false,
+      "props": [
+        {"key": "Via", "value": "IOIF0"}
+      ]
+    },
+    {
+      "id": "b_sb_irq",
+      "from": "southbridge",
+      "to": "iic",
+      "label": {"zh": "设备中断", "en": "device IRQ"},
+      "kind": "irq",
+      "bidirectional": false,
+      "props": [
+        {"key": "Via", "value": "IOIF1"}
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "ppe_dispatch",
+      "title": {"zh": "PPE 通过 mailbox 把任务派发给 SPE", "en": "PPE dispatches a task to an SPE via mailbox"},
+      "description": {"zh": "最基础的 PPE↔SPE 交互: 任务描述符放在主存, mailbox 只传一个 32-bit 指针; SPE 自己用 DMA 取数据、算、写回, 最后用 outbound interrupt mailbox 通知 PPE。", "en": "The most basic PPE↔SPE interaction: the task descriptor lives in main memory and the mailbox carries only a 32-bit pointer; the SPE fetches the data with its own DMA, computes, writes back, and finally notifies the PPE through the outbound interrupt mailbox."},
+      "steps": [
+        {
+          "highlight": ["ppe", "xdr"],
+          "buses": ["b_ppe_eib", "b_mic_eib", "b_mic_xdr"],
+          "text": {"zh": "PPE 在 XDR 中填写 job 描述符 {in_ea, out_ea, n_bytes, op} (128 B 对齐), 把输入数据也准备在 XDR 中。写回 L2 (或让 EIB snoop) 以保证 SPE 的 DMA 能看到最新数据。", "en": "The PPE fills in a job descriptor {in_ea, out_ea, n_bytes, op} (128 B aligned) in XDR and also prepares the input data in XDR. It writes back from L2 (or relies on EIB snooping) so the SPE's DMA sees the latest data."}
+        },
+        {
+          "highlight": ["ppe", "mfc0"],
+          "buses": ["b_mbox"],
+          "text": {"zh": "PPE 通过 MMIO 向 SPE0 的 SPU inbound mailbox 写入描述符的 32-bit 地址 (或索引)。mailbox 深度 4: 如果已满, PPE 必须先读 SPU_Mbox_Stat 等待。", "en": "Via MMIO, the PPE writes the descriptor's 32-bit address (or index) into SPE0's SPU inbound mailbox. The mailbox is 4 deep: if it is full, the PPE must first read SPU_Mbox_Stat and wait."}
+        },
+        {
+          "highlight": ["spu0", "mfc0"],
+          "buses": ["b_spu_mfc"],
+          "text": {"zh": "SPU 执行 rdch SPU_RdInMbox (channel 29)。mailbox 为空时该指令阻塞, 所以空闲的 SPE 等待任务不需要轮询; 读到的就是描述符地址。", "en": "The SPU executes rdch SPU_RdInMbox (channel 29). The instruction blocks while the mailbox is empty, so an idle SPE waiting for work need not poll; what it reads is the descriptor address."}
+        },
+        {
+          "highlight": ["mfc0", "eib", "mic", "xdr", "ls0"],
+          "buses": ["b_spu_mfc", "b_mfc_eib", "b_mic_eib", "b_mic_xdr", "b_ls_mfc"],
+          "text": {"zh": "SPU 先 mfc_get 描述符本身 (128 B), tag wait; 再按描述符 mfc_get 输入数据到 Local Store 缓冲区 (≤16 KB/条, 大块用 DMA list)。MFC 用自己的 MMU 翻译有效地址, 请求经 EIB → MIC → XDR, 数据回流写入 LS。", "en": "The SPU first does mfc_get on the descriptor itself (128 B) and a tag wait; then, per the descriptor, it mfc_gets the input data into a Local Store buffer (≤16 KB per command; DMA lists for large blocks). The MFC translates the effective address with its own MMU; the request goes EIB → MIC → XDR, and the data flows back into the LS."}
+        },
+        {
+          "highlight": ["spu0", "ls0"],
+          "buses": ["b_spu_ls"],
+          "text": {"zh": "SPU 执行 mfc_write_tag_mask(1<<tag); mfc_read_tag_status_all() 阻塞到 DMA 完成, 然后在 LS 上用 128-bit SIMD 计算。整个计算期间不再访问主存。", "en": "The SPU executes mfc_write_tag_mask(1<<tag); mfc_read_tag_status_all() blocks until the DMA completes, then it computes on the LS with 128-bit SIMD. Main memory is not touched again during the whole computation."}
+        },
+        {
+          "highlight": ["mfc0", "eib", "mic", "xdr"],
+          "buses": ["b_ls_mfc", "b_mfc_eib", "b_mic_eib", "b_mic_xdr"],
+          "text": {"zh": "SPU 发 mfc_put 把结果从 LS 写回 XDR 的 out_ea, 然后 tag wait 等写回完成 (必须等, 否则通知 PPE 时数据可能还在路上)。", "en": "The SPU issues mfc_put to write the result from the LS back to out_ea in XDR, then does a tag wait for the write-back to complete (it must wait, or the data may still be in flight when the PPE is notified)."}
+        },
+        {
+          "highlight": ["mfc0", "iic"],
+          "buses": ["b_intr"],
+          "text": {"zh": "SPU 执行 wrch SPU_WrOutIntrMbox (channel 30) 写入完成码。MFC 把它放进 outbound interrupt mailbox 并向 IIC 发出 class 2 中断。", "en": "The SPU executes wrch SPU_WrOutIntrMbox (channel 30) to write a completion code. The MFC places it in the outbound interrupt mailbox and raises a class 2 interrupt to the IIC."}
+        },
+        {
+          "highlight": ["iic", "ppe"],
+          "buses": ["b_iic_ppe", "b_mbox_out"],
+          "text": {"zh": "PPE 收到外部中断 (经 Hypervisor 转发到 GameOS), 中断处理程序经 MMIO 读 SPU_Out_Intr_Mbox 取得完成码, 清除中断, 唤醒等待该 job 的 PPE 线程。另一种做法是 PPE 轮询 outbound mailbox (无中断, 延迟更低但占用 PPE)。", "en": "The PPE receives an external interrupt (forwarded by the Hypervisor to GameOS); the interrupt handler reads SPU_Out_Intr_Mbox via MMIO to get the completion code, clears the interrupt, and wakes the PPE thread waiting on that job. Alternatively, the PPE can poll the outbound mailbox (no interrupt; lower latency but keeps the PPE busy)."}
+        }
+      ]
+    },
+    {
+      "id": "spe_double_buffer",
+      "title": {"zh": "SPE 双缓冲 DMA 流式处理", "en": "SPE double-buffered DMA streaming"},
+      "description": {"zh": "在计算第 N 块的同时预取第 N+1 块, 用两个 tag group 把 DMA 延迟隐藏在计算之后。对应 docs/arch/ps3_cell.md 4.5 节与 examples/C/spe_double_buffer.c。", "en": "Prefetch chunk N+1 while computing chunk N, using two tag groups to hide DMA latency behind computation. Corresponds to section 4.5 of docs/arch/ps3_cell.md and examples/C/spe_double_buffer.c."},
+      "steps": [
+        {
+          "highlight": ["spu0", "mfc0"],
+          "buses": ["b_spu_mfc"],
+          "text": {"zh": "初始化: SPU 发 mfc_get(bufA, ea+0, CHUNK, tag=0)。命令进入 16 项 SPU 命令队列后指令立即返回, SPU 不等待。", "en": "Init: the SPU issues mfc_get(bufA, ea+0, CHUNK, tag=0). The instruction returns as soon as the command enters the 16-entry SPU command queue; the SPU does not wait."}
+        },
+        {
+          "highlight": ["mfc0", "eib", "mic", "xdr", "ls0"],
+          "buses": ["b_mfc_eib", "b_mic_eib", "b_mic_xdr", "b_ls_mfc"],
+          "text": {"zh": "MFC 把 16 KB 拆成 128 B 的 EIB 事务逐个发出; 数据从 XDR 经 MIC、EIB 流入 bufA。约 1000+ 周期; 期间 SPU 可以做别的事 (这里是第一块, 只能等)。", "en": "The MFC splits the 16 KB into 128 B EIB transactions and issues them one by one; data flows from XDR via the MIC and EIB into bufA. About 1000+ cycles; meanwhile the SPU could do other work (this is the first chunk, so it can only wait)."}
+        },
+        {
+          "highlight": ["spu0", "mfc0"],
+          "buses": ["b_spu_mfc"],
+          "text": {"zh": "循环 i=0: 在计算之前先发 mfc_get(bufB, ea+CHUNK, CHUNK, tag=1) 预取第 1 块。这是双缓冲的关键: 下一块的 get 必须在本块计算开始前发出。", "en": "Loop i=0: before computing, first issue mfc_get(bufB, ea+CHUNK, CHUNK, tag=1) to prefetch chunk 1. This is the key to double buffering: the get for the next chunk must be issued before computation on the current chunk begins."}
+        },
+        {
+          "highlight": ["spu0", "mfc0"],
+          "buses": ["b_spu_mfc"],
+          "text": {"zh": "mfc_write_tag_mask(1<<0); mfc_read_tag_status_all() — 只等 tag 0 (bufA 的 get)。tag 1 的 DMA 继续在后台进行。", "en": "mfc_write_tag_mask(1<<0); mfc_read_tag_status_all() — waits only on tag 0 (bufA's get). The tag 1 DMA continues in the background."}
+        },
+        {
+          "highlight": ["spu0", "ls0"],
+          "buses": ["b_spu_ls"],
+          "text": {"zh": "SPU 计算 bufA → bufA (原地) 或 → outA。与此同时 MFC 正把第 1 块写入 bufB: LS 单端口被 DMA 每 128 B 占用 1 周期, 对计算影响很小。", "en": "The SPU computes bufA → bufA (in place) or → outA. Meanwhile the MFC is writing chunk 1 into bufB: the single-ported LS is taken by DMA for 1 cycle per 128 B, which barely affects computation."}
+        },
+        {
+          "highlight": ["mfc0", "eib", "mic", "xdr"],
+          "buses": ["b_ls_mfc", "b_mfc_eib", "b_mic_eib", "b_mic_xdr"],
+          "text": {"zh": "mfc_put(bufA_out, out_ea+0, CHUNK, tag=0)。注意用的还是 tag 0: 下下次 (i=2) 等 tag 0 时, 既等到第 2 块的 get, 也等到这次 put 离开 bufA_out, 自动避免了 WAR 冲突。", "en": "mfc_put(bufA_out, out_ea+0, CHUNK, tag=0). Note it still uses tag 0: when waiting on tag 0 two iterations later (i=2), it waits both for chunk 2's get and for this put to leave bufA_out, automatically avoiding a WAR hazard."}
+        },
+        {
+          "highlight": ["spu0", "mfc0", "ls0"],
+          "buses": ["b_spu_mfc", "b_spu_ls"],
+          "text": {"zh": "循环 i=1: 发 get(bufA, 第 2 块, tag 0); 等 tag 1 — 通常立即返回, 因为第 1 块早在计算第 0 块时就已到达; 计算 bufB; put(tag 1)。如此交替, SPU 除了第一块之外持续忙碌。", "en": "Loop i=1: issue get(bufA, chunk 2, tag 0); wait on tag 1 — usually returns immediately, since chunk 1 arrived while chunk 0 was being computed; compute bufB; put(tag 1). Alternating like this, the SPU stays busy after the first chunk."}
+        },
+        {
+          "highlight": ["spu0", "mfc0"],
+          "buses": ["b_spu_mfc"],
+          "text": {"zh": "循环结束: mfc_write_tag_mask(0b11); mfc_read_tag_status_all() 等最后两块的 put 完成, 再通过 outbound mailbox 通知 PPE。总时间 ≈ 1 次 DMA 延迟 + N × max(计算, DMA)。", "en": "Loop end: mfc_write_tag_mask(0b11); mfc_read_tag_status_all() waits for the puts of the last two chunks to complete, then notifies the PPE via the outbound mailbox. Total time ≈ 1 DMA latency + N × max(compute, DMA)."}
+        }
+      ]
+    },
+    {
+      "id": "rsx_cmdbuf",
+      "title": {"zh": "PPE → RSX 命令缓冲提交与一帧输出", "en": "PPE → RSX command buffer submission and frame output"},
+      "description": {"zh": "RSX 使用 NVIDIA 式 push buffer: CPU 把命令写进内存中的 FIFO, 写 PUT 指针; RSX 经 FlexIO 拉取命令并执行, 渲染到 GDDR3, flip 后扫描输出。", "en": "The RSX uses an NVIDIA-style push buffer: the CPU writes commands into a FIFO in memory and writes the PUT pointer; the RSX pulls the commands via FlexIO and executes them, renders into GDDR3, and scans out after a flip."},
+      "steps": [
+        {
+          "highlight": ["ppe", "xdr"],
+          "buses": ["b_ppe_eib", "b_mic_eib", "b_mic_xdr"],
+          "text": {"zh": "PPE (libgcm) 把本帧的命令字写入 XDR 中的命令缓冲环: 设置渲染状态、绑定 vertex/pixel shader、绑定纹理 (放在 GDDR3 或 XDR)、DrawArrays。SPE 也可以直接生成命令 (例如剔除后的 draw call 列表)。", "en": "The PPE (libgcm) writes this frame's command words into the command ring buffer in XDR: set render state, bind vertex/pixel shaders, bind textures (in GDDR3 or XDR), DrawArrays. SPEs can also generate commands directly (e.g. the list of draw calls after culling)."}
+        },
+        {
+          "highlight": ["ppe", "bei", "rsx"],
+          "buses": ["b_ppe_eib", "b_bei_eib", "b_bei_rsx"],
+          "text": {"zh": "PPE 经 MMIO (FlexIO IOIF0) 写 RSX 的 PUT 寄存器 = 新的尾指针。这是唯一的「门铃」; 命令本身不经 MMIO 传输。", "en": "Via MMIO (FlexIO IOIF0), the PPE writes the RSX's PUT register = the new tail pointer. This is the only \"doorbell\"; the commands themselves are not transferred via MMIO."}
+        },
+        {
+          "highlight": ["rsx", "bei", "eib", "mic", "xdr"],
+          "buses": ["b_bei_rsx", "b_bei_eib", "b_mic_eib", "b_mic_xdr"],
+          "text": {"zh": "RSX 的 FIFO 引擎发现 GET != PUT, 经 FlexIO (RSX→Cell 读方向 ~15 GB/s) 从 XDR 拉取 [GET, PUT) 的命令字并解码, 推进 GET。CPU 可以读 GET 判断还有多少命令未执行。", "en": "The RSX FIFO engine sees GET != PUT, pulls the command words in [GET, PUT) from XDR via FlexIO (RSX→Cell read direction, ~15 GB/s), decodes them and advances GET. The CPU can read GET to see how many commands remain unexecuted."}
+        },
+        {
+          "highlight": ["rsx", "xdr", "gddr3"],
+          "buses": ["b_bei_rsx", "b_rsx_gddr"],
+          "text": {"zh": "执行 DrawArrays: vertex shader 从 XDR (经 FlexIO) 或 GDDR3 读取顶点, pixel shader 采样纹理, ROP 把颜色/深度写入 GDDR3 中的 back buffer。这一步带宽主要消耗在 GDDR3 (20.8 GB/s)。", "en": "Execute DrawArrays: the vertex shader reads vertices from XDR (via FlexIO) or GDDR3, the pixel shader samples textures, and the ROPs write color/depth into the back buffer in GDDR3. Bandwidth in this step is mostly spent on GDDR3 (20.8 GB/s)."}
+        },
+        {
+          "highlight": ["rsx", "xdr"],
+          "buses": ["b_bei_rsx"],
+          "text": {"zh": "若 CPU 需要 GPU 结果 (例如遮挡查询、用于下一帧的降采样), 命令里会让 RSX 把结果写到 XDR (~20 GB/s)。绝不能让 Cell 去读 GDDR3 (~16 MB/s)。", "en": "If the CPU needs GPU results (e.g. occlusion queries, downsampling for the next frame), the commands have the RSX write the results to XDR (~20 GB/s). Never have Cell read GDDR3 (~16 MB/s)."}
+        },
+        {
+          "highlight": ["rsx"],
+          "buses": [],
+          "text": {"zh": "帧末命令: cellGcmSetReferenceCommand 写一个 fence 值, 随后 cellGcmSetFlip。RSX 执行到 flip 时登记「下一次 VSYNC 切换 front/back buffer」。", "en": "End-of-frame commands: cellGcmSetReferenceCommand writes a fence value, followed by cellGcmSetFlip. When the RSX reaches the flip, it registers \"swap front/back buffers at the next VSYNC\"."}
+        },
+        {
+          "highlight": ["rsx", "gddr3", "hdmi"],
+          "buses": ["b_rsx_gddr", "b_rsx_hdmi"],
+          "text": {"zh": "VSYNC: 显示控制器切换到新的 front buffer, 从 GDDR3 扫描输出到 HDMI/AV。旧的 front buffer 变为 back buffer 供下一帧渲染。", "en": "VSYNC: the display controller switches to the new front buffer and scans it out from GDDR3 to HDMI/AV. The old front buffer becomes the back buffer for rendering the next frame."}
+        },
+        {
+          "highlight": ["rsx", "iic", "ppe"],
+          "buses": ["b_rsx_irq", "b_iic_ppe"],
+          "text": {"zh": "RSX 发出 flip/VSYNC 中断 → IOIF0 → IIC → PPE。PPE 的帧循环据此知道可以复用缓冲区并开始提交下一帧 (cellGcmSetWaitFlip)。读 reference 寄存器可以更细粒度地判断 RSX 执行到了哪条命令。", "en": "The RSX raises a flip/VSYNC interrupt → IOIF0 → IIC → PPE. From this the PPE's frame loop knows it can reuse buffers and start submitting the next frame (cellGcmSetWaitFlip). Reading the reference register gives a finer-grained view of which command the RSX has reached."}
+        }
+      ]
+    },
+    {
+      "id": "ls_to_ls",
+      "title": {"zh": "SPE 之间的 LS → LS 直接 DMA", "en": "Direct LS → LS DMA between SPEs"},
+      "description": {"zh": "SPE 的 Local Store 映射在全局地址空间, 所以 SPE 可以不经主存直接把数据 DMA 到另一个 SPE 的 LS, 构成流水线 (例如 SPE0 解码 → SPE1 后处理)。", "en": "An SPE's Local Store is mapped into the global address space, so an SPE can DMA data directly into another SPE's LS without going through main memory, forming a pipeline (e.g. SPE0 decode → SPE1 post-processing)."},
+      "steps": [
+        {
+          "highlight": ["ppe", "spu0", "spe_group"],
+          "buses": ["b_mbox"],
+          "text": {"zh": "PPE 启动时通过 mailbox 把「下游 SPE 的 LS 基地址 (有效地址)」和「下游缓冲区偏移」告诉 SPE0; 下游 SPE 也得知上游的地址。", "en": "At startup, the PPE uses a mailbox to tell SPE0 the \"downstream SPE's LS base address (effective address)\" and the \"downstream buffer offset\"; the downstream SPE likewise learns the upstream addresses."}
+        },
+        {
+          "highlight": ["spu0", "ls0"],
+          "buses": ["b_spu_ls"],
+          "text": {"zh": "SPE0 在自己的 LS 中算出一块结果 (128 B 对齐)。", "en": "SPE0 computes a block of results in its own LS (128 B aligned)."}
+        },
+        {
+          "highlight": ["mfc0", "eib", "spe_group"],
+          "buses": ["b_ls_mfc", "b_mfc_eib", "b_group_eib"],
+          "text": {"zh": "SPE0 发 mfc_put(local_buf, downstream_ls_ea + off, size, tag)。MFC 的 MMU 把该有效地址翻译成下游 SPE 的 LS 映射, 数据经 EIB 环直接写入对方 LS, 不经过 MIC/XDR。", "en": "SPE0 issues mfc_put(local_buf, downstream_ls_ea + off, size, tag). The MFC's MMU translates that effective address to the downstream SPE's LS mapping, and the data is written directly into the other LS over the EIB rings, bypassing MIC/XDR."}
+        },
+        {
+          "highlight": ["mfc0", "spe_group"],
+          "buses": ["b_mfc_eib", "b_group_eib"],
+          "text": {"zh": "SPE0 tag wait 确认 put 完成后, 向下游 SPE 的 signal notification 寄存器写一位 (OR 模式: 多个上游可以各置一位), 或向其 inbound mailbox 写入块编号。", "en": "After a tag wait confirms the put has completed, SPE0 sets a bit in the downstream SPE's signal notification register (OR mode: multiple upstreams can each set their own bit), or writes the block number into its inbound mailbox."}
+        },
+        {
+          "highlight": ["spe_group"],
+          "buses": [],
+          "text": {"zh": "下游 SPE 在 rdch SPU_RdSigNotify1 上阻塞等待, 收到信号后直接处理自己 LS 中的数据。整个过程主存带宽为零, 延迟只有 EIB 的几百个周期。", "en": "The downstream SPE blocks on rdch SPU_RdSigNotify1; on receiving the signal it processes the data in its own LS directly. The whole process uses zero main memory bandwidth, with a latency of only a few hundred EIB cycles."}
+        }
+      ]
+    }
+  ]
+}

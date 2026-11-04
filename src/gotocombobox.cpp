@@ -2,6 +2,7 @@
 #include "addressdialog.h"
 
 #include <QAbstractItemView>
+#include <QCoreApplication>
 #include <QEvent>
 #include <QLineEdit>
 #include <QMouseEvent>
@@ -12,6 +13,9 @@
 namespace Ripes {
 
 GoToComboBox::GoToComboBox(QWidget *parent) : QComboBox(parent) {
+  setPlaceholderText(tr("Go to..."));
+  setToolTip(tr("Jump the view to an address: a section, a register's value "
+                "or an address you type in."));
   connect(this, QOverload<int>::of(&GoToComboBox::activated), this,
           &GoToComboBox::signalFilter);
 }
@@ -21,7 +25,7 @@ void GoToComboBox::showPopup() {
     clear();
   }
 
-  addItem("Select",
+  addItem(tr("Select"),
           QVariant::fromValue<GoToUserData>({GoToFunction::Select, 0}));
   addTargets();
 
@@ -57,7 +61,7 @@ void GoToComboBox::signalFilter(int index) {
 }
 
 void GoToSectionComboBox::addTargets() {
-  addItem("Address...",
+  addItem(QCoreApplication::translate("Ripes::GoToComboBox", "Address..."),
           QVariant::fromValue<GoToUserData>({GoToFunction::Address, 0}));
   if (auto prog_spt = ProcessorHandler::getProgram()) {
     for (const auto &section : prog_spt->sections) {

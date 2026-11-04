@@ -1,6 +1,7 @@
 #include "cachegraphic.h"
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QGraphicsLineItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
@@ -24,32 +25,38 @@ std::set<TK> keys(std::map<TK, TV> const &input_map) {
   return keyset;
 }
 
+} // namespace
+
+namespace Ripes {
+
+namespace CacheColors {
 // True when the application is using a dark color scheme.
-bool cacheDarkMode() {
+bool darkMode() {
   return QApplication::palette().color(QPalette::Base).lightness() < 128;
 }
 
 // Highlight color marking the currently indexed cache line/block (the
 // row/column crosshair). Uses the theme accent so it looks native in both
 // light and dark mode, instead of a bright color that turns muddy on dark.
-QColor cacheIndexingColor() {
+QColor indexingColor() {
   return QApplication::palette().color(QPalette::Highlight);
 }
 
 // Highlight color for a cache hit / miss on the accessed block.
-QColor cacheHitColor() {
-  return cacheDarkMode() ? QColor(0x4C, 0xC0, 0x63) : QColor(Qt::green);
+QColor hitColor() {
+  return darkMode() ? QColor(0x4C, 0xC0, 0x63) : QColor(Qt::green);
 }
-QColor cacheMissColor() {
-  return cacheDarkMode() ? QColor(0xE0, 0x6C, 0x6C) : QColor(Qt::red);
+QColor missColor() {
+  return darkMode() ? QColor(0xE0, 0x6C, 0x6C) : QColor(Qt::red);
 }
 // Highlight color for a dirty cache block.
-QColor cacheDirtyColor() {
-  return cacheDarkMode() ? QColor(0x2A, 0x9D, 0x8F) : QColor(Qt::darkCyan);
+QColor dirtyColor() {
+  return darkMode() ? QColor(0x2A, 0x9D, 0x8F) : QColor(Qt::darkCyan);
 }
-} // namespace
+} // namespace CacheColors
 
-namespace Ripes {
+using namespace CacheColors;
+
 
 /**
  * @brief The FancyPolyLine class
@@ -204,11 +211,10 @@ void CacheGraphic::updateWay(unsigned lineIdx, unsigned wayIdx) {
           data, Radix::Hex, ProcessorHandler::currentISA()->bytes());
       blockTextItem->setText(text);
       QString tooltip =
-          "Address: " +
-          encodeRadixValue(addressForBlock, Radix::Hex,
-                           ProcessorHandler::currentISA()->bytes());
+          QCoreApplication::translate("Ripes::CacheGraphic", "Address: %1").arg(encodeRadixValue(addressForBlock, Radix::Hex,
+                                  ProcessorHandler::currentISA()->bytes()));
       if (simWay.dirtyBlocks.count(i)) {
-        tooltip += "\n> Dirty";
+        tooltip += "\n> " + QCoreApplication::translate("Ripes::CacheGraphic", "Dirty (modified, not yet written back)");
       }
       blockTextItem->setToolTip(tooltip);
       // Store the address within the userrole of the block text. Doing this, we
@@ -283,7 +289,7 @@ void CacheGraphic::updateWay(unsigned lineIdx, unsigned wayIdx) {
     const auto &dirtyRectItem = way.dirtyBlocks[blockIdx];
     dirtyRectItem->setZValue(-1);
     dirtyRectItem->setOpacity(0.4);
-    dirtyRectItem->setBrush(cacheDirtyColor());
+    dirtyRectItem->setBrush(dirtyColor());
   }
 }
 
@@ -425,7 +431,7 @@ void CacheGraphic::drawIndexingItems() {
   m_blockIndexingLine->setVisible(false);
 
   // Draw top header
-  const QString addrStr = "Access address";
+  const QString addrStr = QCoreApplication::translate("Ripes::CacheGraphic", "Access address");
   QPointF addrStrPos = m_addressTextItem->pos();
   addrStrPos.rx() -= m_fm.horizontalAdvance(addrStr) * 1.1;
   //  addrStrPos.ry() += m_setHeight;
@@ -459,7 +465,8 @@ void CacheGraphic::cacheInvalidated() {
   new QGraphicsLineItem(m_bitWidth, 0, m_bitWidth, m_cacheHeight, this);
   const QString validBitText = "V";
   auto *validItem = drawText(validBitText, 0, -m_fm.height());
-  validItem->setToolTip("Valid bit");
+  validItem->setToolTip(
+      QCoreApplication::translate("Ripes::CacheGraphic", "Valid bit: 1 if this way holds data loaded from memory, 0 if empty"));
   width += m_bitWidth;
 
   if (m_cache.getWritePolicy() == WritePolicy::WriteBack) {
@@ -471,7 +478,7 @@ void CacheGraphic::cacheInvalidated() {
     const QString dirtyBitText = "D";
     auto *dirtyItem =
         drawText(dirtyBitText, m_widthBeforeDirty, -m_fm.height());
-    dirtyItem->setToolTip("Dirty bit");
+    dirtyItem->setToolTip(QCoreApplication::translate("Ripes::CacheGraphic", "Dirty bit: 1 if the line was written in the cache but not yet written back to memory (write-back policy)"));
     width += m_bitWidth;
   }
 
@@ -487,7 +494,7 @@ void CacheGraphic::cacheInvalidated() {
                               width + m_lruWidth / 2 -
                                   m_fm.horizontalAdvance(LRUBitText) / 2,
                               -m_fm.height());
-    textItem->setToolTip("Least Recently Used bits");
+    textItem->setToolTip(QCoreApplication::translate("Ripes::CacheGraphic", "Least Recently Used counter: the way with the highest value is evicted next"));
     width += m_lruWidth;
   }
 
@@ -496,7 +503,7 @@ void CacheGraphic::cacheInvalidated() {
   // Draw tag column
   new QGraphicsLineItem(m_tagWidth + width, 0, m_tagWidth + width,
                         m_cacheHeight, this);
-  const QString tagText = "Tag";
+  const QString tagText = QCoreApplication::translate("Ripes::CacheGraphic", "Tag");
   drawText(tagText,
            width + m_tagWidth / 2 - m_fm.horizontalAdvance(tagText) / 2,
            -m_fm.height());
@@ -506,7 +513,8 @@ void CacheGraphic::cacheInvalidated() {
 
   // Draw horizontal lines between cache blocks
   for (int i = 0; i < m_cache.getBlocks(); ++i) {
-    const QString blockText = "Word " + QString::number(i);
+    const QString blockText =
+        QCoreApplication::translate("Ripes::CacheGraphic", "Word %1").arg(i);
     drawText(blockText,
              width + m_tagWidth / 2 - m_fm.horizontalAdvance(blockText) / 2,
              -m_fm.height());
@@ -545,7 +553,7 @@ void CacheGraphic::cacheInvalidated() {
   }
 
   // Draw index column text
-  const QString indexText = "Index";
+  const QString indexText = QCoreApplication::translate("Ripes::CacheGraphic", "Index");
   const qreal x = -m_fm.horizontalAdvance(indexText) * 1.2;
   drawText(indexText, x, -m_fm.height());
 
@@ -693,8 +701,8 @@ void CacheGraphic::updateHighlighting(
         QRectF(topLeft, bottomRight), this));
     auto *lineRectItem = m_highlightingItems.rbegin()->get();
     lineRectItem->setZValue(-2);
-    lineRectItem->setOpacity(cacheDarkMode() ? 0.35 : 0.25);
-    lineRectItem->setBrush(cacheIndexingColor());
+    lineRectItem->setOpacity(darkMode() ? 0.35 : 0.25);
+    lineRectItem->setBrush(indexingColor());
 
     // Draw cache block highlighting rectangle
     topLeft = QPointF(
@@ -706,8 +714,8 @@ void CacheGraphic::updateHighlighting(
         QRectF(topLeft, bottomRight), this));
     auto *blockRectItem = m_highlightingItems.rbegin()->get();
     blockRectItem->setZValue(-2);
-    blockRectItem->setOpacity(cacheDarkMode() ? 0.35 : 0.25);
-    blockRectItem->setBrush(cacheIndexingColor());
+    blockRectItem->setOpacity(darkMode() ? 0.35 : 0.25);
+    blockRectItem->setBrush(indexingColor());
 
     // Draw highlighting on the currently accessed block
     topLeft =
@@ -723,11 +731,11 @@ void CacheGraphic::updateHighlighting(
     auto *hitRectItem = m_highlightingItems.rbegin()->get();
     hitRectItem->setZValue(-1);
     if (transaction.isHit) {
-      hitRectItem->setOpacity(cacheDarkMode() ? 0.55 : 0.4);
-      hitRectItem->setBrush(cacheHitColor());
+      hitRectItem->setOpacity(darkMode() ? 0.55 : 0.4);
+      hitRectItem->setBrush(hitColor());
     } else {
-      hitRectItem->setOpacity(cacheDarkMode() ? 0.6 : 0.8);
-      hitRectItem->setBrush(cacheMissColor());
+      hitRectItem->setOpacity(darkMode() ? 0.6 : 0.8);
+      hitRectItem->setBrush(missColor());
     }
   }
 }

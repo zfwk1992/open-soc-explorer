@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string notr="true">Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
    <property name="leftMargin">
@@ -64,14 +64,14 @@
             <item>
              <widget class="QToolButton" name="savePresetButton">
               <property name="text">
-               <string>...</string>
+               <string notr="true">...</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QToolButton" name="removePresetButton">
               <property name="text">
-               <string>...</string>
+               <string notr="true">...</string>
               </property>
              </widget>
             </item>
@@ -82,7 +82,7 @@
             <item row="5" column="2">
              <widget class="QLabel" name="label_9">
               <property name="text">
-               <string>Wr. hit:</string>
+               <string>Write hit:</string>
               </property>
              </widget>
             </item>
@@ -109,7 +109,7 @@
             <item row="6" column="0">
              <widget class="QLabel" name="label_3">
               <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;2&lt;span style=&quot; vertical-align:super;&quot;&gt;N&lt;/span&gt; Words per Line:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;2&lt;span style=&quot; vertical-align:super;&quot;&gt;N&lt;/span&gt; Words/Line:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
              </widget>
             </item>
@@ -135,14 +135,14 @@
             <item row="6" column="2">
              <widget class="QLabel" name="label_10">
               <property name="text">
-               <string>Wr. miss:</string>
+               <string>Write miss:</string>
               </property>
              </widget>
             </item>
             <item row="5" column="0">
              <widget class="QLabel" name="label_2">
               <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;Ways:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               <string>Ways (count):</string>
               </property>
              </widget>
             </item>
@@ -165,11 +165,21 @@
             <item row="4" column="2">
              <widget class="QLabel" name="label_8">
               <property name="text">
-               <string>Repl. policy:</string>
+               <string>Replacement:</string>
               </property>
              </widget>
             </item>
            </layout>
+          </item>
+          <item>
+           <widget class="QLabel" name="summary">
+            <property name="text">
+             <string notr="true">-</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>

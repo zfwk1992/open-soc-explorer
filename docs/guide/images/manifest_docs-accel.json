@@ -1,0 +1,454 @@
+[
+  {
+    "file": "09-gpu-iotab-added.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": null,
+    "actions": [
+      "add peripheral"
+    ],
+    "caption": "I/O tab after adding a SIMT GPU (Devices list, GPU 0 widget, Parameters/Register map/Exports panels)",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "tab io",
+      "grab window"
+    ]
+  },
+  {
+    "file": "09-gpu-iotab-added.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": null,
+    "actions": [
+      "add peripheral"
+    ],
+    "caption": "I/O tab after adding a SIMT GPU (Devices list, GPU 0 widget, Parameters/Register map/Exports panels)",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "tab io",
+      "grab window"
+    ]
+  },
+  {
+    "file": "09-gpu-widget-idle.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": "examples/assembly/gpu_vecadd.s",
+    "actions": [
+      "assemble"
+    ],
+    "caption": "GPU widget idle before launch: free warp slots, empty-state hint",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "load :/examples/assembly/gpu_vecadd.s",
+      "tab io",
+      "grab periphwidget GPU size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only (sub-window enlarged to 1040x800). Before the first launch the warp grid is replaced by the hint \"No kernel has been launched yet.\""
+  },
+  {
+    "file": "09-gpu-widget-idle.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": "examples/assembly/gpu_vecadd.s",
+    "actions": [
+      "assemble"
+    ],
+    "caption": "GPU widget idle before launch: free warp slots, empty-state hint",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "load :/examples/assembly/gpu_vecadd.s",
+      "tab io",
+      "grab periphwidget GPU size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only (sub-window enlarged to 1040x800). Before the first launch the warp grid is replaced by the hint \"No kernel has been launched yet.\""
+  },
+  {
+    "file": "09-gpu-registers.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": "examples/assembly/gpu_vecadd.s",
+    "actions": [
+      "assemble",
+      "step until just before the CTRL.START write"
+    ],
+    "caption": "Register table after KERNEL_PC, GRID_X=2, BLOCK_X=16, ARG0-3 written",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "load :/examples/assembly/gpu_vecadd.s",
+      "tab io",
+      "until gpu.reg 8",
+      "clock 2",
+      "subtab QTabWidget 1 periph GPU",
+      "grab periphwidget GPU size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only, Registers tab selected; stopped two cycles after ARG3 was written (before CTRL.START)."
+  },
+  {
+    "file": "09-gpu-registers.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": "examples/assembly/gpu_vecadd.s",
+    "actions": [
+      "assemble",
+      "step until just before the CTRL.START write"
+    ],
+    "caption": "Register table after KERNEL_PC, GRID_X=2, BLOCK_X=16, ARG0-3 written",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "load :/examples/assembly/gpu_vecadd.s",
+      "tab io",
+      "until gpu.reg 8",
+      "clock 2",
+      "subtab QTabWidget 1 periph GPU",
+      "grab periphwidget GPU size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only, Registers tab selected; stopped two cycles after ARG3 was written (before CTRL.START)."
+  },
+  {
+    "file": "09-gpu-widget-exit.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": "examples/assembly/gpu_vecadd.s",
+    "actions": [
+      "assemble",
+      "step until both SM1 warps executed pc 7 (@P0 EXIT)"
+    ],
+    "caption": "B1.0 lanes 5-7 red, B1.1 all red: predicated exit of out-of-range threads",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "load :/examples/assembly/gpu_vecadd.s",
+      "tab io",
+      "until gpu.issued 1 7 2 max 3000",
+      "grab periphwidget GPU size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only. Stopped right after the second issue of pc 7 on SM1: B1.0 shows lanes 5-7 red; B1.1 has already finished and its slot shows (free)."
+  },
+  {
+    "file": "09-gpu-widget-exit.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": "examples/assembly/gpu_vecadd.s",
+    "actions": [
+      "assemble",
+      "step until both SM1 warps executed pc 7 (@P0 EXIT)"
+    ],
+    "caption": "B1.0 lanes 5-7 red, B1.1 all red: predicated exit of out-of-range threads",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "load :/examples/assembly/gpu_vecadd.s",
+      "tab io",
+      "until gpu.issued 1 7 2 max 3000",
+      "grab periphwidget GPU size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only. Stopped right after the second issue of pc 7 on SM1: B1.0 shows lanes 5-7 red; B1.1 has already finished and its slot shows (free)."
+  },
+  {
+    "file": "09-gpu-widget-done.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": "examples/assembly/gpu_vecadd.s",
+    "actions": [
+      "assemble",
+      "run"
+    ],
+    "caption": "GPU widget after vecadd: 48 cycles, 68 warp instructions, 16 memory transactions",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "load :/examples/assembly/gpu_vecadd.s",
+      "tab io",
+      "run",
+      "grab periphwidget GPU size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only, after Run: 48 GPU cycles, 68 warp instructions, 16 memory transactions."
+  },
+  {
+    "file": "09-gpu-widget-done.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": "examples/assembly/gpu_vecadd.s",
+    "actions": [
+      "assemble",
+      "run"
+    ],
+    "caption": "GPU widget after vecadd: 48 cycles, 68 warp instructions, 16 memory transactions",
+    "chapter": "09",
+    "script": [
+      "peripheral \"SIMT GPU\"",
+      "load :/examples/assembly/gpu_vecadd.s",
+      "tab io",
+      "run",
+      "grab periphwidget GPU size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only, after Run: 48 GPU cycles, 68 warp instructions, 16 memory transactions."
+  },
+  {
+    "file": "09-gpu-divergence.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": null,
+    "actions": [
+      "launch the 09.9 divergence kernel (tst_divergenceReconvergence) with GRID_X=1, BLOCK_X=8",
+      "step until kernel pc 4 executes"
+    ],
+    "caption": "Divergent warp: odd lanes grey (masked), even lanes green, [+1 path]",
+    "chapter": "09",
+    "parameters": {
+      "SMs": 1
+    },
+    "script": [
+      "peripheral \"SIMT GPU\" 0=1",
+      "source",
+      "tab io",
+      "until gpu.issued 0 4 1 max 3000",
+      "grab periphwidget GPU size 1040 640"
+    ],
+    "source": "# 09.9 Experiment A: the divergence kernel (tst_divergenceReconvergence),\n# launched with GRID_X = 1, BLOCK_X = 8. Set the GPU parameter SMs to 1.\n.data\narr:    .zero 32\nkernel:\n    .word 0x01040000    #  0: S_TID R1\n    .word 0x06884001    #  1: ANDI R2, R1, 1\n    .word 0x08408400    #  2: SETP.NE P0, R2, 0\n    .word 0x80c00006    #  3: @P0 BRA 6 (odd)\n    .word 0x060c0064    #  4: MOV R3, 100\n    .word 0x00c00007    #  5: BRA 7 (join)\n    .word 0x060c00c8    #  6: odd: MOV R3, 200\n    .word 0x01100004    #  7: join: S_ARG R4, 0\n    .word 0x07544002    #  8: SHL R5, R1, 2\n    .word 0x02111400    #  9: ADD R4, R4, R5\n    .word 0x0a4d0000    # 10: STG [R4], R3\n    .word 0x00400000    # 11: EXIT\n.text\nmain:\n    li   s0, GPU_0_BASE\n    la   t0, kernel\n    sw   t0, GPU_0_KERNEL_PC_OFFSET(s0)\n    li   t0, 1\n    sw   t0, GPU_0_GRID_X_OFFSET(s0)\n    li   t0, 8\n    sw   t0, GPU_0_BLOCK_X_OFFSET(s0)\n    la   t0, arr\n    sw   t0, GPU_0_ARG0_OFFSET(s0)\n    li   t0, GPU_0_CTRL_START\n    sw   t0, GPU_0_CTRL_OFFSET(s0)\n    li   t1, GPU_0_STATUS_DONE\nwait:\n    lw   t0, GPU_0_STATUS_OFFSET(s0)\n    and  t0, t0, t1\n    beqz t0, wait\n    sw   t1, GPU_0_STATUS_OFFSET(s0)\n    li   a7, 10\n    ecall\n",
+    "shot_note": "Peripheral widget only. Host program in \"source\" launches the divergence kernel with GRID_X=1, BLOCK_X=8, SMs=1. The row suffix reads \"diverged: 2 paths\" (not \"[+1 path]\")."
+  },
+  {
+    "file": "09-gpu-divergence.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "SIMT GPU",
+    "example": null,
+    "actions": [
+      "launch the 09.9 divergence kernel (tst_divergenceReconvergence) with GRID_X=1, BLOCK_X=8",
+      "step until kernel pc 4 executes"
+    ],
+    "caption": "Divergent warp: odd lanes grey (masked), even lanes green, [+1 path]",
+    "chapter": "09",
+    "parameters": {
+      "SMs": 1
+    },
+    "script": [
+      "peripheral \"SIMT GPU\" 0=1",
+      "source",
+      "tab io",
+      "until gpu.issued 0 4 1 max 3000",
+      "grab periphwidget GPU size 1040 640"
+    ],
+    "source": "# 09.9 Experiment A: the divergence kernel (tst_divergenceReconvergence),\n# launched with GRID_X = 1, BLOCK_X = 8. Set the GPU parameter SMs to 1.\n.data\narr:    .zero 32\nkernel:\n    .word 0x01040000    #  0: S_TID R1\n    .word 0x06884001    #  1: ANDI R2, R1, 1\n    .word 0x08408400    #  2: SETP.NE P0, R2, 0\n    .word 0x80c00006    #  3: @P0 BRA 6 (odd)\n    .word 0x060c0064    #  4: MOV R3, 100\n    .word 0x00c00007    #  5: BRA 7 (join)\n    .word 0x060c00c8    #  6: odd: MOV R3, 200\n    .word 0x01100004    #  7: join: S_ARG R4, 0\n    .word 0x07544002    #  8: SHL R5, R1, 2\n    .word 0x02111400    #  9: ADD R4, R4, R5\n    .word 0x0a4d0000    # 10: STG [R4], R3\n    .word 0x00400000    # 11: EXIT\n.text\nmain:\n    li   s0, GPU_0_BASE\n    la   t0, kernel\n    sw   t0, GPU_0_KERNEL_PC_OFFSET(s0)\n    li   t0, 1\n    sw   t0, GPU_0_GRID_X_OFFSET(s0)\n    li   t0, 8\n    sw   t0, GPU_0_BLOCK_X_OFFSET(s0)\n    la   t0, arr\n    sw   t0, GPU_0_ARG0_OFFSET(s0)\n    li   t0, GPU_0_CTRL_START\n    sw   t0, GPU_0_CTRL_OFFSET(s0)\n    li   t1, GPU_0_STATUS_DONE\nwait:\n    lw   t0, GPU_0_STATUS_OFFSET(s0)\n    and  t0, t0, t1\n    beqz t0, wait\n    sw   t1, GPU_0_STATUS_OFFSET(s0)\n    li   a7, 10\n    ecall\n",
+    "shot_note": "Peripheral widget only. Host program in \"source\" launches the divergence kernel with GRID_X=1, BLOCK_X=8, SMs=1. The row suffix reads \"diverged: 2 paths\" (not \"[+1 path]\")."
+  },
+  {
+    "file": "10-npu-iotab-added.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": null,
+    "actions": [
+      "add peripheral"
+    ],
+    "caption": "I/O tab after adding a Tensor Unit (NPU)",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "tab io",
+      "grab window"
+    ]
+  },
+  {
+    "file": "10-npu-iotab-added.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": null,
+    "actions": [
+      "add peripheral"
+    ],
+    "caption": "I/O tab after adding a Tensor Unit (NPU)",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "tab io",
+      "grab window"
+    ]
+  },
+  {
+    "file": "10-npu-widget-idle.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": "examples/assembly/npu_matmul.s",
+    "actions": [
+      "assemble"
+    ],
+    "caption": "NPU widget idle: State IDLE, empty ring, zero array",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "load :/examples/assembly/npu_matmul.s",
+      "tab io",
+      "grab periphwidget \"Tensor Unit\" size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only (sub-window enlarged to 1040x800)."
+  },
+  {
+    "file": "10-npu-widget-idle.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": "examples/assembly/npu_matmul.s",
+    "actions": [
+      "assemble"
+    ],
+    "caption": "NPU widget idle: State IDLE, empty ring, zero array",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "load :/examples/assembly/npu_matmul.s",
+      "tab io",
+      "grab periphwidget \"Tensor Unit\" size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only (sub-window enlarged to 1040x800)."
+  },
+  {
+    "file": "10-npu-fetch-dma.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": "examples/assembly/npu_matmul.s",
+    "actions": [
+      "assemble",
+      "step ~12 cycles past the TAIL=1 doorbell"
+    ],
+    "caption": "DMA_IN after FETCH_DESC: descriptor MATMUL M=4 N=4 K=4 decoded, blue DMA bar",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "load :/examples/assembly/npu_matmul.s",
+      "tab io",
+      "until npu.state DMA_IN max 5000",
+      "until npu.dma 16",
+      "grab periphwidget \"Tensor Unit\" size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only; stopped in DMA_IN at 16 of 32 bytes. The decoded descriptor is shown in the Descriptor ring tab (there is no separate \"Descriptor:\" text line)."
+  },
+  {
+    "file": "10-npu-fetch-dma.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": "examples/assembly/npu_matmul.s",
+    "actions": [
+      "assemble",
+      "step ~12 cycles past the TAIL=1 doorbell"
+    ],
+    "caption": "DMA_IN after FETCH_DESC: descriptor MATMUL M=4 N=4 K=4 decoded, blue DMA bar",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "load :/examples/assembly/npu_matmul.s",
+      "tab io",
+      "until npu.state DMA_IN max 5000",
+      "until npu.dma 16",
+      "grab periphwidget \"Tensor Unit\" size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only; stopped in DMA_IN at 16 of 32 bytes. The decoded descriptor is shown in the Descriptor ring tab (there is no separate \"Descriptor:\" text line)."
+  },
+  {
+    "file": "10-npu-compute.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": "examples/assembly/npu_matmul.s",
+    "actions": [
+      "assemble",
+      "step to COMPUTE t=4..6 (after weight load)"
+    ],
+    "caption": "COMPUTE: stationary weights (light blue), activations flowing diagonally (green borders), acc accumulating downwards",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "load :/examples/assembly/npu_matmul.s",
+      "tab io",
+      "until npu.compute 5 max 5000",
+      "grab periphwidget \"Tensor Unit\" size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only; stopped at \"systolic pass: 5 of 10 array cycles done\"."
+  },
+  {
+    "file": "10-npu-compute.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": "examples/assembly/npu_matmul.s",
+    "actions": [
+      "assemble",
+      "step to COMPUTE t=4..6 (after weight load)"
+    ],
+    "caption": "COMPUTE: stationary weights (light blue), activations flowing diagonally (green borders), acc accumulating downwards",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "load :/examples/assembly/npu_matmul.s",
+      "tab io",
+      "until npu.compute 5 max 5000",
+      "grab periphwidget \"Tensor Unit\" size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only; stopped at \"systolic pass: 5 of 10 array cycles done\"."
+  },
+  {
+    "file": "10-npu-done.zh.png",
+    "lang": "zh",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": "examples/assembly/npu_matmul.s",
+    "actions": [
+      "assemble",
+      "run"
+    ],
+    "caption": "NPU after completion: head=1, IRQ_STATUS=0x3, busy=47, dma=128 B, macs=64",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "load :/examples/assembly/npu_matmul.s",
+      "tab io",
+      "run",
+      "grab periphwidget \"Tensor Unit\" size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only, after Run: HEAD=1, busy cycles 47, MACs 64."
+  },
+  {
+    "file": "10-npu-done.en.png",
+    "lang": "en",
+    "tab": "io",
+    "peripheral": "Tensor Unit (NPU)",
+    "example": "examples/assembly/npu_matmul.s",
+    "actions": [
+      "assemble",
+      "run"
+    ],
+    "caption": "NPU after completion: head=1, IRQ_STATUS=0x3, busy=47, dma=128 B, macs=64",
+    "chapter": "10",
+    "script": [
+      "peripheral \"Tensor Unit (NPU)\"",
+      "load :/examples/assembly/npu_matmul.s",
+      "tab io",
+      "run",
+      "grab periphwidget \"Tensor Unit\" size 1040 800"
+    ],
+    "shot_note": "Peripheral widget only, after Run: HEAD=1, busy cycles 47, MACs 64."
+  }
+]
