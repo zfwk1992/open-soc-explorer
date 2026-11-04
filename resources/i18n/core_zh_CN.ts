@@ -916,32 +916,32 @@ Edit &gt; Settings &gt; Compiler</source>
 <context>
     <name>Ripes::ProcessorRegistry</name>
     <message>
-        <location filename="../../src/processorregistry.cpp" line="+23"/>
+        <location filename="../../src/processorregistry.cpp" line="+26"/>
         <source>&lt;br&gt;&lt;b&gt;NOTE: given the lack of a hazard unit (and therefore the lack of dynamic hazard resolution in the pipeline) programs with hazards will execute incorrectly, unless resolved by inserting nop&apos;s to manually stall the pipeline.&lt;/b&gt;</source>
         <translation>&lt;br&gt;&lt;b&gt;注意：由于没有冒险检测单元（因此流水线无法动态解决冒险），含有冒险的程序会执行出错，除非手动插入 nop 使流水线停顿。&lt;/b&gt;</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+5"/>
         <source>A 5-stage in-order processor with no forwarding or hazard detection/elimination.</source>
         <translation>5 级顺序流水线处理器，没有转发，也没有冒险检测/消除。</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+4"/>
         <source>A 5-stage in-order processor with forwarding but no hazard detection/elimination.</source>
         <translation>5 级顺序流水线处理器，有转发，但没有冒险检测/消除。</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+4"/>
         <source>A 5-stage in-order processor with hazard detection/elimination and forwarding.</source>
         <translation>5 级顺序流水线处理器，有冒险检测/消除和转发。</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>A 5-stage in-order processor with hazard detection/elimination but no forwarding unit.</source>
         <translation>5 级顺序流水线处理器，有冒险检测/消除，但没有转发单元。</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>A 6-stage dual-issue in-order processor. Each way may execute arithmetic instructions, whereas way 1 is reserved for controlflow and ecall instructions, and way 2 for memory accessing instructions.</source>
         <translation>6 级双发射顺序流水线处理器。两路都可以执行算术指令；第 1 路专门执行控制流和 ecall 指令，第 2 路专门执行访存指令。</translation>
     </message>
@@ -951,27 +951,27 @@ Edit &gt; Settings &gt; Compiler</source>
         <translation>类似 Harris&amp;Harris 书中所述的 5 阶段多周期处理器。不同指令执行所需的周期数不同。默认在控制单元中显示当前状态。此版本与单周期或流水线处理器一样，数据和指令使用分开的存储器。</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>A 5 stage multicycle processor similar to the multicycle processor described in Harris&amp;Harris. Instructions take a variable number of cycles to execute. By default, the current state is shown in the control unit. This version takes advantage of the fact that data and instructions are never accessed in the same cycle to use a single memory for data and instructions.</source>
         <translation>类似 Harris&amp;Harris 书中所述的 5 阶段多周期处理器。不同指令执行所需的周期数不同。默认在控制单元中显示当前状态。此版本利用数据和指令从不在同一周期访问这一点，数据和指令共用一个存储器。</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+7"/>
         <source>An instruction-set simulator. This model executes one full instruction per clock cycle through a software interpreter. It is useful as a fast, reference model.</source>
         <translation>指令集模拟器。此模型通过软件解释器每个时钟周期执行一条完整指令，适合作为快速的参考模型。</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+3"/>
         <source>A single cycle processor</source>
         <translation>单周期处理器</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Standard</source>
         <translation>标准</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Extended</source>
         <translation>扩展</translation>
     </message>
@@ -1692,7 +1692,7 @@ A compiler may be autodetected if available in PATH. The path field turns green 
         <translation>缓存图最大周期数</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+8"/>
         <source>Number of clock cycles shown in the cache plot. Longer runs show the most recent cycles (older ones are dropped and a note says so); the statistics still cover the whole run. Increasing this may incur substantial slowdown for long running programs, given the number of points to be plotted.</source>
         <translation>缓存图中显示的时钟周期数。运行更久时只显示最近的周期（更早的周期被丢弃，图上方会有提示说明）；统计数据仍覆盖整个运行过程。增大该值可能会使长时间运行的程序明显变慢，因为需要绘制的点更多。</translation>
     </message>

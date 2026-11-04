@@ -4,7 +4,7 @@
 <context>
     <name>Ripes::GpuLegend</name>
     <message>
-        <location filename="../../src/io/iogpuwidget.cpp" line="+421"/>
+        <location filename="../../src/io/iogpuwidget.cpp" line="+422"/>
         <source>Legend: what the lane squares and row colours mean</source>
         <translation>图例：lane 方块与行底色的含义</translation>
     </message>
@@ -293,11 +293,16 @@
         <source>%1 SM x %2 warps x %3 lanes</source>
         <translation>%1 个 SM × %2 个 warp × %3 个 lane</translation>
     </message>
+    <message>
+        <location line="+63"/>
+        <source>kernel aborted: GPU configuration changed</source>
+        <translation>kernel 已中止：GPU 配置已更改</translation>
+    </message>
 </context>
 <context>
     <name>Ripes::IOGpuWidget</name>
     <message>
-        <location filename="../../src/io/iogpuwidget.cpp" line="+178"/>
+        <location filename="../../src/io/iogpuwidget.cpp" line="+173"/>
         <source>SIMT GPU</source>
         <translation>SIMT GPU</translation>
     </message>
@@ -539,7 +544,12 @@ Try the example gpu_vecadd.s (File &gt; Load Example), then press Run or step wi
         <translation>反向执行超出了已记录的 GPU 历史：加速器已复位到启动前状态。kernel 已写入内存的数据不会撤销；请复位处理器并重新运行以再次启动 kernel。</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
+        <source>The GPU configuration was changed while a kernel was running: the kernel was aborted (STATUS.DONE | ERROR). Clear the flags and launch it again on the new configuration.</source>
+        <translation>kernel 运行期间 GPU 配置被更改：该 kernel 已中止（STATUS.DONE | ERROR）。请清除标志位，并在新配置上重新启动它。</translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>STATUS.LAUNCH_IGNORED is set: a launch was ignored because the GPU was BUSY.</source>
         <translation>STATUS.LAUNCH_IGNORED 已置位：因 GPU 处于 BUSY，一次启动被忽略。</translation>
     </message>

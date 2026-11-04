@@ -152,6 +152,7 @@ private slots:
   void tst_e2eSelfMappedQueue();
   void tst_e2eSelfMappedDst();
   void tst_e2eReverse();
+  void tst_e2eReverseSameCycleStore();
   void tst_e2eWidget();
   void tst_e2eBatchExercise();
 
@@ -933,6 +934,97 @@ void tst_NPU::tst_e2eReverse() {
   QCoreApplication::processEvents();
   QVERIFY2(m_console.contains("Result: OK"), qPrintable(m_console));
   QCOMPARE(reg(IOTensorUnit::MACS), 64u);
+}
+
+void tst_NPU::tst_e2eReverseSameCycleStore() {
+  // Review defect: the processor rewinds its own stores before the NPU undoes
+  // its DMA writes. A word the CPU stored (v0 -> v1) and the DMA then
+  // overwrote (v1 -> v2) in the same cycle therefore came back as v1 after a
+  // reverse instead of the pre-cycle value v0.
+  ensureE2E();
+  if (RipesSettings::value(RIPES_SETTING_REWINDSTACKSIZE).toInt() < 10)
+    QSKIP("rewind stack size setting < 10 cycles");
+
+  // The host stores a different value to C[0] every cycle (a straight run of
+  // stores without hazards issues one per cycle in the 5-stage pipeline)
+  // while the NPU computes C = A x I and DMAs the result into C.
+  QString src = R"(
+.data
+desc:   .word 1, 0, 0, 0, 4, 4, 4, 0
+        .word 0, 0, 0, 0, 0, 0, 0, 0
+A:      .byte 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+B:      .byte 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1
+C:      .zero 64
+.text
+main:
+    la a0, C
+    li t0, 0x101
+    li t1, 0x102
+    li t2, 0x103
+    li t3, 0x104
+    li t4, 0x105
+    li t5, 0x106
+    li t6, 0x107
+)";
+  for (int i = 0; i < 400; ++i)
+    src += QStringLiteral("    sw t%1, 0(a0)\n").arg(i % 7);
+  src += "spin:\n    j spin\n";
+  loadAssemblySource(src);
+
+  const AInt desc = symbol("desc");
+  const AInt a = symbol("A");
+  const AInt b = symbol("B");
+  const AInt c = symbol("C");
+  QVERIFY(desc != 0 && a != 0 && b != 0 && c != 0);
+  auto &mem = ProcessorHandler::getMemory();
+  mem.writeMem(desc + 4, a, 4);
+  mem.writeMem(desc + 8, b, 4);
+  mem.writeMem(desc + 12, c, 4);
+  wreg(IOTensorUnit::QUEUE_BASE, static_cast<uint32_t>(desc));
+  wreg(IOTensorUnit::QUEUE_SIZE, 2);
+  wreg(IOTensorUnit::TAIL, 1); // doorbell
+
+  auto *proc = ProcessorHandler::getProcessorNonConst();
+  auto c0 = [&] { return static_cast<uint32_t>(mem.readMem(c, 4)); };
+  auto isCpuValue = [](uint32_t v) { return v >= 0x101u && v <= 0x107u; };
+
+  // Clock until the DMA_OUT write of C[0] (= A[0][0] * 1 = 1) lands; hist[i]
+  // is C[0] after i cycles.
+  std::vector<uint32_t> hist{c0()};
+  size_t k = 0;
+  for (unsigned i = 0; i < 400 && k == 0; ++i) {
+    proc->clock();
+    hist.push_back(c0());
+    if (hist.back() == 1u)
+      k = hist.size() - 1;
+  }
+  QVERIFY2(k != 0, "the DMA never wrote C[0]");
+  // The CPU stored a new value to C[0] in each of the cycles before k, and
+  // the store run (400 instructions) continues well past k: cycle k holds a
+  // CPU store (v0 -> v1) followed by the DMA write (v1 -> 1).
+  QVERIFY(k >= 4 && k < 300);
+  for (size_t i = k - 3; i < k; ++i) {
+    QVERIFY2(isCpuValue(hist[i]), qPrintable(QString("C[0] = 0x%1 after cycle "
+                                                     "%2 is not a CPU store")
+                                                 .arg(hist[i], 0, 16)
+                                                 .arg(i)));
+    QVERIFY(hist[i] != hist[i - 1]);
+  }
+  const uint32_t preCycle = hist[k - 1];
+
+  // Reversing cycle k must leave the pre-cycle value, not the value the CPU
+  // stored during cycle k (which is what the DMA's undo log recorded as the
+  // "old" contents).
+  proc->reverseProcessor();
+  QCoreApplication::processEvents();
+  QCOMPARE(c0(), preCycle);
+
+  // Going forward again reproduces the cycle, and the following cycle's CPU
+  // store lands normally on top of the DMA result.
+  proc->clock();
+  QCOMPARE(c0(), 1u);
+  proc->clock();
+  QVERIFY(isCpuValue(c0()));
 }
 
 void tst_NPU::tst_e2eWidget() {

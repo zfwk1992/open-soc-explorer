@@ -482,7 +482,7 @@ What these numbers teach:
 ## 10.14 Limitations
 
 - **The CPU has no external interrupt input**: interrupts can only be observed (widget, reading `IRQ_STATUS`); they never interrupt the CPU.
-- **No reverse execution of the accelerator**: the processor's **Reverse** (F4) does not rewind the NPU. With the PLAN2 §6(9) fix, a reverse step either restores a snapshot or resets the NPU to "before launch" with a notice on the widget (which one is to be verified). To start over use **Reset** (F3) — a processor reset fully resets the NPU (counters included).
+- **Reverse execution only covers the recorded NPU history**: the unit saves its state every CPU cycle (at most **Max. undo cycles** entries); each **Reverse** (F4) restores the previous state and undoes the host-memory writes its DMA made in that cycle, and the widget says "Reversed one cycle: the NPU state and the memory written by its DMA in that cycle were rewound together with the CPU". If you reverse further back than the history reaches (for example the unit was created mid-program), the NPU state is **not** rewound for that step and the widget says so (`src/io/iotensorunit.cpp`). To start over use **Reset** (F3) — a processor reset fully resets the NPU (counters included).
 - **The CLI cannot instantiate peripherals**: the NPU examples run only in the GUI (or the QTest tests).
 - Registers and descriptor fields are 32 bits; on RV64 processors addresses must lie in the low 4 GB.
 - DMA_IN / COMPUTE / DMA_OUT are serial, no double buffering; no requantisation (results are int32).
@@ -536,7 +536,7 @@ poll:   lw   t4, 0(t1)
 - When slot 0 completes: `NO_IRQ` → no `DESC_DONE`; HEAD = 1 ≠ TAIL = 2 → no `QUEUE_EMPTY`.
 - When slot 1 completes: `DESC_DONE` is set and HEAD = TAIL = 2 → `QUEUE_EMPTY` is set.
 - So `IRQ_STATUS = 3`: one "interrupt" for the whole batch.
-- Busy cycles (derived from the model, to be verified in the GUI): MATMUL 47 + RELU (FETCH 8 + DMA_IN 16 words 16 + COMPUTE ceil(16/4) = 4 + DMA_OUT 16 + COMPLETE 1 = 45) = 92. The 1 IDLE cycle between the descriptors is not a busy cycle.
+- Busy cycles (derived from the model and confirmed in the GUI: `NPU busy cycles: 92`, `NPU MACs: 64`, `IRQ_STATUS: 3`, `Result: OK`): MATMUL 47 + RELU (FETCH 8 + DMA_IN 16 words 16 + COMPUTE ceil(16/4) = 4 + DMA_OUT 16 + COMPLETE 1 = 45) = 92. The 1 IDLE cycle between the descriptors is not a busy cycle.
 - Result: `relu(C)` = 16 7 0 6 / 1 0 0 3 / 4 0 4 0 / 7 6 0 1; the program compares with its `EXP` table and prints `Result: OK`.
 
 </details>

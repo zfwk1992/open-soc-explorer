@@ -47,7 +47,7 @@
 
 **原因**：Qt 运行库不在 PATH 上。
 
-**解决**：在启动它的 PowerShell 会话中执行 `$env:PATH = "P:\workspace\soc\toolchain\Qt\6.8.3\mingw_64\bin;" + $env:PATH` 后再运行；或把所需 DLL 部署到 `build` 目录（例如用 Qt 的 `windeployqt`，待核实）。
+**解决**：在启动它的 PowerShell 会话中执行 `$env:PATH = "P:\workspace\soc\toolchain\Qt\6.8.3\mingw_64\bin;" + $env:PATH` 后再运行；或用 Qt 的 `windeployqt build\Ripes.exe` 把所需 DLL 和插件一次性部署到程序旁边（已验证：部署后的副本不需要 PATH 上有 Qt 即可启动；注意它不包含 `offscreen` 平台插件）。
 
 ### Q1.7 程序在服务器 / 远程终端上一启动就退出
 
@@ -80,7 +80,7 @@ INFO: Unknown opcode 'li'
 
 ### Q2.2 图形界面里也报 `Unknown opcode 'li'`（或符号相关错误）
 
-**原因**：外设没创建，或者创建的编号不同。符号名里带外设编号：第一个 GPU 是 `GPU_0_...`；如果你删掉后再创建，可能变成 `GPU_1_...`（待核实）。
+**原因**：外设没创建，或者创建的编号不同。符号名里带外设编号，而且同类设备总是复用最小的空闲编号（`src/io/iobase.h` 中的 `claimPeripheralId`）：第一个 GPU 是 `GPU_0_...`，删掉后再创建仍是 `GPU_0_...`；但第一个还在时再创建一个，就是 `GPU_1_...`。
 
 **解决**：看 **I/O exports** 中实际的符号名，与程序一致即可；必要时关闭多余外设、重新创建。
 
@@ -97,7 +97,7 @@ INFO: Unknown opcode 'li'
 - 拼错指令或寄存器名（`addi x1, x1, 1` 写成 `adi`）。
 - 立即数超出范围（`addi` 的立即数是 12 位有符号数，-2048…2047；更大的数用 `li`）。
 - 标签重复定义或未定义。
-- 在 `.data` 段写了指令，或在 `.text` 段写了 `.word` 以外不支持的伪操作（待核实）。
+- 未知的伪操作（`Unknown directive '.foo'`），或在 `.text` 段写了长度使下一条指令不对齐的 `.string`/`.byte`（`Instruction misaligned (24-bit boundary). This instruction must be aligned on a 32-bit boundary.`）；`.word`、`.zero` 和凑满整字的 `.byte` 没有问题，`.data` 段里写指令也能通过（只是当作数据存起来）。
 
 修好之前，右栏的 **Executable code** 保持上一次成功汇编的程序——所以"运行结果没变"往往说明源码其实有错误。
 
@@ -152,7 +152,7 @@ Provide a path to a valid C compiler under:
 
 **原因**：外设的大小可能随参数变化（例如 LED 矩阵的宽高），后面外设的地址会随之移动。
 
-**解决**：在程序中**始终使用导出的符号**（`LED_MATRIX_0_BASE` 等），不要写死数值地址。修改参数后程序会自动重新汇编（待核实）；C 程序需要重新编译。
+**解决**：在程序中**始终使用导出的符号**（`LED_MATRIX_0_BASE` 等），不要写死数值地址。修改参数后程序**不会**自动重新汇编——编辑器只在源码文本或处理器改变时重新汇编（`src/edittab.cpp` 中的 `EditTab::sourceCodeChanged`），外设符号是在汇编时读取的——所以随便改一下源码（或重新加载程序）才能用上新地址；C 程序需要重新编译。
 
 ### Q3.3 GPU / NPU 部件没有变化
 
@@ -166,7 +166,7 @@ Provide a path to a valid C compiler under:
 
 ### Q3.4 程序 / 截图工具在离屏模式下"卡住"
 
-**原因**：某个操作弹出了对话框（例如 Windows 上的 `--help`、命令行参数错误、文件错误提示），在 `QT_QPA_PLATFORM=offscreen` 下对话框不可见，程序在等待你点击。
+**原因**：某个操作弹出了对话框（例如文件错误提示，或者**旧**构建中的 `--help` / 命令行参数错误——当前构建会把这些打印到控制台，见[第 15 章](15-cli.md)第 7 节），在 `QT_QPA_PLATFORM=offscreen` 下对话框不可见，程序在等待你点击。
 
 **解决**：先在正常桌面环境里复现，看是什么对话框；脚本中给外层调用加超时。
 
@@ -180,18 +180,18 @@ Provide a path to a valid C compiler under:
 
 - 刚复位，或已经撤销到头；
 - 已达到 **Edit → Settings → Simulator → Max. undo cycles**（默认 100）的上限；
-- 刚用 **Run** 跑过——Run 模式不保留逐周期的撤销信息（待核实精确规则）。
+- **Run** 或 **Auto clock** 还在进行中——运行期间所有步进按钮都被禁用（`src/processortab.cpp` 中的 `ProcessorTab::run`）。Run 停下后，最近 **Max. undo cycles** 个周期和平时一样可以反向：Run 驱动的是同一个电路，撤销历史照样保留（已验证：把 `neogeo_mailbox.s` 跑到结束后 Reverse 仍然可用）。
 
 **解决**：需要更长的撤销历史时调大 **Max. undo cycles**（会占用更多内存）；要反复观察某一段，在其前面设断点，用 **Auto clock** 或 **Clock** 走过去。
 
 ### Q4.2 反向执行后，GPU / NPU 的状态不对
 
-**原因**：Reverse 恢复的是处理器、寄存器和内存（缓存模拟器也会跟着撤销）。**SIMT GPU** 和 **Tensor Unit (NPU)** 外设是独立的模型，第一阶段的实现**不响应反向执行**：处理器倒退了，加速器却停留在"未来"的状态，例如 DONE 位已置位、计数器已增加。
+**原因**：Reverse 恢复的是处理器、寄存器和内存（缓存模拟器也会跟着撤销）。**SIMT GPU** 和 **Tensor Unit (NPU)** 外设是独立的模型，它们每个 CPU 周期记录自己的状态，并随 Reverse 一起回退——但只能回退到自己的历史所及之处（最多 **Max. undo cycles** 条，GPU 还受内存预算限制，外设创建之前的状态没有记录）。
 
-按第二阶段计划，修复后会是以下两种之一（以实际版本为准，待核实）：
+反向超出这段历史时会发生什么（已在 `src/io/iogpu.cpp` 和 `src/io/iotensorunit.cpp` 中确认）：
 
-- 加速器在忙碌时为每个周期保存快照，Reverse 时一起倒退（快照数量同样受 **Max. undo cycles** 限制）；或
-- Reverse 时把加速器**复位到启动前**，并在部件上明确显示"反向执行后加速器已复位"。
+- **GPU** 会**复位到启动前的状态**（启动寄存器保留；kernel 已写入的内存不会撤销），部件上提示"反向执行超出了记录的 GPU 历史"；
+- **NPU** 这一步**保持当前状态**不变，部件上提示"反向执行超出了 NPU 历史"；正常的一步则提示"已反向一个周期：NPU 状态和该周期 DMA 写入的内存已与 CPU 一起回退"。
 
 **建议**：观察加速器时，用 **Reset**（F3）从头重跑，而不是用 Reverse 倒退；需要精确观察某个周期时，在启动 kernel / 敲门铃的指令上设断点，再用 F5 单步。
 
@@ -203,7 +203,7 @@ Provide a path to a valid C compiler under:
 
 **Edit → Settings → Environment → Color scheme**：**System**（跟随操作系统）、**Light**、**Dark**。立即生效，电路图、工具栏图标和 I/O 背景都会跟着变。
 
-如果选了 **System** 但没有变暗，说明操作系统没有报告深色模式，或者你的平台 / Qt 版本不支持自动检测（待核实）；直接选 **Dark** 即可。
+如果选了 **System** 但没有变暗，说明操作系统没有报告深色模式：**System** 只是把选择权交还给 Qt（`src/ripessettings.cpp` 中的 `QStyleHints::unsetColorScheme`），Qt 在 Windows、macOS 和大多数 Linux 桌面上跟随系统设置；直接选 **Dark** 即可。
 
 ### Q5.2 如何切换界面语言？
 
@@ -229,7 +229,7 @@ Provide a path to a valid C compiler under:
 
 **恢复默认**：关闭程序后删除上表中的注册表键或文件，再启动。**注意**：这会同时丢掉编辑器中未保存的程序和自定义缓存预设，请先保存。
 
-> 与上游 Ripes 共用同一个设置位置（待核实）：如果同一台电脑上还装了上游 Ripes，两者会互相读写这些设置。
+> 与上游 Ripes 共用同一个设置位置（两者的组织名和应用名都是 `Ripes`，见 `src/ripessettings.cpp`）：如果同一台电脑上还装了上游 Ripes，两者会互相读写这些设置。
 
 ### Q5.5 窗口太小，信息显示不全
 
@@ -270,7 +270,7 @@ Provide a path to a valid C compiler under:
 
 1. **先确认能复现**：记下最少的操作步骤（"打开示例 X → 选择处理器 Y → 按 F8 → 看到 Z"）。
 2. **收集信息**：
-   - 版本：**Help → About**（或当前版本的 **Help → Version**）显示的版本号；
+   - 版本：**Help → About Ripes...** 显示的版本号；
    - 处理器与 ISA：状态栏右侧 `Processor: ... ISA: ...`；
    - 操作系统、界面语言、配色方案；
    - 使用的程序（附上 `.s`/`.c` 文件或示例名），已创建的外设及参数；

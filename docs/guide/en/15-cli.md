@@ -76,7 +76,7 @@ The command-line options are defined in `main.cpp` and `src/cli/clioptions.cpp`.
 |---|---|---|
 | `--mode <mode>` | Yes (to enter CLI) | `gui` (default) or `cli` |
 | `--src <path>` | Yes | Path to the source file |
-| `-t <type>` | Yes | Source type: `asm` (assembly), `c` (C source), `bin` (flat binary), `elf` (ELF executable). **Although the help text says the default is `asm`, it currently must be given explicitly**, otherwise you get `No source type specified (--t)` |
+| `-t <type>` | No | Source type: `asm` (assembly, the default), `c` (C source), `bin` (flat binary), `elf` (ELF executable). Assembly files can omit it (verified: `--src factorial.s` without `-t` assembles and runs); any other value reports `Invalid source type (--t)` |
 | `--proc <name>` | Yes | Processor model ID, see section 2.2 |
 | `--isaexts <ext,...>` | No | ISA extensions to enable, comma separated, e.g. `M` or `M,C`. **Without it only the base instruction set is available** (RV32I/RV64I) and `mul`, `div` etc. in the program report `Unknown opcode` |
 | `--reginit <regfile>:<idx>=<v>,...` | No | Register initial values, see section 2.3. May be repeated |
@@ -85,7 +85,7 @@ The command-line options are defined in `main.cpp` and `src/cli/clioptions.cpp`.
 | `--output <path>` | No | Write the **report** to a file (the program's own output still goes to stdout) |
 | `--json` | No | Use JSON for the report |
 | `--all` | No | Enable all report items (except cache statistics) |
-| `-h`, `--help` | No | Show help (see the Windows notes in section 7) |
+| `-h`, `--help` | No | Print the option list to stdout and exit with code 0 (see section 7) |
 
 ### 2.2 Processor IDs
 
@@ -109,7 +109,7 @@ The extensions in `--isaexts` must be supported by that processor; if not, the e
 Invalid ISA extension 'F' specified (--isaexts). Processor 'RV32_5S' supports extensions: M, C
 ```
 
-(The listed extensions depend on the actual output, to be verified.)
+(This is the real output: the 5-stage processor supports exactly `M` and `C`.)
 
 ### 2.3 Register initialization `--reginit`
 
@@ -119,7 +119,7 @@ Format: `<register file>:<index>=<value>,<index>=<value>,...`. The RISC-V genera
 --reginit gpr:2=0x7ffffff0,3=0x10000000
 ```
 
-> **Important**: in the GUI every processor has default register initial values (`sp = 0x7ffffff0`, `gp = 0x10000000`), but **command-line mode does not apply these defaults automatically** — measured without `--reginit`, `x2` (sp) is 0. For programs that use the stack, add the line above so that results match the GUI.
+> **Note**: command-line mode applies the same default register initial values as the GUI (`sp = 0x7ffffff0`, `gp = 0x10000000`) — measured with `--regs` and no `--reginit`, `x2` is `0x7ffffff0` and `x3` is `0x10000000`. Use `--reginit` only when you want to override them; a register you name replaces its default.
 
 Initializing the same register twice reports `Duplicate register initialization`; a wrong register file name lists the valid names.
 
@@ -188,7 +188,7 @@ L1i misses: 11
 L1i writebacks: 0
 ```
 
-> **Known issue**: in the current build, whenever a cache is configured, the program terminates abnormally when exiting **after the report has been printed completely** (Windows exit code `-1073740940`, i.e. `0xC0000374` heap corruption). The report is complete, but scripts that check the exit code will wrongly see a failure (to be fixed).
+> **Fixed**: earlier builds terminated abnormally on exit whenever a cache was configured (Windows exit code `-1073740940`, i.e. `0xC0000374` heap corruption, after the report had been printed). The current build exits with code 0 after a `--cache-preset` run (verified), so scripts can rely on the exit code again.
 
 ---
 
@@ -393,17 +393,17 @@ INFO: Unknown opcode 'li'
 Therefore:
 
 - Examples that rely on peripherals — `gpu_vecadd.s`, `npu_matmul.s`, `npu_matmul.c`, `leds.s`, `leds.c`, `switchesAndLeds.c`, `neogeo_mailbox.s` (uses the LED matrix) and others — **must be run in the GUI**: first create the peripheral in the **I/O** tab, then load the program.
-- Even if you replace the symbols by numeric addresses by hand, no device answers at those addresses in the CLI, so the accesses have no effect (exact behaviour to be verified).
+- Even if you replace the symbols by numeric addresses by hand, no device answers at those addresses in the CLI: the address behaves like ordinary RAM (verified: a `sw` to `0xf0000000` followed by a `lw` returns the stored value), so the program runs, but nothing is displayed and status registers never change.
 
 ---
 
 ## 7. Notes for Windows
 
 1. **PowerShell neither waits nor shows output**: use `cmd /c "..."`, or `Start-Process -Wait -NoNewWindow -RedirectStandardOutput out.txt`, or redirect to a file. With a plain `& build\Ripes.exe ...` you also cannot get `$LASTEXITCODE`.
-2. **`--help` opens a dialog**: as a GUI-subsystem program on Windows, Qt shows the help text in a message box rather than printing it to the console (exact behaviour on a desktop to be verified). Under `QT_QPA_PLATFORM=offscreen` that message box is invisible and the program **hangs forever**. Therefore:
-   - To see the option list, run `build\Ripes.exe --help` in a normal desktop session **without offscreen**, or just read section 2 of this chapter;
-   - **A mistyped option also shows the help** (it prints `ERROR: ...` first and then the help), and also hangs under offscreen. Always try a command line on the desktop before using it in a script, or put a timeout around the outer call.
-3. **The exit code for option errors is 0**: `main.cpp` shows the help and returns 0 after a parse failure. Scripts cannot rely on the exit code alone; also check that the report file was created.
+2. **`--help` prints to the console**: `cmd /c "build\Ripes.exe --help"` writes the option list to stdout and exits with code 0, also under `QT_QPA_PLATFORM=offscreen` (verified). Earlier builds used Qt's default behaviour for GUI-subsystem programs — a message box, which hangs invisibly under offscreen — so if an old copy hangs on `--help`, that is why. Therefore:
+   - To see the option list, run `--help` through `cmd /c` as above, or just read section 2 of this chapter;
+   - **A mistyped option prints `ERROR: Unknown option '...'` followed by the help on stderr** and exits with code 1 (verified); nothing is printed to stdout.
+3. **The exit code for option errors is 1**: `main.cpp` prints the error and the help to stderr and returns 1 after a parse failure, and `parseCLIOptions` failures (bad processor name, bad preset, ...) do the same. Scripts can rely on the exit code.
 4. When running, assembling or a timeout fails, the exit code is 1 and a message starting with `ERROR:` is printed.
 
 ---
@@ -413,7 +413,7 @@ Therefore:
 1. Run `factorial.s` with `--cycles --cpi` on `RV32_SS`, `RV32_5S_NO_FW_HZ`, `RV32_5S` and `RV32_6S_DUAL` (remember `--isaexts M`). Which takes the fewest cycles? Is the result correct on the processor without forwarding and hazard detection? Why? (Hint: look at the console output.)
 2. Write a `--cache-config` file that simulates only L1D, vary `lines` from 0 to 6, note the hit rate and plot "number of sets vs hit rate".
 3. Use `--pipeline` to print the pipeline diagram of `factorial.s` on `RV32_5S`, paste it into a spreadsheet and find the first flush.
-4. Run `factorial.s` with `--regs` but without `--reginit` and compare the value of `x2`. Was the program result affected? Why not this time?
+4. Run `factorial.s` with `--regs` and look at `x2`: it is `0x7ffffff0` even without `--reginit`. Now add `--reginit gpr:2=0x1000` and run again. Does the program result change? Why not this time?
 5. Use the script from section 5.1 to run every example in `examples/assembly`. Which ones fail, and why?
 
 ## Summary
@@ -421,8 +421,8 @@ Therefore:
 - `--mode cli --src <file> -t <asm|c|bin|elf> --proc <ID>` is the minimal command; add `--isaexts M` when multiply/divide is needed.
 - Report items: `--cycles`, `--iret`, `--cpi`, `--ipc`, `--pipeline`, `--regs`, `--exectime`, `--runinfo`, or `--all`; `--json` switches to JSON, `--output` writes to a file.
 - Caches: `--cache-preset "<name>"` or `--cache-config <json>`; when configured, cache statistics are reported automatically.
-- The CLI does not apply default register initial values; use `--reginit gpr:2=0x7ffffff0,3=0x10000000` when needed.
+- The CLI applies the same default register values as the GUI (`sp`, `gp`); use `--reginit gpr:<idx>=<value>` only to override them.
 - **The CLI cannot create peripherals**: programs using peripheral symbols report `Unknown opcode 'li'`; the GPU/NPU/LED examples must run in the GUI.
-- On Windows use `cmd /c` to get output; `--help` and option errors open a dialog (invisible under offscreen).
+- On Windows use `cmd /c` to get output; `--help` prints to stdout (exit code 0), option errors print to stderr (exit code 1).
 
 Next chapter: [16 FAQ and troubleshooting](16-faq.md).

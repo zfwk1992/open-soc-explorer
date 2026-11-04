@@ -108,6 +108,7 @@ private slots:
   void testGpuSelfAccessNoDeadlock();
   void testGpuLaunchWhileBusy();
   void testGpuReverse();
+  void testGpuConfigChangeWhileBusy();
   void testGpuWidgetRender();
   void testGpuExercises();
   // GUI regressions (not accelerator specific, but this test already runs
@@ -115,6 +116,8 @@ private slots:
   void testMemoryMapRangeText();
   void testCachePlotWindow();
   void testCachePlotTraceTruncated();
+  // Last: rebuilds the peripheral set (m_gpu/m_npu are replaced).
+  void testGpuListingDoesNotTouchPeripherals();
 
 private:
   /// Clocks the processor @p cycles times, reading one word per cycle
@@ -633,6 +636,70 @@ void tst_AccelE2E::testGpuReverse() {
   QCOMPARE(gpu->view().notice, IOGpu::Notice::ReverseReset);
 }
 
+void tst_AccelE2E::testGpuConfigChangeWhileBusy() {
+  // Review defect: changing a GPU parameter while a kernel was running
+  // (processor paused, parameters editable) reset the model and dropped the
+  // kernel with STATUS reading neither BUSY nor DONE, so a host poll loop
+  // never ended. The kernel must be aborted visibly: DONE | ERROR plus an
+  // error message.
+  constexpr unsigned n = 40;
+  loadAssemblySource(spinProgram(kernelWords(kVecAddSource), vecAddData(n)));
+  auto *gpu = static_cast<IOGpu *>(m_gpu);
+  const AInt base = baseOf(m_gpu);
+  auto &mem = ProcessorHandler::getMemory();
+  auto wr = [&](unsigned reg, VInt v) { mem.writeMem(base + reg * 4, v, 4); };
+  auto rd = [&](unsigned reg) { return mem.readMem(base + reg * 4, 4); };
+  auto *proc = ProcessorHandler::getProcessorNonConst();
+
+  // The "SMs" parameter (ID 0 of IOGpu::Parameters).
+  unsigned smsId = 0;
+  for (const auto &kv : gpu->parameters())
+    if (kv.second.name == QStringLiteral("SMs"))
+      smsId = kv.first;
+  const int sms = gpu->parameters().at(smsId).value.toInt();
+
+  setupVecAdd(n, 8);
+  wr(IOGpu::CTRL, IOGpu::CTRL_START);
+  for (int i = 0; i < 5; ++i)
+    proc->clock();
+  QVERIFY(rd(IOGpu::STATUS) & IOGpu::STATUS_BUSY);
+
+  QVERIFY(gpu->setParameter(smsId, sms + 1));
+  VInt status = rd(IOGpu::STATUS);
+  QCOMPARE(status & IOGpu::STATUS_BUSY, VInt(0));
+  QVERIFY2(status & IOGpu::STATUS_DONE, "kernel not reported DONE");
+  QVERIFY2(status & IOGpu::STATUS_ERROR, "kernel not reported as ERROR");
+  QCOMPARE((rd(IOGpu::CONFIG) >> 16) & 0xFF, VInt(sms + 1));
+  auto v = gpu->view();
+  QVERIFY(v.aborted);
+  QVERIFY(v.error);
+  QVERIFY2(v.errorMessage.contains("configuration changed"),
+           qPrintable(v.errorMessage));
+  QCOMPARE(v.notice, IOGpu::Notice::ConfigChangedWhileBusy);
+  // A host poll loop ends immediately.
+  QCOMPARE(clockUntilDone(100), 0u);
+
+  // W1C clears the flags; the next launch on the new configuration works
+  // and the message is gone.
+  wr(IOGpu::STATUS, IOGpu::STATUS_DONE | IOGpu::STATUS_ERROR);
+  QCOMPARE(rd(IOGpu::STATUS), VInt(0));
+  setupVecAdd(n, 8);
+  wr(IOGpu::CTRL, IOGpu::CTRL_START);
+  QVERIFY(gpu->view().errorMessage.isEmpty());
+  clockUntilDone(20000);
+  status = rd(IOGpu::STATUS);
+  QVERIFY(status & IOGpu::STATUS_DONE);
+  QCOMPARE(status & IOGpu::STATUS_ERROR, VInt(0));
+  const AInt c = symbol("C");
+  for (unsigned i = 0; i < n; ++i)
+    QCOMPARE(mem.readMem(c + i * 4, 4), VInt(11 * (i + 1)));
+
+  // A parameter change while idle (kernel finished) does not invent an error.
+  QVERIFY(gpu->setParameter(smsId, sms));
+  QCOMPARE(rd(IOGpu::STATUS) & IOGpu::STATUS_ERROR, VInt(0));
+  QVERIFY(gpu->view().errorMessage.isEmpty());
+}
+
 void tst_AccelE2E::testGpuWidgetRender() {
   // Offscreen rendering of the redesigned widget in the middle of a kernel
   // (a divergent kernel so that the divergence highlight is visible).
@@ -797,6 +864,24 @@ void tst_AccelE2E::testCachePlotWindow() {
   QVERIFY(!plot2.isPlotTruncated());
   QVERIFY(plot2.truncationHintText().isEmpty());
 
+  // "Max. cache plot cycles" = 0 (a stored value from before the setting's
+  // minimum became 1) must stay bounded - it is clamped to a window of one
+  // cycle - rather than silently mean "plot everything".
+  RipesSettings::setValue(RIPES_SETTING_CACHE_MAXCYCLES, 0);
+  loadAssemblySource("main:\n  addi a0, a0, 1\n  j main\n");
+  cache->reset();
+  CachePlotWidget plot3;
+  plot3.setCache(cache);
+  runCacheAccesses(cache, 500);
+  QVERIFY(plot3.plottedPointCount() > 0);
+  const auto [first3, last3] = plot3.plottedCycleRange();
+  QVERIFY2(last3 - first3 <= 1,
+           qPrintable(QString("plotted %1 - %2 with a 0 window")
+                          .arg(first3)
+                          .arg(last3)));
+  QVERIFY(last3 >= 490);
+  QVERIFY(plot3.isPlotTruncated());
+
   RipesSettings::setValue(RIPES_SETTING_CACHE_MAXCYCLES, 10000);
   RipesSettings::setValue(RIPES_SETTING_CACHE_MAXTRACES, 10000);
 }
@@ -822,6 +907,65 @@ void tst_AccelE2E::testCachePlotTraceTruncated() {
 
   RipesSettings::setValue(RIPES_SETTING_CACHE_MAXCYCLES, 10000);
   RipesSettings::setValue(RIPES_SETTING_CACHE_MAXTRACES, 10000);
+}
+
+void tst_AccelE2E::testGpuListingDoesNotTouchPeripherals() {
+  // Review defect: on launch the GPU captured its disassembly listing by
+  // reading up to 256 words after KERNEL_PC through the live bus, so a scan
+  // running into a memory-mapped peripheral had side effects (a D-pad read
+  // clears the captured press, an RTC read latches the time, ...).
+  //
+  // Peripherals are placed back to back from the peripheral start address,
+  // so "a peripheral right after the kernel" has to be the first one: rebuild
+  // the peripheral set as [D-pad][GPU] and put the kernel in the RAM just
+  // below the D-pad.
+  delete m_gpu;
+  delete m_npu;
+  m_gpu = nullptr;
+  m_npu = nullptr;
+  IOBase *dpad = IOManager::get().createPeripheral(IOType::DPAD);
+  m_gpu = IOManager::get().createPeripheral(IOType::GPU);
+  QVERIFY(dpad != nullptr && m_gpu != nullptr);
+  const AInt dpadBase = baseOf(dpad);
+  const AInt base = baseOf(m_gpu);
+  QVERIFY(dpadBase != 0 && base == dpadBase + dpad->byteSize());
+
+  loadAssemblySource(spinProgram(QString(), vecAddData(8)));
+  auto &mem = ProcessorHandler::getMemory();
+  // The kernel ends exactly where the D-pad begins.
+  const auto words = gpu::assembleKernel("S_TID R1\nS_ARG R2, 0\nSHL R1, R1, 2\n"
+                                         "ADD R2, R2, R1\nSTG [R2], R1\nEXIT\n");
+  QVERIFY(words.size() >= 2);
+  const AInt kernel = dpadBase - words.size() * 4;
+  QVERIFY(mem.regionType(kernel) ==
+          vsrtl::core::AddressSpace::RegionType::Program);
+  for (size_t i = 0; i < words.size(); ++i)
+    mem.writeMem(kernel + i * 4, words[i], 4);
+
+  // Press "up" on the D-pad: its register latches the press until read.
+  QTest::keyClick(dpad, Qt::Key_W);
+
+  auto wr = [&](unsigned reg, VInt v) { mem.writeMem(base + reg * 4, v, 4); };
+  auto rd = [&](unsigned reg) { return mem.readMem(base + reg * 4, 4); };
+  wr(IOGpu::KERNEL_PC, kernel);
+  wr(IOGpu::GRID_X, 1);
+  wr(IOGpu::BLOCK_X, 4);
+  wr(IOGpu::ARG0, symbol("C"));
+  wr(IOGpu::CTRL, IOGpu::CTRL_START); // captures the listing
+  clockUntilDone(2000);
+  QVERIFY(rd(IOGpu::STATUS) & IOGpu::STATUS_DONE);
+  QCOMPARE(rd(IOGpu::STATUS) & IOGpu::STATUS_ERROR, VInt(0));
+  const auto v = static_cast<IOGpu *>(m_gpu)->view();
+  QVERIFY(v.kernelWords != nullptr);
+  QCOMPARE(v.kernelWords->size(), words.size());
+  QCOMPARE(v.kernelBase, static_cast<uint32_t>(kernel));
+
+  // The launch did not read the D-pad: the latched press is still there and
+  // is observed by this (first) read, which clears it.
+  QCOMPARE(mem.readMem(dpadBase, 4), VInt(1));
+  QCOMPARE(mem.readMem(dpadBase, 4), VInt(0));
+  for (unsigned i = 0; i < 4; ++i)
+    QCOMPARE(mem.readMem(symbol("C") + i * 4, 4), VInt(i * 4));
 }
 
 QTEST_MAIN(tst_AccelE2E)

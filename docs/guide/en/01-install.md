@@ -240,7 +240,7 @@ QT_QPA_PLATFORM=offscreen ./tst_gpu
 for t in tst_*; do QT_QPA_PLATFORM=offscreen ./$t || echo "FAILED: $t"; done
 ```
 
-`test/CMakeLists.txt` calls `add_test` for every test, but the top-level `CMakeLists.txt` has no `enable_testing()`, so `ctest` may report "No tests were found" (to be verified). The loop above is the most reliable way.
+`test/CMakeLists.txt` calls `add_test` for every test, and the top-level `CMakeLists.txt` calls `enable_testing()` when `RIPES_BUILD_TESTS=ON`, so `ctest --test-dir build` (or `ctest -N` inside `build` to list them) finds all 10 tests (verified with this project's build). The loop above works as well.
 
 **What you see**: QTest output ends with `Totals: N passed, 0 failed, 0 skipped`; exit code 0 means the test passed.
 
@@ -267,7 +267,7 @@ Typical uses:
 - Batch-running programs in command-line mode (see [Chapter 15](15-cli.md)).
 - The screenshot tool (`tools/gui_shots/`, planned in phase 2) renders the screenshots for this guide offscreen.
 
-> Note: under `offscreen`, any action that opens a dialog (for example `--help`, which opens a message box on Windows) waits forever and looks "stuck". See [Chapter 15](15-cli.md) and [Chapter 16](16-faq.md).
+> Note: under `offscreen`, any action that opens a dialog (for example a file error message; `--help` and option errors print to the console in the current build) waits forever and looks "stuck". See [Chapter 15](15-cli.md) and [Chapter 16](16-faq.md).
 
 ---
 
@@ -285,7 +285,7 @@ Typical uses:
 | PowerShell shows a red `NativeCommandError` although CMake did not fail | PowerShell 5.1 treats text that native programs write to stderr as errors | Check `$LASTEXITCODE` rather than the red text; `build.ps1` already does so |
 | `build.ps1 cannot be loaded because running scripts is disabled on this system` | Execution Policy restriction | Invoke it with `powershell -ExecutionPolicy Bypass -File ...` |
 | After changing a CMake option or the Qt version, old settings are still used | `CMakeCache.txt` caches the old values | `build.ps1 -Configure`, or delete `build/CMakeCache.txt` and configure again |
-| Double-clicking `Ripes.exe` reports a missing `Qt6Core.dll` / `Qt6Charts.dll` | Qt's `bin` directory is not on PATH | Add `toolchain\Qt\6.8.3\mingw_64\bin` to PATH in the session that starts it; or copy the DLLs into `build` with Qt's `windeployqt` (to be verified) |
+| Double-clicking `Ripes.exe` reports a missing `Qt6Core.dll` / `Qt6Charts.dll` | Qt's `bin` directory is not on PATH | Add `toolchain\Qt\6.8.3\mingw_64\bin` to PATH in the session that starts it; or run Qt's `windeployqt build\Ripes.exe` once to copy the DLLs and plugins next to the program (verified: the deployed copy starts without Qt on PATH; it does not include the `offscreen` platform plugin) |
 | A test reports `could not connect to display` / `no Qt platform plugin` | No display, or the platform plugin cannot be found | Set `QT_QPA_PLATFORM=offscreen`; make sure Qt's `plugins/platforms` can be found |
 | TLS/certificate errors while downloading Qt or submodules | Proxy or certificate problem | Configure the proxy or certificates properly; **never** disable TLS verification |
 

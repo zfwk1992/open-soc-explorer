@@ -247,9 +247,23 @@ void IOGpu::applyParameters() {
   const auto &cur = m_gpu.config();
   if (cfg.numSMs != cur.numSMs || cfg.warpsPerSM != cur.warpsPerSM ||
       cfg.warpSize != cur.warpSize || cfg.memLatency != cur.memLatency) {
-    m_gpu.setConfig(cfg);
-    m_host.doneFlag = false;
-    m_host.errorFlag = false;
+    const bool wasBusy = m_gpu.busy();
+    m_gpu.setConfig(cfg); // resets the model: the kernel (if any) is gone
+    if (wasBusy) {
+      // The parameters are editable while the processor is paused, i.e. in
+      // the middle of a kernel. Silently dropping the kernel would leave
+      // STATUS at neither BUSY nor DONE and a host poll loop would never
+      // end: report it like CTRL.ABORT plus an error.
+      m_host.doneFlag = true;
+      m_host.errorFlag = true;
+      m_host.aborted = true;
+      m_host.hostError = tr("kernel aborted: GPU configuration changed");
+      m_notice = Notice::ConfigChangedWhileBusy;
+    } else {
+      m_host.doneFlag = false;
+      m_host.errorFlag = false;
+      m_host.hostError.clear();
+    }
     m_host.ignoredFlag = false;
     // Frames of another configuration cannot be restored.
     clearHistory();
@@ -350,6 +364,7 @@ void IOGpu::processorWasReversed() {
         m_host.errorFlag = false;
         m_host.ignoredFlag = false;
         m_host.aborted = false;
+        m_host.hostError.clear();
         m_notice = Notice::ReverseReset;
         clearHistory();
       }
@@ -387,22 +402,29 @@ void IOGpu::captureListing() {
   // word that is not a canonical instruction encoding (typically the data
   // after the kernel: small integers decode as NOP with junk in the unused
   // fields) or the cap, then drop trailing zero words (padding).
+  //
+  // The scan must not have side effects: it does not go through the bus
+  // (memRead) but peeks at the processor memory directly, and it stops at
+  // the first address that belongs to a memory-mapped peripheral. A bus read
+  // of a peripheral can change its state (a D-pad read clears the captured
+  // press, an RTC read latches the time, a read of this GPU's own window is
+  // refused as a kernel fault, ...), and the words after a kernel may well
+  // be a peripheral.
   auto words = std::make_shared<std::vector<uint32_t>>();
-  if (memRead) {
-    m_busThread.store(std::this_thread::get_id(), std::memory_order_release);
-    for (unsigned i = 0; i < kMaxListingWords; ++i) {
-      const uint32_t w =
-          static_cast<uint32_t>(memRead(m_host.kernelPc + i * 4u, 4));
-      if (!gpu::decode(w).valid)
-        break;
-      // Canonical: re-assembling the disassembly gives back the same word.
-      std::string err;
-      const auto again = gpu::assembleKernel(gpu::disassemble(w), &err);
-      if (again.size() != 1 || again[0] != w)
-        break;
-      words->push_back(w);
-    }
-    m_busThread.store(std::thread::id(), std::memory_order_release);
+  const auto &mem = ProcessorHandler::getMemory();
+  for (unsigned i = 0; i < kMaxListingWords; ++i) {
+    const AInt addr = m_host.kernelPc + i * 4u;
+    if (mem.regionType(addr) == vsrtl::core::AddressSpace::RegionType::IO)
+      break;
+    const uint32_t w = static_cast<uint32_t>(mem.readMemConst(addr, 4));
+    if (!gpu::decode(w).valid)
+      break;
+    // Canonical: re-assembling the disassembly gives back the same word.
+    std::string err;
+    const auto again = gpu::assembleKernel(gpu::disassemble(w), &err);
+    if (again.size() != 1 || again[0] != w)
+      break;
+    words->push_back(w);
   }
   while (!words->empty() && words->back() == 0u)
     words->pop_back();
@@ -419,6 +441,7 @@ void IOGpu::launch() {
   m_host.doneFlag = false;
   m_host.errorFlag = false;
   m_host.aborted = false;
+  m_host.hostError.clear();
   m_notice = Notice::None;
   captureListing();
   if (!m_gpu.launch(params)) {
@@ -584,7 +607,9 @@ IOGpu::View IOGpu::view() const {
   s.launchIgnored = m_host.ignoredFlag;
   s.aborted = m_host.aborted;
   s.ignoredLaunches = m_host.ignoredLaunches;
-  s.errorMessage = QString::fromStdString(m_gpu.errorMessage());
+  s.errorMessage = m_gpu.hasError()
+                       ? QString::fromStdString(m_gpu.errorMessage())
+                       : m_host.hostError;
   s.gridX = m_gpu.launchParams().gridX;
   s.blockX = m_gpu.launchParams().blockX;
   s.pendingBlocks = m_gpu.pendingBlocks();

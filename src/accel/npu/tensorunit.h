@@ -193,10 +193,13 @@ struct Counters {
 };
 
 /// One host-memory write performed by the DMA engine, with the value it
-/// replaced (for undoing the write when the simulation is reversed).
+/// replaced and the value it wrote (for undoing the write when the
+/// simulation is reversed: the write is only undone while memory still holds
+/// newValue, see IOTensorUnit::processorWasReversed).
 struct DmaWriteUndo {
   uint32_t addr = 0;
   uint32_t oldValue = 0;
+  uint32_t newValue = 0;
   unsigned bytes = 0;
 };
 

@@ -187,7 +187,7 @@ next:
 
 **看到什么**：打开第 n 个开关，第一行第 n 个 LED 变绿；关闭则熄灭。
 
-**为什么**：这叫**轮询**（polling）：程序不停地读开关寄存器、检查每一位。这个程序永远不会结束，按 **Reset (F3)** 或再按一次运行按钮停止（待核实：运行中停止的按钮名称）。C 版本见 **File → Load Example... → C → switchesAndLeds.c**（`examples/C/switchesAndLeds.c`）。
+**为什么**：这叫**轮询**（polling）：程序不停地读开关寄存器、检查每一位。这个程序永远不会结束，按 **Reset (F3)** 或再按一次 **Run (F8)** 停止（这个按钮是开关式的，运行中名字不变）。C 版本见 **File → Load Example... → C → switchesAndLeds.c**（`examples/C/switchesAndLeds.c`）。
 
 > **试一试**：不按 **Run**，改用 **Clock (F5)** 单步或较慢的 **Auto clock**，再拨动开关，你会发现 LED 要过很久才反应——因为轮询循环一次要执行很多条指令。上游文档建议：使用外设时选单周期处理器，并在 **Edit → Settings → Environment** 中减小 **Max. cache plot cycles**，以减少模拟器其他部分的开销。
 

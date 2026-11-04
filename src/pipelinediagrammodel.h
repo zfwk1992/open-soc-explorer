@@ -35,8 +35,12 @@ public slots:
 
 private:
   void gatherStageInfo();
-  /// Ordinal (0..n-1) of @p stage in the processor's stage order.
-  static int stageOrdinal(const StageIndex &stage);
+  /// Re-reads the processor's stage order into m_stageCount/m_stageOrdinals.
+  /// Called whenever the model (re)learns the processor structure; data()
+  /// must not walk the structure per cell.
+  void cacheStageLayout();
+  /// Ordinal (0..n-1) of @p stage in the processor's stage order (cached).
+  int stageOrdinal(const StageIndex &stage) const;
   struct CellInfo {
     QStringList stages;
     int firstStageOrdinal = -1;
@@ -49,6 +53,11 @@ private:
    * map<cycle, map<stageId, stageInfo>>
    */
   std::map<long long, std::map<StageIndex, StageInfo>> m_cycleStageInfos;
+
+  /// Number of pipeline stages and the ordinal of each stage of the current
+  /// processor (see cacheStageLayout()).
+  int m_stageCount = 0;
+  std::map<StageIndex, int> m_stageOrdinals;
 
   /**
    * @brief m_atMaxCycles

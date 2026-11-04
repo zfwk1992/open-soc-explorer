@@ -161,7 +161,7 @@ lane 方块的含义（SM 视图下方的图例使用同样的符号）：
 
 > **易错点**：`CTRL` 的 `IRQ_EN` 不是"置位后保持"，而是每次写 `CTRL` 时按写入值的 bit1 重新设置。想开中断启动，要一次写 `GPU_0_CTRL_START | GPU_0_CTRL_IRQ_EN`（= 3）。`STATS_*` 只在 kernel 启动时清零；bank 冲突周期没有寄存器，只能在部件的统计面板里看到。
 
-什么情况会置 `ERROR`：`GRID_X` 或 `BLOCK_X` 为 0；一个 block 需要的 warp 数超过 *Warps per SM*；`KERNEL_PC` 不是 4 的倍数；执行到未定义的指令字（错误信息会给出 kernel pc、block 和 warp）。kernel 运行中再写 `START` 的行为正在修订（第一阶段会错误地把正在跑的 kernel 标记为 ERROR；修复后应当忽略这次启动，待核实）。
+什么情况会置 `ERROR`：`GRID_X` 或 `BLOCK_X` 为 0；一个 block 需要的 warp 数超过 *Warps per SM*；`KERNEL_PC` 不是 4 的倍数；执行到未定义的指令字（错误信息会给出 kernel pc、block 和 warp）。kernel 运行中再写 `START` 会被**忽略**：正在跑的 kernel 不受影响，`STATUS` 的 bit 4（`LAUNCH_IGNORED`，写 1 清除）被置位，部件上会提示被忽略的启动次数（已在 `src/io/iogpu.cpp` 中确认）。
 
 ## 09.5 CPU 侧的启动协议
 
@@ -524,7 +524,7 @@ EXIT
 
 **为什么**：没有 `BAR`，warp 0 会在 warp 1 写入之前读 shared memory，读到 0。barrier 保证"写完之后才读"。
 
-> 注意：不要在发散的分支里使用 `BAR`（只有一部分 lane 执行 `BAR`）。第一阶段的模型在这种情况下可能提前放行；修复后会按 warp 计数或报错（PLAN2 §6(4)，具体行为待核实）。
+> 注意：不要在发散的分支里使用 `BAR`（只有一部分 lane 执行 `BAR`）。模型按 warp 计数到达：执行 `BAR` 的 lane 停在它后面，其余 lane 作为另一条路径继续跑，只有当 warp 的所有存活 lane 都停下或退出时才算到达（`src/accel/gpu/simtgpu.cpp`）。因此屏障不会提前放行——但如果其余 lane 永远不执行 `BAR` 或 `EXIT`，这个 warp 就永远到不了，kernel 也不会结束。
 
 ## 09.13 实验 E：延迟隐藏与占用率（occupancy）
 
@@ -551,7 +551,7 @@ EXIT
 
 ## 09.15 局限
 
-- **不能反向执行加速器**：处理器的 **Reverse**（反向，F4）只会倒退 CPU；第一阶段的 GPU 不响应反向，状态不会回退。按 PLAN2 §6(9) 的修复，反向后 GPU 要么回到快照、要么复位到"启动前"并在部件上提示"反向执行后加速器已复位"（采用哪种待核实）。实验时如需重来，请用 **Reset**（复位，F3）。
+- **反向执行只能回退已记录的 GPU 历史**：每个 CPU 周期后外设都保存一帧自己的状态（最多 **Max. undo cycles** 帧，并受内存预算限制），每按一次 **Reverse**（反向，F4）恢复一帧，部件上会提示"GPU 状态已恢复到上一个 CPU 周期"。如果反向超出了记录的历史，GPU 会复位到启动前的状态（启动寄存器保留，kernel 已写入的内存不会撤销），部件上也会提示（`src/io/iogpu.cpp`）。实验时如需重来，请用 **Reset**（复位，F3）。
 - **命令行模式不能实例化外设**：`Ripes --mode cli` 没有 I/O 标签页，GPU 示例只能在 GUI（或 QTest 测试）中运行。
 - **CPU 收不到中断**：Ripes 的处理器模型没有外部中断输入，`STATUS.IRQ` 只能被读出来观察，不会打断 CPU。
 - 只有整数运算；没有 cache、原子操作、跨 block 同步；kernel 只能通过 `ARG0–3` 和内存与 CPU 交换数据。
@@ -626,7 +626,7 @@ store: STG [R6], R9                 EXIT
 EXIT
 ```
 
-按模型规则：分支版本发散 1 次（负数 lane 走 pc 7，非负 lane 直接到 pc 8 等待，然后合并），发射 10 条 warp 指令；谓词版本 0 次发散，9 条指令（运行结果请在 GUI 中核对，待核实）。短小的 if 用谓词更便宜——编译器的 if-conversion 就是这样做的。
+按模型规则：分支版本发散 1 次（负数 lane 走 pc 7，非负 lane 直接到 pc 8 等待，然后合并），发射 10 条 warp 指令；谓词版本 0 次发散，9 条指令（GUI 实测：`branch kernel: cycles=14 instrs=10 divergences=1`，`predicate kernel: cycles=13 instrs=9 divergences=0`，两者都 `result OK`）。短小的 if 用谓词更便宜——编译器的 if-conversion 就是这样做的。
 
 </details>
 
@@ -634,7 +634,7 @@ EXIT
 
 <details><summary>答案</summary>
 
-让 A、B、C 都从 32 字节边界开始：把 `N` 放到数组之后（或在 `N` 后加 `.zero 28`），并把每个数组补到 24 个字（96 字节 = 3 × 32）。这样每个 warp 的 8 个字正好落在一个段里，9 条访存指令 = 9 个事务（与对齐地址的 `tst_vecadd` 相同；GUI 中的结果待核实）。
+让 A、B、C 都从 32 字节边界开始：把 `N` 放到数组之后（或在 `N` 后加 `.zero 28`），并把每个数组补到 24 个字（96 字节 = 3 × 32）。这样每个 warp 的 8 个字正好落在一个段里，9 条访存指令 = 9 个事务（与对齐地址的 `tst_vecadd` 相同；GUI 实测：`GPU done in 46 GPU cycles, 68 warp instructions, 9 memory transactions`，原来是 48 周期、16 个事务）。
 
 </details>
 

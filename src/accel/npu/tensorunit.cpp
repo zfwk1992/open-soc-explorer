@@ -483,7 +483,7 @@ void TensorUnit::wr32(uint32_t addr, uint32_t value) {
     const uint32_t old = m_mem.read(addr, 4);
     if (m_busFault)
       return; // the address is not accessible at all
-    m_writeLog.push_back(DmaWriteUndo{addr, old, 4});
+    m_writeLog.push_back(DmaWriteUndo{addr, old, value, 4});
   }
   m_mem.write(addr, value, 4);
 }

@@ -395,7 +395,7 @@ Common error messages and what they mean (these strings come from `src/assembler
 |---|---|---|
 | `Unknown opcode 'foo'` | Unknown instruction name | Check the spelling; multiply/divide needs the M extension |
 | `Required immediate with field index '2' not provided` | An operand is missing | Complete the instruction format |
-| `Instruction 'xxx' expects N arguments ...` | Wrong number of operands (to be verified: exact wording) | Compare with the formats in 4.3 |
+| `Instruction 'add' expects 3 arguments, but got 4` | Wrong number of operands (exact wording, e.g. for `add a0, a1, a2, a3`) | Compare with the formats in 4.3 |
 | `Unknown register 'q5'` | Misspelled register name | Use `x0`–`x31` or ABI names |
 | `Immediate value 'xxx' ...` | Immediate out of range or not a number | Use `li`, or split into `lui` + `addi` |
 | `Unknown symbol 'nowhere'` | Label not defined | Check the label spelling; a label definition needs a colon |

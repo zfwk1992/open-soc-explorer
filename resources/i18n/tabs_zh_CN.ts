@@ -358,12 +358,7 @@ Value: %2 </source>
         <translation>图片 (*.png)</translation>
     </message>
     <message>
-        <location line="+18"/>
-        <source>cycle</source>
-        <translation>周期</translation>
-    </message>
-    <message>
-        <location line="+108"/>
+        <location line="+128"/>
         <source>%1 / %2 (%)</source>
         <translation>%1 / %2 (%)</translation>
     </message>
@@ -373,7 +368,7 @@ Value: %2 </source>
         <translation>时钟周期</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+17"/>
         <source>No accesses inside the plot window - see &quot;Max. cache plot cycles&quot; in Edit &gt; Settings &gt; Environment.</source>
         <translation>绘图窗口内没有访问记录——请查看 编辑 &gt; 设置 &gt; 环境 中的“缓存图最大周期数”。</translation>
     </message>
@@ -383,7 +378,7 @@ Value: %2 </source>
         <translation>尚未记录缓存访问——单步或运行程序后这里会出现曲线。</translation>
     </message>
     <message>
-        <location line="+170"/>
+        <location line="+177"/>
         <source>Only cycles %1 - %2 are plotted; older cycles were dropped. To plot more, raise &quot;Max. cache plot cycles&quot; in Edit &gt; Settings &gt; Environment.</source>
         <translation>仅绘制了第 %1 - %2 周期；更早的周期已被丢弃。如需绘制更多，请增大 编辑 &gt; 设置 &gt; 环境 中的“缓存图最大周期数”。</translation>
     </message>
@@ -448,7 +443,7 @@ Value: %2 </source>
         <translation>缓存统计随时间的变化。X 轴：时钟周期；Y 轴：所选比值（百分比）。图下方的图例标明每条曲线。点击十字准线按钮可查看数值。</translation>
     </message>
     <message>
-        <location filename="../../src/cachesim/cacheplotwidget.h" line="+144"/>
+        <location filename="../../src/cachesim/cacheplotwidget.h" line="+147"/>
         <source>Writes</source>
         <translation>写次数</translation>
     </message>

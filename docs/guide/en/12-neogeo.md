@@ -223,7 +223,7 @@ The `script` sends, in order: `$03` (soft reset, no wait), `$01` (prepare slot s
 
 1. **Add the peripheral first**: switch to the **I/O** tab and double-click **LED Matrix** in the **Available devices** list. The default 35 columns × 25 rows is fine (the program needs at least 12 × 8). It must be added first because the program uses the symbols `LED_MATRIX_0_BASE` and `LED_MATRIX_0_WIDTH`; without the peripheral it does not assemble.
 2. **Load the program**: **File → Load Example...**, choose `neogeo_mailbox.s`. The editor switches to Assembly mode and assembles automatically; no errors should be reported.
-3. **Run**: click **Run** in the toolbar. The program exits via `ecall` after some tens of thousands to around a hundred thousand cycles (to be verified: the exact count depends on the processor model).
+3. **Run**: click **Run** in the toolbar. The program exits via `ecall` after about 249,000 cycles on the default 5-stage processor (measured: 249,017 cycles, 128,732 instructions, CPI 1.93; the count depends on the processor model).
 4. **Observe**: the protocol log appears in the Console; switch to the **I/O** tab to see the LED matrix. To watch the LEDs change frame by frame, run slowly with **Auto clock (F6)** (the toolbar button right after **Clock (F5)**; the box next to it sets the interval in ms), or reduce the `2000` in `delay` and single-step.
 
 ![The LED matrix in the I/O tab while neogeo_mailbox.s runs](../images/12-neogeo-mailbox-leds.en.png)

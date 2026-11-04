@@ -134,7 +134,8 @@ int main(int argc, char **argv) {
 
   QApplication app(argc, argv);
   QCoreApplication::setApplicationName("Ripes");
-  Ripes::installTranslators(app);
+  // Translators are installed in guiMode() only: command-line output must stay
+  // stable English regardless of the OS locale or the UI language setting.
 
   QCommandLineParser parser;
   Ripes::CLIModeOptions options;
@@ -149,6 +150,7 @@ int main(int argc, char **argv) {
     printHelp(parser, std::cout);
     return 0;
   case CommandLineGUI:
+    Ripes::installTranslators(app);
     return guiMode(app);
   case CommandLineCLI:
     return CLIMode(parser, options);

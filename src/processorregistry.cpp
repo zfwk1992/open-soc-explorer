@@ -20,63 +20,52 @@ namespace Ripes {
 // to generate this file based on an input JSON.
 
 ProcessorRegistry::ProcessorRegistry() {
-  const QString no_hz_note = QCoreApplication::translate(
-      "Ripes::ProcessorRegistry",
-      "<br><b>NOTE: given the lack of a hazard unit (and therefore the lack of "
-      "dynamic hazard resolution in the pipeline) programs with hazards will "
-      "execute incorrectly, unless resolved by inserting nop's to manually "
-      "stall the pipeline.</b>");
+  // tr() here is Q_DECLARE_TR_FUNCTIONS(Ripes::ProcessorRegistry), see the
+  // header: the translation context lives in one place.
+  const QString no_hz_note =
+      tr("<br><b>NOTE: given the lack of a hazard unit (and therefore the lack "
+         "of dynamic hazard resolution in the pipeline) programs with hazards "
+         "will execute incorrectly, unless resolved by inserting nop's to "
+         "manually stall the pipeline.</b>");
   const QString rv5s_no_fw_hz_desc =
-      QCoreApplication::translate(
-          "Ripes::ProcessorRegistry",
-          "A 5-stage in-order processor with no forwarding or hazard "
-          "detection/elimination.") +
+      tr("A 5-stage in-order processor with no forwarding or hazard "
+         "detection/elimination.") +
       no_hz_note;
   const QString rv5s_no_hz_desc =
-      QCoreApplication::translate(
-          "Ripes::ProcessorRegistry",
-          "A 5-stage in-order processor with forwarding but no hazard "
-          "detection/elimination.") +
+      tr("A 5-stage in-order processor with forwarding but no hazard "
+         "detection/elimination.") +
       no_hz_note;
-  const QString rv5s_desc = QCoreApplication::translate(
-      "Ripes::ProcessorRegistry",
-      "A 5-stage in-order processor with hazard detection/elimination and "
-      "forwarding.");
-  const QString rv5s_no_fw_desc = QCoreApplication::translate(
-      "Ripes::ProcessorRegistry",
-      "A 5-stage in-order processor with hazard detection/elimination but no "
-      "forwarding unit.");
-  const QString rv6s_desc = QCoreApplication::translate(
-      "Ripes::ProcessorRegistry",
-      "A 6-stage dual-issue in-order processor. Each way may execute "
-      "arithmetic instructions, whereas way 1 is reserved for controlflow and "
-      "ecall instructions, and way 2 for memory accessing instructions.");
-  const QString rv5mc_desc = QCoreApplication::translate(
-      "Ripes::ProcessorRegistry",
-      "A 5 stage multicycle processor similar to the multicycle processor "
-      "described in Harris&Harris. Instructions take a variable number of "
-      "cycles to execute. By default, the current state is shown in the "
-      "control unit. This version uses separate memories for data and "
-      "instructions like the single cycle or segmented processors.");
-  const QString rv5mc_desc_1m = QCoreApplication::translate(
-      "Ripes::ProcessorRegistry",
-      "A 5 stage multicycle processor similar to the multicycle processor "
-      "described in Harris&Harris. Instructions take a variable number of "
-      "cycles to execute. By default, the current state is shown in the "
-      "control unit. This version takes advantage of the fact that data and "
-      "instructions are never accessed in the same cycle to use a single "
-      "memory for data and instructions.");
-  const QString rviss_desc = QCoreApplication::translate(
-      "Ripes::ProcessorRegistry",
-      "An instruction-set simulator. This model executes one full instruction "
-      "per clock cycle through a software interpreter. It is useful as a "
-      "fast, reference model.");
-  const QString single_cycle_desc = QCoreApplication::translate(
-      "Ripes::ProcessorRegistry", "A single cycle processor");
-  const QString standardLayout =
-      QCoreApplication::translate("Ripes::ProcessorRegistry", "Standard");
-  const QString extendedLayout =
-      QCoreApplication::translate("Ripes::ProcessorRegistry", "Extended");
+  const QString rv5s_desc =
+      tr("A 5-stage in-order processor with hazard detection/elimination and "
+         "forwarding.");
+  const QString rv5s_no_fw_desc =
+      tr("A 5-stage in-order processor with hazard detection/elimination but "
+         "no forwarding unit.");
+  const QString rv6s_desc =
+      tr("A 6-stage dual-issue in-order processor. Each way may execute "
+         "arithmetic instructions, whereas way 1 is reserved for controlflow "
+         "and ecall instructions, and way 2 for memory accessing "
+         "instructions.");
+  const QString rv5mc_desc =
+      tr("A 5 stage multicycle processor similar to the multicycle processor "
+         "described in Harris&Harris. Instructions take a variable number of "
+         "cycles to execute. By default, the current state is shown in the "
+         "control unit. This version uses separate memories for data and "
+         "instructions like the single cycle or segmented processors.");
+  const QString rv5mc_desc_1m =
+      tr("A 5 stage multicycle processor similar to the multicycle processor "
+         "described in Harris&Harris. Instructions take a variable number of "
+         "cycles to execute. By default, the current state is shown in the "
+         "control unit. This version takes advantage of the fact that data "
+         "and instructions are never accessed in the same cycle to use a "
+         "single memory for data and instructions.");
+  const QString rviss_desc =
+      tr("An instruction-set simulator. This model executes one full "
+         "instruction per clock cycle through a software interpreter. It is "
+         "useful as a fast, reference model.");
+  const QString single_cycle_desc = tr("A single cycle processor");
+  const QString standardLayout = tr("Standard");
+  const QString extendedLayout = tr("Extended");
 
   // Initialize processors
   std::vector<Layout> layouts;
@@ -86,9 +75,9 @@ ProcessorRegistry::ProcessorRegistry() {
   layouts = {{standardLayout, "", {{{0, 0}, QPointF{0.5, 0}}}}};
   defRegVals = {{RVISA::GPR, {{2, 0x7ffffff0}, {3, 0x10000000}}}};
   addProcessor(ProcInfo<vsrtl::core::RVISS<uint32_t>>(
-      ProcessorID::RV32_ISS, QCoreApplication::translate("Ripes::ProcessorRegistry", "ISA simulator"), rviss_desc, layouts, defRegVals));
+      ProcessorID::RV32_ISS, tr("ISA simulator"), rviss_desc, layouts, defRegVals));
   addProcessor(ProcInfo<vsrtl::core::RVISS<uint64_t>>(
-      ProcessorID::RV64_ISS, QCoreApplication::translate("Ripes::ProcessorRegistry", "ISA simulator"), rviss_desc, layouts, defRegVals));
+      ProcessorID::RV64_ISS, tr("ISA simulator"), rviss_desc, layouts, defRegVals));
 
   // RISC-V single cycle
   layouts = {{standardLayout,
@@ -99,10 +88,10 @@ ProcessorRegistry::ProcessorRegistry() {
               {{{0, 0}, QPointF{0.5, 0}}}}};
   defRegVals = {{RVISA::GPR, {{2, 0x7ffffff0}, {3, 0x10000000}}}};
   addProcessor(ProcInfo<vsrtl::core::RVSS<uint32_t>>(
-      ProcessorID::RV32_SS, QCoreApplication::translate("Ripes::ProcessorRegistry", "Single-cycle processor"),
+      ProcessorID::RV32_SS, tr("Single-cycle processor"),
       single_cycle_desc, layouts, defRegVals));
   addProcessor(ProcInfo<vsrtl::core::RVSS<uint64_t>>(
-      ProcessorID::RV64_SS, QCoreApplication::translate("Ripes::ProcessorRegistry", "Single-cycle processor"),
+      ProcessorID::RV64_SS, tr("Single-cycle processor"),
       single_cycle_desc, layouts, defRegVals));
 
   // RISC-V multicycle
@@ -115,10 +104,10 @@ ProcessorRegistry::ProcessorRegistry() {
                {{0, 4}, QPointF{0.9, 0}}}}};
   defRegVals = {{RVISA::GPR, {{2, 0x7ffffff0}, {3, 0x10000000}}}};
   addProcessor(ProcInfo<vsrtl::core::RV5MC2M<uint32_t>>(
-      ProcessorID::RV32_5MC_2M, QCoreApplication::translate("Ripes::ProcessorRegistry", "Multi-cycle processor with separate memories"),
+      ProcessorID::RV32_5MC_2M, tr("Multi-cycle processor with separate memories"),
       rv5mc_desc, layouts, defRegVals));
   addProcessor(ProcInfo<vsrtl::core::RV5MC2M<uint64_t>>(
-      ProcessorID::RV64_5MC, QCoreApplication::translate("Ripes::ProcessorRegistry", "Multi-cycle processor with separate memories"),
+      ProcessorID::RV64_5MC, tr("Multi-cycle processor with separate memories"),
       rv5mc_desc, layouts, defRegVals));
 
   // RISC-V multicycle, one memory
@@ -131,10 +120,10 @@ ProcessorRegistry::ProcessorRegistry() {
                {{0, 4}, QPointF{0.9, 0}}}}};
   defRegVals = {{RVISA::GPR, {{2, 0x7ffffff0}, {3, 0x10000000}}}};
   addProcessor(ProcInfo<vsrtl::core::RV5MC1M<uint32_t>>(
-      ProcessorID::RV32_5MC_1M, QCoreApplication::translate("Ripes::ProcessorRegistry", "Multi-cycle processor with one memory"),
+      ProcessorID::RV32_5MC_1M, tr("Multi-cycle processor with one memory"),
       rv5mc_desc_1m, layouts, defRegVals));
   addProcessor(ProcInfo<vsrtl::core::RV5MC1M<uint64_t>>(
-      ProcessorID::RV64_5MC_1M, QCoreApplication::translate("Ripes::ProcessorRegistry", "Multi-cycle processor with one memory"),
+      ProcessorID::RV64_5MC_1M, tr("Multi-cycle processor with one memory"),
       rv5mc_desc_1m, layouts, defRegVals));
 
   // RISC-V 5-stage without forwarding or hazard detection
@@ -156,11 +145,11 @@ ProcessorRegistry::ProcessorRegistry() {
   defRegVals = {{RVISA::GPR, {{2, 0x7ffffff0}, {3, 0x10000000}}}};
   addProcessor(ProcInfo<vsrtl::core::RV5S_NO_FW_HZ<uint32_t>>(
       ProcessorID::RV32_5S_NO_FW_HZ,
-      QCoreApplication::translate("Ripes::ProcessorRegistry", "5-stage processor w/o forwarding or hazard detection"),
+      tr("5-stage processor w/o forwarding or hazard detection"),
       rv5s_no_fw_hz_desc, layouts, defRegVals));
   addProcessor(ProcInfo<vsrtl::core::RV5S_NO_FW_HZ<uint64_t>>(
       ProcessorID::RV64_5S_NO_FW_HZ,
-      QCoreApplication::translate("Ripes::ProcessorRegistry", "5-stage processor w/o forwarding or hazard detection"),
+      tr("5-stage processor w/o forwarding or hazard detection"),
       rv5s_no_fw_hz_desc, layouts, defRegVals));
 
   // RISC-V 5-stage without hazard detection
@@ -180,10 +169,10 @@ ProcessorRegistry::ProcessorRegistry() {
                {{0, 4}, QPointF{0.9, 0}}}}};
   defRegVals = {{RVISA::GPR, {{2, 0x7ffffff0}, {3, 0x10000000}}}};
   addProcessor(ProcInfo<vsrtl::core::RV5S_NO_HZ<uint32_t>>(
-      ProcessorID::RV32_5S_NO_HZ, QCoreApplication::translate("Ripes::ProcessorRegistry", "5-stage processor w/o hazard detection"),
+      ProcessorID::RV32_5S_NO_HZ, tr("5-stage processor w/o hazard detection"),
       rv5s_no_hz_desc, layouts, defRegVals));
   addProcessor(ProcInfo<vsrtl::core::RV5S_NO_HZ<uint64_t>>(
-      ProcessorID::RV64_5S_NO_HZ, QCoreApplication::translate("Ripes::ProcessorRegistry", "5-stage processor w/o hazard detection"),
+      ProcessorID::RV64_5S_NO_HZ, tr("5-stage processor w/o hazard detection"),
       rv5s_no_hz_desc, layouts, defRegVals));
 
   // RISC-V 5-stage without forwarding unit
@@ -203,10 +192,10 @@ ProcessorRegistry::ProcessorRegistry() {
                {{0, 4}, QPointF{0.9, 0}}}}};
   defRegVals = {{RVISA::GPR, {{2, 0x7ffffff0}, {3, 0x10000000}}}};
   addProcessor(ProcInfo<vsrtl::core::RV5S_NO_FW<uint32_t>>(
-      ProcessorID::RV32_5S_NO_FW, QCoreApplication::translate("Ripes::ProcessorRegistry", "5-Stage processor w/o forwarding unit"),
+      ProcessorID::RV32_5S_NO_FW, tr("5-Stage processor w/o forwarding unit"),
       rv5s_no_fw_desc, layouts, defRegVals));
   addProcessor(ProcInfo<vsrtl::core::RV5S_NO_FW<uint64_t>>(
-      ProcessorID::RV64_5S_NO_FW, QCoreApplication::translate("Ripes::ProcessorRegistry", "5-Stage processor w/o forwarding unit"),
+      ProcessorID::RV64_5S_NO_FW, tr("5-Stage processor w/o forwarding unit"),
       rv5s_no_fw_desc, layouts, defRegVals));
 
   // RISC-V 5-stage
@@ -226,10 +215,10 @@ ProcessorRegistry::ProcessorRegistry() {
                {{0, 4}, QPointF{0.9, 0}}}}};
   defRegVals = {{RVISA::GPR, {{2, 0x7ffffff0}, {3, 0x10000000}}}};
   addProcessor(ProcInfo<vsrtl::core::RV5S<uint32_t>>(
-      ProcessorID::RV32_5S, QCoreApplication::translate("Ripes::ProcessorRegistry", "5-stage processor"), rv5s_desc, layouts,
+      ProcessorID::RV32_5S, tr("5-stage processor"), rv5s_desc, layouts,
       defRegVals));
   addProcessor(ProcInfo<vsrtl::core::RV5S<uint64_t>>(
-      ProcessorID::RV64_5S, QCoreApplication::translate("Ripes::ProcessorRegistry", "5-stage processor"), rv5s_desc, layouts,
+      ProcessorID::RV64_5S, tr("5-stage processor"), rv5s_desc, layouts,
       defRegVals));
 
   // RISC-V 6-stage dual issue
@@ -249,10 +238,10 @@ ProcessorRegistry::ProcessorRegistry() {
                 {{1, 5}, QPointF{0.90, 1}}}}}};
   defRegVals = {{RVISA::GPR, {{2, 0x7ffffff0}, {3, 0x10000000}}}};
   addProcessor(ProcInfo<vsrtl::core::RV6S_DUAL<uint32_t>>(
-      ProcessorID::RV32_6S_DUAL, QCoreApplication::translate("Ripes::ProcessorRegistry", "6-stage dual-issue processor"), rv6s_desc,
+      ProcessorID::RV32_6S_DUAL, tr("6-stage dual-issue processor"), rv6s_desc,
       layouts, defRegVals));
   addProcessor(ProcInfo<vsrtl::core::RV6S_DUAL<uint64_t>>(
-      ProcessorID::RV64_6S_DUAL, QCoreApplication::translate("Ripes::ProcessorRegistry", "6-stage dual-issue processor"), rv6s_desc,
+      ProcessorID::RV64_6S_DUAL, tr("6-stage dual-issue processor"), rv6s_desc,
       layouts, defRegVals));
 }
 } // namespace Ripes

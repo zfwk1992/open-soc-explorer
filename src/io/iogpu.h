@@ -135,7 +135,13 @@ public:
   QSize sizeHint() const override;
 
   /// Events shown as a notice in the widget.
-  enum class Notice { None, LaunchIgnored, ReverseRestored, ReverseReset };
+  enum class Notice {
+    None,
+    LaunchIgnored,
+    ReverseRestored,
+    ReverseReset,
+    ConfigChangedWhileBusy ///< a parameter change aborted the running kernel
+  };
 
   /// Immutable copy of everything the widget displays (GUI thread).
   struct LaneRegs {
@@ -214,7 +220,9 @@ private:
   void processorWasClocked();
   /// processorReversed hook: restore the previous frame.
   void processorWasReversed();
-  /// Applies the IOParam values to the model (aborts a running kernel).
+  /// Applies the IOParam values to the model. A running kernel is aborted
+  /// with STATUS = DONE | ERROR and an error message, so that a host polling
+  /// STATUS sees the kernel end.
   void applyParameters();
   void updateRegs();
   uint32_t regRead(unsigned reg) const; // requires m_mutex held
@@ -241,6 +249,11 @@ private:
     bool ignoredFlag = false;
     bool aborted = false; ///< the last kernel was stopped by CTRL.ABORT
     uint64_t ignoredLaunches = 0;
+    /// Error raised by the peripheral itself rather than by the model (the
+    /// model's error text is cleared by setConfig/reset), e.g. a kernel
+    /// aborted because the configuration changed. Shown as the error message
+    /// when the model has none.
+    QString hostError;
     uint32_t listingBase = 0;
     std::shared_ptr<const std::vector<uint32_t>> listing;
   };

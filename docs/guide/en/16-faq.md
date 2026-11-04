@@ -47,7 +47,7 @@ This chapter is organised as "problem → cause → fix". Find the closest quest
 
 **Cause**: the Qt runtime libraries are not on PATH.
 
-**Fix**: in the PowerShell session that starts it, run `$env:PATH = "P:\workspace\soc\toolchain\Qt\6.8.3\mingw_64\bin;" + $env:PATH` and then start it; or deploy the needed DLLs into the `build` directory (for example with Qt's `windeployqt`, to be verified).
+**Fix**: in the PowerShell session that starts it, run `$env:PATH = "P:\workspace\soc\toolchain\Qt\6.8.3\mingw_64\bin;" + $env:PATH` and then start it; or deploy the needed DLLs and plugins next to the program once with Qt's `windeployqt build\Ripes.exe` (verified: the deployed copy starts without Qt on PATH; note that it does not include the `offscreen` platform plugin).
 
 ### Q1.7 The program exits immediately on a server / remote terminal
 
@@ -80,7 +80,7 @@ See section 6 of [Chapter 15](15-cli.md).
 
 ### Q2.2 The GUI also reports `Unknown opcode 'li'` (or a symbol-related error)
 
-**Cause**: the peripheral has not been created, or it was created with a different number. Symbol names contain the peripheral's number: the first GPU is `GPU_0_...`; if you delete it and create it again it may become `GPU_1_...` (to be verified).
+**Cause**: the peripheral has not been created, or it was created with a different number. Symbol names contain the peripheral's number, and the lowest free number of that device type is always reused (`claimPeripheralId` in `src/io/iobase.h`): the first GPU is `GPU_0_...`, deleting it and creating it again gives `GPU_0_...` again, but a second GPU created while the first still exists is `GPU_1_...`.
 
 **Fix**: look at the actual symbol names in **I/O exports** and make the program match them; close extra peripherals and recreate them if necessary.
 
@@ -97,7 +97,7 @@ See section 6 of [Chapter 15](15-cli.md).
 - A misspelled instruction or register name (`adi` instead of `addi x1, x1, 1`).
 - An immediate out of range (the `addi` immediate is a 12-bit signed number, -2048…2047; use `li` for larger values).
 - A label defined twice or not defined.
-- Instructions written in the `.data` section, or unsupported directives in `.text` (to be verified).
+- An unknown directive (`Unknown directive '.foo'`), or a `.string`/`.byte` in `.text` whose length leaves the next instruction unaligned (`Instruction misaligned (24-bit boundary). This instruction must be aligned on a 32-bit boundary.`); `.word`, `.zero` and whole words of `.byte` are fine, and instructions in `.data` are accepted (they are just stored as data).
 
 Until it is fixed, **Executable code** on the right keeps the last successfully assembled program — so "the result did not change" often means the source actually has an error.
 
@@ -152,7 +152,7 @@ That is the format `ecall` uses for integers, e.g. `Factorial value of  7 is  50
 
 **Cause**: a peripheral's size may change with its parameters (e.g. the LED matrix width/height), which moves the addresses of the peripherals after it.
 
-**Fix**: **always use the exported symbols** in programs (`LED_MATRIX_0_BASE` etc.), never hard-coded addresses. After a parameter change the program is reassembled automatically (to be verified); C programs must be recompiled.
+**Fix**: **always use the exported symbols** in programs (`LED_MATRIX_0_BASE` etc.), never hard-coded addresses. After a parameter change the program is **not** reassembled automatically — the editor only reassembles when the source text or the processor changes (`EditTab::sourceCodeChanged` in `src/edittab.cpp`), and the peripheral symbols are read at assembly time — so make any edit to the source (or reload the program) to pick up the new addresses; C programs must be recompiled.
 
 ### Q3.3 The GPU / NPU widget does not change
 
@@ -166,7 +166,7 @@ See [Chapter 09](09-gpu.md) and [Chapter 10](10-npu.md) for more.
 
 ### Q3.4 The program / screenshot tool "hangs" in offscreen mode
 
-**Cause**: some action opened a dialog (e.g. `--help` on Windows, a command-line option error, a file error message); under `QT_QPA_PLATFORM=offscreen` the dialog is invisible and the program waits for you to click it.
+**Cause**: some action opened a dialog (e.g. a file error message, or `--help` / a command-line option error in an **old** build — the current build prints these to the console instead, see section 7 of [Chapter 15](15-cli.md)); under `QT_QPA_PLATFORM=offscreen` the dialog is invisible and the program waits for you to click it.
 
 **Fix**: reproduce it first on a normal desktop to see which dialog it is; put a timeout around the outer call in scripts.
 
@@ -180,18 +180,18 @@ See [Chapter 09](09-gpu.md) and [Chapter 10](10-npu.md) for more.
 
 - You just reset, or you have already undone everything;
 - The limit **Edit → Settings → Simulator → Max. undo cycles** (default 100) has been reached;
-- You just ran with **Run** — Run mode does not keep per-cycle undo information (exact rule to be verified).
+- **Run** or **Auto clock** is still active — all stepping buttons are disabled while running (`ProcessorTab::run` in `src/processortab.cpp`). Once Run stops, the last **Max. undo cycles** cycles can be reversed like any others: Run clocks the same circuit, so the undo history is kept (verified: after running `neogeo_mailbox.s` to the end, Reverse is enabled).
 
 **Fix**: increase **Max. undo cycles** for a longer undo history (uses more memory); to watch a section repeatedly, set a breakpoint before it and walk through it with **Auto clock** or **Clock**.
 
 ### Q4.2 After reversing, the GPU / NPU state is wrong
 
-**Cause**: Reverse restores the processor, registers and memory (the cache simulator is rewound as well). The **SIMT GPU** and **Tensor Unit (NPU)** peripherals are separate models, and the phase-1 implementation **does not respond to reverse execution**: the processor goes back, but the accelerator stays in the "future" state, e.g. its DONE bit is already set and its counters already incremented.
+**Cause**: Reverse restores the processor, registers and memory (the cache simulator is rewound as well). The **SIMT GPU** and **Tensor Unit (NPU)** peripherals are separate models that record their own state every CPU cycle and rewind together with Reverse — but only as far as their own history reaches (at most **Max. undo cycles** entries, the GPU also within a memory budget, and nothing from before the peripheral was created).
 
-According to the phase-2 plan, the fix will be one of the following (check the actual version, to be verified):
+What happens when you reverse past that history (confirmed in `src/io/iogpu.cpp` and `src/io/iotensorunit.cpp`):
 
-- While busy, the accelerator saves a snapshot every cycle and rewinds together with Reverse (the number of snapshots is also limited by **Max. undo cycles**); or
-- On Reverse the accelerator is **reset to its state before the launch**, and the widget clearly shows "accelerator was reset after reverse execution".
+- The **GPU** is **reset to its pre-launch state** (launch registers kept; memory the kernel already wrote is not undone) and the widget says "Reverse execution went past the recorded GPU history";
+- The **NPU keeps its current state** for that step and the widget says "Reverse execution went further back than the NPU history"; a normal step shows "Reversed one cycle: the NPU state and the memory written by its DMA in that cycle were rewound together with the CPU".
 
 **Advice**: when studying an accelerator, rerun from the start with **Reset** (F3) instead of stepping back with Reverse; to observe an exact cycle, set a breakpoint on the instruction that launches the kernel / rings the doorbell and then single-step with F5.
 
@@ -203,7 +203,7 @@ According to the phase-2 plan, the fix will be one of the following (check the a
 
 **Edit → Settings → Environment → Color scheme**: **System** (follow the OS), **Light**, **Dark**. The change is immediate; the circuit diagram, toolbar icons and I/O backdrop follow.
 
-If you chose **System** and nothing turned dark, the OS did not report dark mode, or your platform / Qt version does not support automatic detection (to be verified); simply choose **Dark**.
+If you chose **System** and nothing turned dark, the OS did not report dark mode: **System** just hands the choice back to Qt (`QStyleHints::unsetColorScheme` in `src/ripessettings.cpp`), which follows the OS setting on Windows, macOS and most Linux desktops; simply choose **Dark**.
 
 ### Q5.2 How do I switch the UI language?
 
@@ -229,7 +229,7 @@ Stored there are: every option of the **Settings** dialog, the current processor
 
 **Restoring defaults**: close the program, delete the registry key or file from the table above, and start again. **Note**: this also discards an unsaved program in the editor and custom cache presets; save them first.
 
-> The same location is shared with upstream Ripes (to be verified): if upstream Ripes is also installed on the same computer, both read and write these settings.
+> The same location is shared with upstream Ripes (both set organisation and application name to `Ripes`, see `src/ripessettings.cpp`): if upstream Ripes is also installed on the same computer, both read and write these settings.
 
 ### Q5.5 The window is too small and information is cut off
 
@@ -270,7 +270,7 @@ Lower **Max. cache access traces**, **Max. pipeline diagram cycles** and **Max. 
 
 1. **Make sure you can reproduce it**: write down the minimal steps ("open example X → select processor Y → press F8 → see Z").
 2. **Collect information**:
-   - Version: the version number shown by **Help → About** (or **Help → Version** in the current version);
+   - Version: the version number shown by **Help → About Ripes...**;
    - Processor and ISA: `Processor: ... ISA: ...` on the right of the status bar;
    - Operating system, UI language, colour scheme;
    - The program used (attach the `.s`/`.c` file or name the example), created peripherals and their parameters;

@@ -395,7 +395,7 @@ Ripes 在你输入时就会汇编。如果有错误，编辑器中出错的文�
 |---|---|---|
 | `Unknown opcode 'foo'` | 不认识的指令名 | 检查拼写；乘除指令需要启用 M 扩展 |
 | `Required immediate with field index '2' not provided` | 少了操作数 | 按指令格式补全 |
-| `Instruction 'xxx' expects N arguments ...` | 操作数个数不对（待核实：完整措辞） | 对照 4.3 节的格式 |
+| `Instruction 'add' expects 3 arguments, but got 4` | 操作数个数不对（完整措辞，例如写了 `add a0, a1, a2, a3`） | 对照 4.3 节的格式 |
 | `Unknown register 'q5'` | 寄存器名写错 | 用 `x0`–`x31` 或 ABI 名字 |
 | `Immediate value 'xxx' ...` | 立即数超出范围或不是数字 | 改用 `li` 或拆成 `lui` + `addi` |
 | `Unknown symbol 'nowhere'` | 标签未定义 | 检查标签拼写，定义标签时后面要有冒号 |

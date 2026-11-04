@@ -50,16 +50,16 @@ This chapter is a "map". You do not need to remember everything at once; wheneve
 | **Load Program** | Ctrl+O | Opens the **Load program...** dialog (section 5.1) to load a source file, a flat binary or an ELF executable |
 | **Load Example...** | — | Sub-menus **Assembly**, **C** and **ELF (precompiled C)** listing the built-in examples |
 | **Save File** | Ctrl+S | Saves to the previous location; the first save automatically becomes Save File As |
-| **Save File As...** | The platform's standard shortcut (usually Ctrl+Shift+S on Linux; Qt defines no standard "Save As" shortcut on Windows, to be verified) | Opens the **Save files...** dialog (section 5.2) |
-| **Exit** | The platform's standard shortcut (Ctrl+Q on Linux/macOS; possibly none on Windows, to be verified) | Closes the program. If the editor has contents, asks **Save current program before exiting?** |
+| **Save File As...** | Ctrl+Shift+S (plus the platform's standard "Save As" key where one exists; Qt defines none on Windows, so the program adds this binding itself) | Opens the **Save files...** dialog (section 5.2) |
+| **Exit** | Ctrl+Q (plus the platform's standard "Quit" key where one exists; on Windows only Ctrl+Q) | Closes the program. If the editor has contents, asks **Save current program before exiting?** |
 
 The examples in **Load Example...** (from the `examples/` directory, bundled into the program):
 
-- **Assembly**: `complexMul.s`, `consolePrinting.s`, `consoleReading.s`, `factorial.s`, `gpu_vecadd.s`, `leds.s`, `neogeo_mailbox.s`, `npu_matmul.s`
+- **Assembly**: `complexMul.s`, `consolePrinting.s`, `consoleReading.s`, `exercise_gpu_divergence.s`, `exercise_gpu_saxpy.s`, `exercise_npu_batch.s`, `factorial.s`, `gpu_vecadd.s`, `leds.s`, `neogeo_mailbox.s`, `npu_matmul.s`
 - **C**: `consoleInput.c`, `leds.c`, `matrixmul.c`, `npu_matmul.c`, `ranpi.c`, `spe_double_buffer.c`, `switchesAndLeds.c` (a C compiler must be configured first, see [Chapter 05](05-c-programs.md))
 - **ELF (precompiled C)**: `RanPi-RV32`, `RanPi-RV64` (precompiled `ranpi.c`, no compiler needed)
 
-> Phase-2 documentation may add `exercise_*` practice programs, which will appear in the same menu (to be verified).
+> The `exercise_*` programs are the solutions to exercises of chapters 09 and 10. The menu simply lists every file bundled under `examples/assembly`, so any program added there appears automatically.
 
 ### 2.2 Edit
 
@@ -77,10 +77,12 @@ The examples in **Load Example...** (from the `examples/` directory, bundled int
 
 | Item | Effect |
 |---|---|
-| **User Guide / 用户手册** | Opens the in-app help window showing this guide in the current UI language (`docs/guide/en/` or `docs/guide/zh/`). (New feature, to be verified) |
+| **User Guide** (F1) | Opens the in-app help window showing this guide in the current UI language (`docs/guide/en/` or `docs/guide/zh/`) |
+| **Quick Start (10 minutes)** | Opens the help window directly at [Chapter 02](02-quickstart.md) |
+| **Show Welcome Panel** | Shows the welcome panel that explains the six tabs again (it is hidden once you close it) |
 | **System calls** | Opens the **Supported system calls** window listing every `ecall` number with its arguments and return values |
-| **About** | Shows version information. (New feature; in the current version the corresponding item is **Version**, which shows `Ripes version: ...`, to be verified) |
-| **Wiki** | Opens the upstream Ripes online documentation in a browser |
+| **Online Documentation (upstream Ripes)** | Opens the upstream Ripes documentation on GitHub in a browser |
+| **About Ripes...** | Shows an **About Ripes** box with the version number, the Qt version, the licence and the upstream project link |
 
 The **?** button at the top right of each tab and peripheral widget also opens the help window, directly at the matching chapter; for example the GPU peripheral's **?** opens [Chapter 09](09-gpu.md).
 
@@ -317,8 +319,8 @@ Double-click a processor or press **OK** to apply. If the old and new processors
 | Ctrl+N | New Program | Global |
 | Ctrl+O | Load Program | Global |
 | Ctrl+S | Save File | Global |
-| Platform "Save As" key (e.g. Ctrl+Shift+S) | Save File As... | Global (possibly none on Windows, to be verified) |
-| Platform "Quit" key (e.g. Ctrl+Q) | Exit | Global (possibly none on Windows, to be verified) |
+| Ctrl+Shift+S (plus the platform "Save As" key, if any) | Save File As... | Global |
+| Ctrl+Q (plus the platform "Quit" key, if any) | Exit | Global |
 | F3 | Reset | Global |
 | F4 | Reverse (undo one cycle) | Global |
 | F5 | Clock (step one cycle) | Global |

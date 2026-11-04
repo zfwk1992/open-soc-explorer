@@ -1,5 +1,6 @@
 #include "pipelinediagrammodel.h"
 
+#include "cachesim/cachegraphic.h" // CacheColors::darkMode
 #include "processorhandler.h"
 #include "ripessettings.h"
 
@@ -32,6 +33,19 @@ PipelineDiagramModel::PipelineDiagramModel(QObject *parent)
           &PipelineDiagramModel::processorWasClocked, Qt::DirectConnection);
   connect(ProcessorHandler::get(), &ProcessorHandler::processorReset, this,
           &PipelineDiagramModel::reset);
+  // A processor change is followed by a reset (which re-caches the stage
+  // layout too); this keeps the cache right in between.
+  connect(ProcessorHandler::get(), &ProcessorHandler::processorChanged, this,
+          &PipelineDiagramModel::cacheStageLayout);
+  cacheStageLayout();
+}
+
+void PipelineDiagramModel::cacheStageLayout() {
+  m_stageOrdinals.clear();
+  int i = 0;
+  for (auto idx : ProcessorHandler::getProcessor()->structure().stageIt())
+    m_stageOrdinals[idx] = i++;
+  m_stageCount = i;
 }
 
 QVariant PipelineDiagramModel::headerData(int section,
@@ -97,6 +111,7 @@ void PipelineDiagramModel::processorWasClocked() {
 void PipelineDiagramModel::reset() {
   m_atMaxCycles = false;
   m_cycleStageInfos.clear();
+  cacheStageLayout();
   gatherStageInfo();
 }
 
@@ -118,28 +133,19 @@ void PipelineDiagramModel::gatherStageInfo() {
         ProcessorHandler::getProcessor()->stageInfo(idx);
 }
 
-static bool pipelineDarkMode() {
-  return QApplication::palette().color(QPalette::Base).lightness() < 128;
-}
-
 QColor PipelineDiagramModel::stageColor(int ordinal, int count) {
   const int hue = count > 0 ? (ordinal * 300 / std::max(count, 1)) % 360 : 0;
-  return pipelineDarkMode() ? QColor::fromHsv(hue, 120, 110)
-                            : QColor::fromHsv(hue, 70, 250);
+  return CacheColors::darkMode() ? QColor::fromHsv(hue, 120, 110)
+                                 : QColor::fromHsv(hue, 70, 250);
 }
 
 QColor PipelineDiagramModel::stallColor() {
   return QApplication::palette().color(QPalette::Mid);
 }
 
-int PipelineDiagramModel::stageOrdinal(const StageIndex &stage) {
-  int i = 0;
-  for (auto idx : ProcessorHandler::getProcessor()->structure().stageIt()) {
-    if (idx == stage)
-      return i;
-    ++i;
-  }
-  return -1;
+int PipelineDiagramModel::stageOrdinal(const StageIndex &stage) const {
+  const auto it = m_stageOrdinals.find(stage);
+  return it == m_stageOrdinals.end() ? -1 : it->second;
 }
 
 QVariant PipelineDiagramModel::data(const QModelIndex &index, int role) const {
@@ -162,14 +168,8 @@ QVariant PipelineDiagramModel::data(const QModelIndex &index, int role) const {
   if (role == Qt::BackgroundRole) {
     if (info.stalled && info.firstStageOrdinal < 0)
       return QBrush(stallColor());
-    if (info.firstStageOrdinal >= 0) {
-      int count = 0;
-      for (auto idx : ProcessorHandler::getProcessor()->structure().stageIt()) {
-        Q_UNUSED(idx);
-        ++count;
-      }
-      return QBrush(stageColor(info.firstStageOrdinal, count));
-    }
+    if (info.firstStageOrdinal >= 0)
+      return QBrush(stageColor(info.firstStageOrdinal, m_stageCount));
     return QVariant();
   }
 

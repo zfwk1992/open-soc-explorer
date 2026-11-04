@@ -96,6 +96,9 @@ private:
   /// Removes points before the plot window (see
   /// RIPES_SETTING_CACHE_MAXCYCLES) from both series.
   void dropPointsBeforeWindow();
+  /// Width of the plot window in cycles: RIPES_SETTING_CACHE_MAXCYCLES,
+  /// clamped to at least 1.
+  static int plotWindowCycles();
 
   /**
    * @brief resampleToScreen

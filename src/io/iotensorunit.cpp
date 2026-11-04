@@ -394,10 +394,21 @@ void IOTensorUnit::processorWasReversed() {
     }
   }
   // Undo the host-memory writes of the reversed cycle, newest first. Done
-  // without holding m_mutex (the writes go through the address space).
-  if (memWrite) {
-    for (auto it = undo.rbegin(); it != undo.rend(); ++it)
+  // without holding m_mutex (the accesses go through the address space).
+  //
+  // The processor has already rewound its own stores of this cycle before
+  // this hook runs. If the CPU stored to a word (v0 -> v1) and the DMA then
+  // overwrote it (v1 -> v2) in the same cycle, the processor's rewind has
+  // restored v0 by now; blindly writing back v1 would lose it. So an entry is
+  // only undone while memory still holds the value the DMA wrote - anything
+  // else means the pre-cycle value is already in place.
+  if (memWrite && memRead) {
+    for (auto it = undo.rbegin(); it != undo.rend(); ++it) {
+      const auto now = static_cast<uint32_t>(memRead(it->addr, it->bytes));
+      if (now != it->newValue)
+        continue;
       memWrite(it->addr, it->oldValue, it->bytes);
+    }
   }
   m_dirty.store(true);
 }

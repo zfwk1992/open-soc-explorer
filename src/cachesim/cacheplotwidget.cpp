@@ -305,15 +305,18 @@ void CachePlotWidget::copyPlotDataToClipboard() const {
   std::map<unsigned /*cycle*/, QStringList> dataStrings;
   QStringList header;
 
-  // Write cycles
-  header << tr("cycle");
+  // The export is machine-readable data: the column names are the
+  // untranslated variable identifiers (s_cacheVariableStrings), so that the
+  // clipboard contents do not depend on the UI language. Only on-screen
+  // labels use variableName().
+  header << QStringLiteral("cycle");
   for (const auto &dataPoint : allData.begin()->second) {
     dataStrings[dataPoint.x()] << QString::number(dataPoint.x());
   }
 
   // Write variables
   for (const auto &variableData : allData) {
-    header << variableName(variableData.first);
+    header << s_cacheVariableStrings.at(variableData.first);
     for (const auto &dataPoint : variableData.second) {
       dataStrings[dataPoint.x()] << QString::number(dataPoint.y());
     }
@@ -362,10 +365,9 @@ CachePlotWidget::gatherData(unsigned fromCycle) const {
   // last "Max. cache plot cycles" cycles of the trace. Trace entries are
   // cumulative, so a window that does not start at cycle 0 still shows the
   // true (whole-run) ratio at each cycle.
-  const int maxCycles =
-      RipesSettings::value(RIPES_SETTING_CACHE_MAXCYCLES).toInt();
+  const int maxCycles = plotWindowCycles();
   unsigned start = fromCycle;
-  if (!trace.empty() && maxCycles > 0) {
+  if (!trace.empty()) {
     const unsigned last = trace.rbegin()->first;
     if (last > static_cast<unsigned>(maxCycles) &&
         last - static_cast<unsigned>(maxCycles) > start)
@@ -571,10 +573,17 @@ void CachePlotWidget::updateRatioPlot() {
   updateTruncationHint();
 }
 
+int CachePlotWidget::plotWindowCycles() {
+  // The window is always bounded: a value below 1 (e.g. a stored setting
+  // from before the spin box minimum was raised to 1) plots the last cycle
+  // only, never "everything".
+  return std::max(
+      1, RipesSettings::value(RIPES_SETTING_CACHE_MAXCYCLES).toInt());
+}
+
 void CachePlotWidget::dropPointsBeforeWindow() {
-  const int maxCycles =
-      RipesSettings::value(RIPES_SETTING_CACHE_MAXCYCLES).toInt();
-  if (maxCycles <= 0 || m_lastCyclePlotted <= maxCycles)
+  const int maxCycles = plotWindowCycles();
+  if (m_lastCyclePlotted <= maxCycles)
     return;
   const double windowStart =
       static_cast<double>(m_lastCyclePlotted - maxCycles);

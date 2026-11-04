@@ -161,7 +161,7 @@ Additional constant symbols: `GPU_0_CTRL_START` (1), `GPU_0_CTRL_IRQ_EN` (2), `G
 
 > **Pitfall**: `IRQ_EN` in `CTRL` does not "stay set"; every write to `CTRL` sets it from bit1 of the written value. To launch with interrupts enabled, write `GPU_0_CTRL_START | GPU_0_CTRL_IRQ_EN` (= 3) in one go. `STATS_*` are only cleared when a kernel is launched; bank-conflict cycles have no register and are visible only in the widget's statistics panel.
 
-What sets `ERROR`: `GRID_X` or `BLOCK_X` is 0; a block needs more warps than *Warps per SM*; `KERNEL_PC` is not a multiple of 4; an undefined instruction word is executed (the message gives the kernel pc, block and warp). The behaviour of writing `START` while a kernel is running is being revised (phase 1 wrongly flags the running kernel as ERROR; after the fix the launch should simply be ignored — to be verified).
+What sets `ERROR`: `GRID_X` or `BLOCK_X` is 0; a block needs more warps than *Warps per SM*; `KERNEL_PC` is not a multiple of 4; an undefined instruction word is executed (the message gives the kernel pc, block and warp). Writing `START` while a kernel is running is **ignored**: the running kernel is untouched, `STATUS` bit 4 (`LAUNCH_IGNORED`, write 1 to clear) is set and the widget shows a notice with the number of ignored launches (confirmed in `src/io/iogpu.cpp`).
 
 ## 09.5 The launch protocol on the CPU side
 
@@ -524,7 +524,7 @@ EXIT
 
 **Why**: without `BAR`, warp 0 would read shared memory before warp 1 wrote it and get 0. The barrier guarantees "read after write".
 
-> Note: do not use `BAR` inside a divergent branch (where only some lanes execute it). The phase-1 model may release the barrier too early in that case; after the fix it will count per warp or report an error (PLAN2 §6(4); exact behaviour to be verified).
+> Note: do not use `BAR` inside a divergent branch (where only some lanes execute it). The model counts arrivals per warp: the lanes that execute `BAR` park just past it, the other lanes continue as a separate path, and the warp counts as arrived only when all of its live lanes have parked or exited (`src/accel/gpu/simtgpu.cpp`). The barrier is therefore never released early — but if the other lanes never reach a `BAR` or `EXIT`, the warp never arrives and the kernel does not finish.
 
 ## 09.13 Experiment E: latency hiding and occupancy
 
@@ -551,7 +551,7 @@ EXIT
 
 ## 09.15 Limitations
 
-- **No reverse execution of the accelerator**: the processor's **Reverse** (F4) only rewinds the CPU; the phase-1 GPU ignores it and its state does not go back. With the PLAN2 §6(9) fix, after a reverse step the GPU either restores a snapshot or is reset to "before launch" with a notice on the widget ("accelerator was reset after reverse execution") — which one is to be verified. To start an experiment again, use **Reset** (F3).
+- **Reverse execution only covers the recorded GPU history**: after every CPU cycle the peripheral saves a frame of its state (at most **Max. undo cycles** frames, within a memory budget), and each **Reverse** (F4) restores one frame; the widget then says "the GPU state was restored to the previous CPU cycle". If you reverse past the recorded history, the GPU is reset to its pre-launch state (launch registers kept, memory the kernel already wrote is not undone) and the widget says so (`src/io/iogpu.cpp`). To start an experiment again, use **Reset** (F3).
 - **The CLI cannot instantiate peripherals**: `Ripes --mode cli` has no I/O tab, so the GPU examples run only in the GUI (or in the QTest tests).
 - **The CPU receives no interrupt**: Ripes processor models have no external interrupt input; `STATUS.IRQ` can only be read and observed, it never interrupts the CPU.
 - Integer arithmetic only; no caches, atomics or inter-block synchronisation; a kernel exchanges data with the CPU only through `ARG0–3` and memory.
@@ -626,7 +626,7 @@ store: STG [R6], R9                 EXIT
 EXIT
 ```
 
-By the model's rules the branch version diverges once (negative lanes run pc 7, non-negative lanes wait at pc 8, then they merge) and issues 10 warp instructions; the predicated version has 0 divergences and 9 instructions (check the run in the GUI — to be verified). For short ifs predication is cheaper — this is what a compiler's if-conversion does.
+By the model's rules the branch version diverges once (negative lanes run pc 7, non-negative lanes wait at pc 8, then they merge) and issues 10 warp instructions; the predicated version has 0 divergences and 9 instructions (measured in the GUI: `branch kernel: cycles=14 instrs=10 divergences=1`, `predicate kernel: cycles=13 instrs=9 divergences=0`, both `result OK`). For short ifs predication is cheaper — this is what a compiler's if-conversion does.
 
 </details>
 
@@ -634,7 +634,7 @@ By the model's rules the branch version diverges once (negative lanes run pc 7, 
 
 <details><summary>Answer</summary>
 
-Make A, B and C start on 32-byte boundaries: move `N` after the arrays (or add `.zero 28` after `N`) and pad each array to 24 words (96 bytes = 3 × 32). Each warp's 8 words then fall into one segment and 9 memory instructions = 9 transactions (as in the aligned `tst_vecadd`; GUI result to be verified).
+Make A, B and C start on 32-byte boundaries: move `N` after the arrays (or add `.zero 28` after `N`) and pad each array to 24 words (96 bytes = 3 × 32). Each warp's 8 words then fall into one segment and 9 memory instructions = 9 transactions (as in the aligned `tst_vecadd`; measured in the GUI: `GPU done in 46 GPU cycles, 68 warp instructions, 9 memory transactions` instead of 48 cycles and 16 transactions).
 
 </details>
 

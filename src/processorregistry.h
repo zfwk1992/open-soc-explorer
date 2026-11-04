@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCoreApplication>
 #include <QMetaEnum>
 #include <QMetaType>
 #include <QPointF>
@@ -97,6 +98,11 @@ public:
 };
 
 class ProcessorRegistry {
+  // Not a QObject; this gives the processor names/descriptions a tr() with the
+  // translation context "Ripes::ProcessorRegistry" (core_zh_CN.ts) in one
+  // place, and lupdate picks the strings up through it.
+  Q_DECLARE_TR_FUNCTIONS(Ripes::ProcessorRegistry)
+
 public:
   using ProcessorMap = std::map<ProcessorID, std::unique_ptr<ProcInfoBase>>;
   static const ProcessorMap &getAvailableProcessors() {

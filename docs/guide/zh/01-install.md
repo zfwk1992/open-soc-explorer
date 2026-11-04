@@ -240,7 +240,7 @@ QT_QPA_PLATFORM=offscreen ./tst_gpu
 for t in tst_*; do QT_QPA_PLATFORM=offscreen ./$t || echo "FAILED: $t"; done
 ```
 
-`test/CMakeLists.txt` 里对每个测试调用了 `add_test`，但顶层 `CMakeLists.txt` 中没有 `enable_testing()`，所以 `ctest` 可能报告 "No tests were found"（待核实）。用上面的循环最可靠。
+`test/CMakeLists.txt` 里对每个测试调用了 `add_test`，顶层 `CMakeLists.txt` 在 `RIPES_BUILD_TESTS=ON` 时会调用 `enable_testing()`，所以 `ctest --test-dir build`（或在 `build` 目录里用 `ctest -N` 列出）能找到全部 10 个测试（已用本项目的构建验证）。上面的循环同样可用。
 
 **看到什么**：QTest 的输出以 `Totals: N passed, 0 failed, 0 skipped` 结尾，退出码为 0 表示通过。
 
@@ -267,7 +267,7 @@ export QT_QPA_PLATFORM=offscreen
 - 用命令行模式批量跑程序（见[第 15 章](15-cli.md)）。
 - 截图工具（`tools/gui_shots/`，第二阶段计划中）用离屏渲染生成本手册的截图。
 
-> 注意：在 `offscreen` 下，任何会弹出对话框的操作（例如 `--help` 在 Windows 上会弹出消息框）都会一直等待，看起来像"卡住"。详见[第 15 章](15-cli.md)和[第 16 章](16-faq.md)。
+> 注意：在 `offscreen` 下，任何会弹出对话框的操作（例如文件错误提示；当前构建的 `--help` 和参数错误会打印到控制台）都会一直等待，看起来像"卡住"。详见[第 15 章](15-cli.md)和[第 16 章](16-faq.md)。
 
 ---
 
@@ -285,7 +285,7 @@ export QT_QPA_PLATFORM=offscreen
 | PowerShell 显示红色 `NativeCommandError`，但其实 CMake 没出错 | PowerShell 5.1 把原生程序写到 stderr 的文字当作错误 | 看 `$LASTEXITCODE` 而不是红字；`build.ps1` 已经这样处理 |
 | `无法加载文件 build.ps1，因为在此系统上禁止运行脚本` | 执行策略（Execution Policy）限制 | 用 `powershell -ExecutionPolicy Bypass -File ...` 调用 |
 | 改了 CMake 选项或换了 Qt 版本后仍然用旧设置 | `CMakeCache.txt` 缓存了旧值 | `build.ps1 -Configure`，或删除 `build/CMakeCache.txt` 后重新配置 |
-| 双击 `Ripes.exe` 提示缺少 `Qt6Core.dll` / `Qt6Charts.dll` | Qt 的 `bin` 目录不在 PATH 上 | 在启动它的会话中把 `toolchain\Qt\6.8.3\mingw_64\bin` 加到 PATH；或用 Qt 的 `windeployqt` 把 DLL 复制到 `build` 目录（待核实） |
+| 双击 `Ripes.exe` 提示缺少 `Qt6Core.dll` / `Qt6Charts.dll` | Qt 的 `bin` 目录不在 PATH 上 | 在启动它的会话中把 `toolchain\Qt\6.8.3\mingw_64\bin` 加到 PATH；或运行一次 Qt 的 `windeployqt build\Ripes.exe`，把 DLL 和插件复制到程序旁边（已验证：部署后的副本不需要 PATH 上有 Qt 即可启动；但它不包含 `offscreen` 平台插件） |
 | 测试程序运行时报 `could not connect to display` / `no Qt platform plugin` | 没有显示器，或找不到平台插件 | 设置 `QT_QPA_PLATFORM=offscreen`；确认 Qt 的 `plugins/platforms` 可被找到 |
 | 下载 Qt 或子模块时报 TLS/证书错误 | 网络代理或证书问题 | 配置正确的代理或证书；**不要**关闭 TLS 校验 |
 

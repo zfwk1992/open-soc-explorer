@@ -122,7 +122,6 @@ private:
   void updateKernel(const IOGpu::View &v);
   void updateStats(const IOGpu::View &v);
   void updateRegisters(const IOGpu::View &v);
-  static void setTips(QWidget *w, const QString &tip);
   /// "?" button: Ripes::showHelp("09-gpu").
   void openGpuHelp();
 

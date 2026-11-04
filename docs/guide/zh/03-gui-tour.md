@@ -50,16 +50,16 @@
 | **Load Program**（加载程序） | Ctrl+O | 打开 **Load program...** 对话框（见第 5.1 节），可加载源文件、平坦二进制（flat binary）或 ELF 可执行文件 |
 | **Load Example...**（加载示例） | — | 子菜单 **Assembly**、**C**、**ELF (precompiled C)**，列出程序内置的示例 |
 | **Save File**（保存文件） | Ctrl+S | 保存到上一次的位置；第一次保存时自动转为 Save File As |
-| **Save File As...**（另存为） | 平台标准快捷键（Linux 上通常是 Ctrl+Shift+S；Windows 上 Qt 没有为"另存为"定义标准快捷键，待核实） | 打开 **Save files...** 对话框（见第 5.2 节） |
-| **Exit**（退出） | 平台标准快捷键（Linux/macOS 上为 Ctrl+Q；Windows 上可能没有，待核实） | 关闭程序。如果编辑器里有内容，会询问 **Save current program before exiting?** |
+| **Save File As...**（另存为） | Ctrl+Shift+S（另加平台的标准"另存为"键，如果有的话；Windows 上 Qt 没有定义，所以程序自己加了这个绑定） | 打开 **Save files...** 对话框（见第 5.2 节） |
+| **Exit**（退出） | Ctrl+Q（另加平台的标准"退出"键，如果有的话；Windows 上只有 Ctrl+Q） | 关闭程序。如果编辑器里有内容，会询问 **Save current program before exiting?** |
 
 **Load Example...** 中的示例（来自 `examples/` 目录，打包进程序）：
 
-- **Assembly**：`complexMul.s`、`consolePrinting.s`、`consoleReading.s`、`factorial.s`、`gpu_vecadd.s`、`leds.s`、`neogeo_mailbox.s`、`npu_matmul.s`
+- **Assembly**：`complexMul.s`、`consolePrinting.s`、`consoleReading.s`、`exercise_gpu_divergence.s`、`exercise_gpu_saxpy.s`、`exercise_npu_batch.s`、`factorial.s`、`gpu_vecadd.s`、`leds.s`、`neogeo_mailbox.s`、`npu_matmul.s`
 - **C**：`consoleInput.c`、`leds.c`、`matrixmul.c`、`npu_matmul.c`、`ranpi.c`、`spe_double_buffer.c`、`switchesAndLeds.c`（需要先配置 C 编译器，见[第 05 章](05-c-programs.md)）
 - **ELF (precompiled C)**：`RanPi-RV32`、`RanPi-RV64`（预先编译好的 `ranpi.c`，不需要编译器）
 
-> 第二阶段文档 agent 可能会新增 `exercise_*` 练习程序，它们会出现在同一个菜单里（待核实）。
+> `exercise_*` 程序是第 09、10 章练习题的参考答案。这个菜单只是列出打包在 `examples/assembly` 下的全部文件，所以放进去的任何程序都会自动出现。
 
 ### 2.2 Edit（编辑）
 
@@ -77,10 +77,12 @@
 
 | 菜单项 | 作用 |
 |---|---|
-| **User Guide / 用户手册** | 打开应用内帮助窗口，按当前界面语言显示本手册（`docs/guide/zh/` 或 `docs/guide/en/`）。（新增功能，待核实） |
+| **User Guide**（用户手册，F1） | 打开应用内帮助窗口，按当前界面语言显示本手册（`docs/guide/zh/` 或 `docs/guide/en/`） |
+| **Quick Start (10 minutes)**（快速上手） | 打开帮助窗口并直接跳到[第 02 章](02-quickstart.md) |
+| **Show Welcome Panel**（显示欢迎面板） | 重新显示介绍六个标签页的欢迎面板（关闭过一次后它默认隐藏） |
 | **System calls**（系统调用） | 打开 **Supported system calls** 窗口，列出所有 `ecall` 编号、参数和返回值 |
-| **About**（关于） | 显示版本信息。（新增功能；当前版本中对应的是 **Version** 菜单项，会弹出 `Ripes version: ...`，待核实） |
-| **Wiki** | 在浏览器中打开上游 Ripes 的在线文档 |
+| **Online Documentation (upstream Ripes)**（在线文档） | 在浏览器中打开上游 Ripes 在 GitHub 上的文档 |
+| **About Ripes...**（关于） | 弹出 **About Ripes** 窗口，显示版本号、Qt 版本、许可证和上游项目链接 |
 
 各标签页和外设部件右上角的 **?** 按钮也会打开帮助窗口，并直接跳到相应章节，例如 GPU 外设的 **?** 打开[第 09 章](09-gpu.md)。
 
@@ -317,8 +319,8 @@ Cache 标签页有两个子标签 **L1 Data Cache**（一级数据缓存）和 *
 | Ctrl+N | New Program（新建程序） | 全局 |
 | Ctrl+O | Load Program（加载程序） | 全局 |
 | Ctrl+S | Save File（保存） | 全局 |
-| 平台"另存为"键（如 Ctrl+Shift+S） | Save File As...（另存为） | 全局（Windows 上可能无，待核实） |
-| 平台"退出"键（如 Ctrl+Q） | Exit（退出） | 全局（Windows 上可能无，待核实） |
+| Ctrl+Shift+S（另加平台"另存为"键，如果有） | Save File As...（另存为） | 全局 |
+| Ctrl+Q（另加平台"退出"键，如果有） | Exit（退出） | 全局 |
 | F3 | Reset（复位） | 全局 |
 | F4 | Reverse（撤销一个周期） | 全局 |
 | F5 | Clock（单步一个周期） | 全局 |

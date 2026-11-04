@@ -187,7 +187,7 @@ next:
 
 **What you see**: Turning on switch n lights LED n of the first row green; turning it off clears it.
 
-**Why**: This is **polling**: the program keeps reading the switch register and checking every bit. It never ends; stop it with **Reset (F3)** or by pressing the run button again (to be verified: the name of the stop button while running). The C version is **File → Load Example... → C → switchesAndLeds.c** (`examples/C/switchesAndLeds.c`).
+**Why**: This is **polling**: the program keeps reading the switch register and checking every bit. It never ends; stop it with **Reset (F3)** or by pressing **Run (F8)** again (the button is a toggle; its name does not change while running). The C version is **File → Load Example... → C → switchesAndLeds.c** (`examples/C/switchesAndLeds.c`).
 
 > **Try it**: Instead of **Run**, step with **Clock (F5)** or a slow **Auto clock** and toggle a switch — the LED reacts only much later, because one round of the polling loop executes many instructions. The upstream documentation recommends using the single-cycle processor with peripherals and lowering **Max. cache plot cycles** under **Edit → Settings → Environment** to reduce the overhead of other parts of the simulator.
 

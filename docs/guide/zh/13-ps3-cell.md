@@ -259,8 +259,8 @@ PS3 拓扑有四条 flow。下表中的连线用标签表示。
 
 1. **配置编译器**：按第 05 章在 **Settings → Compiler**（设置 → 编译器）中填好 RISC-V C 编译器路径（"Compiler path:"）。没有编译器就无法运行本实验。
 2. **加载**：**File → Load Example...**，选择 `spe_double_buffer.c`；编辑器切到 C 输入模式。
-3. **编译参数**：文件头注释要求 `-O1 -nostdlib`。在 **Settings → Compiler** 的 "Compiler arguments:" 中确认包含这两项（`-nostdlib` 很重要：程序没有 libc，入口就是文件开头的几行内联汇编）（待核实：示例加载时是否自动带上这些参数）。
-4. **处理器**：程序需要 RV32IM（有乘法）。如果当前处理器模型不支持 M 扩展，在处理器选择对话框中换一个支持 RV32IM 的模型（待核实：默认处理器的 ISA 扩展）。
+3. **编译参数**：文件头注释要求 `-O1 -nostdlib`。在 **Settings → Compiler** 的 "Compiler arguments:" 中确认包含这两项（`-nostdlib` 很重要：程序没有 libc，入口就是文件开头的几行内联汇编）。加载示例**不会**改动这个设置（它是全局设置，默认 `-O0 -g`），需要自己填写，做完后再改回去。
+4. **处理器**：程序需要 RV32IM（有乘法）。默认处理器是启用了 M 和 C 扩展的 5 级流水线处理器（状态栏显示 `ISA: RV32IMC`），所以除非你在处理器选择对话框里关掉了 M，否则不用改。
 5. **运行**：点 **Run**，在控制台看输出。
 
 ### 应该看到什么
@@ -281,7 +281,7 @@ OK: mismatches=0
 
 ### 观察什么
 
-- 在 **Editor** 标签页右侧的反汇编视图里找到 `spu_stream_double_buffered`，在 `wait_tag` 处设断点（单击行号左侧，待核实）后逐次 **Run**：每停一次，在 **Memory** 标签页查看 `mfc_queue`，数一数有几条 `pending = 1` 的命令、各属于哪个 tag（待核实：符号在 Memory 标签页中的定位方式）。
+- 在 **Editor** 标签页右侧的反汇编视图里找到 `spu_stream_double_buffered`，在 `wait_tag` 处设断点（在反汇编里地址左侧的边栏上右键，选 **Toggle breakpoint**；或在 Processor 标签页的 **Instruction memory** 表格中勾选该地址的 **BP** 框）后逐次 **Run**：每停一次，在 **Memory** 标签页查看 `mfc_queue`，数一数有几条 `pending = 1` 的命令、各属于哪个 tag（Memory 标签页没有符号搜索：用 **Go to section → .data**，或用 **Address...** 输入从反汇编的 `lui`/`addi` 对里读出的 `mfc_queue` 地址）。
 - 对照 Flow 2：第一次停下时队列里应有 get(0, tag 0) 和 get(1, tag 1)；`wait_tag(1<<0)` 只执行 tag 0 的那条，tag 1 的仍然 pending——这就是"后台进行中的 DMA"。
 
 ## 13.10 练习

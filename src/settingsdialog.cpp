@@ -525,7 +525,10 @@ QWidget *SettingsDialog::createEnvironmentPage() {
 
   auto [maxcyclesLabel, maxcyclesSb] = createSettingsWidgets<QSpinBox>(
       RIPES_SETTING_CACHE_MAXCYCLES, tr("Max. cache plot cycles"));
-  maxcyclesSb->setMinimum(0);
+  // At least one cycle: the plot window is always bounded (0 would otherwise
+  // read as "no limit"; CachePlotWidget::plotWindowCycles clamps stored
+  // values the same way).
+  maxcyclesSb->setMinimum(1);
   maxcyclesSb->setMaximum(INT_MAX);
   appendToLayout(
       {maxcyclesLabel, maxcyclesSb}, pageLayout,

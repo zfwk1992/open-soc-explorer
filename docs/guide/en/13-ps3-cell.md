@@ -259,8 +259,8 @@ The stream is 256 words, 16 words per chunk, 16 chunks; tag 0 belongs to buffer 
 
 1. **Configure the compiler**: as in chapter 05, set the RISC-V C compiler path ("Compiler path:") in **Settings → Compiler**. Without a compiler this experiment cannot run.
 2. **Load**: **File → Load Example...**, choose `spe_double_buffer.c`; the editor switches to C input mode.
-3. **Compiler arguments**: the file header asks for `-O1 -nostdlib`. Make sure "Compiler arguments:" in **Settings → Compiler** contains both (`-nostdlib` matters: the program has no libc and its entry point is the few lines of inline assembly at the top of the file) (to be verified: whether loading the example sets these arguments automatically).
-4. **Processor**: the program needs RV32IM (multiplication). If the current processor model lacks the M extension, choose one that supports RV32IM in the processor selection dialog (to be verified: ISA extensions of the default processor).
+3. **Compiler arguments**: the file header asks for `-O1 -nostdlib`. Make sure "Compiler arguments:" in **Settings → Compiler** contains both (`-nostdlib` matters: the program has no libc and its entry point is the few lines of inline assembly at the top of the file). Loading an example does **not** change this setting (it is global, default `-O0 -g`), so set it yourself and restore it afterwards.
+4. **Processor**: the program needs RV32IM (multiplication). The default processor is the 5-stage processor with the M and C extensions enabled (status bar: `ISA: RV32IMC`), so nothing needs to change unless you turned M off in the processor selection dialog.
 5. **Run**: click **Run** and read the console.
 
 ### What you should see
@@ -281,7 +281,7 @@ OK: mismatches=0
 
 ### What to observe
 
-- In the disassembly view on the right of the **Editor** tab, find `spu_stream_double_buffered`, set a breakpoint on `wait_tag` (click left of the line number, to be verified) and press **Run** repeatedly: each time it stops, look at `mfc_queue` in the **Memory** tab and count the commands with `pending = 1` and their tags (to be verified: how to locate a symbol in the Memory tab).
+- In the disassembly view on the right of the **Editor** tab, find `spu_stream_double_buffered`, set a breakpoint on `wait_tag` (right-click the margin left of the address in the disassembly and choose **Toggle breakpoint**, or tick the **BP** box of that address in the **Instruction memory** table of the Processor tab) and press **Run** repeatedly: each time it stops, look at `mfc_queue` in the **Memory** tab and count the commands with `pending = 1` and their tags (the Memory tab has no symbol search: use **Go to section → .data**, or **Address...** with the address of `mfc_queue` read off the `lui`/`addi` pair in the disassembly).
 - Compare with Flow 2: at the first stop the queue should hold get(0, tag 0) and get(1, tag 1); `wait_tag(1<<0)` executes only the tag-0 command and the tag-1 one stays pending: that is "a DMA in flight in the background".
 
 ## 13.10 Exercises

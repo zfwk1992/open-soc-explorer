@@ -21,6 +21,7 @@
 #include <map>
 
 #include "help.h"
+#include "tabheader.h" // Ripes::setTips
 
 #include "ripessettings.h"
 
@@ -524,11 +525,6 @@ IOGpuWidget::IOGpuWidget(IOGpu *gpu, QWidget *parent)
 
 void IOGpuWidget::openGpuHelp() { Ripes::showHelp(QStringLiteral("09-gpu")); }
 
-void IOGpuWidget::setTips(QWidget *w, const QString &tip) {
-  w->setToolTip(tip);
-  w->setStatusTip(tip);
-}
-
 void IOGpuWidget::updateTimerInterval() {
   int ups = 25;
   if (RipesSettings::hasSetting(RIPES_SETTING_UIUPDATEPS))
@@ -819,6 +815,11 @@ void IOGpuWidget::updateStatus(const IOGpu::View &v) {
                 "accelerator was reset to its pre-launch state. Memory the "
                 "kernel already wrote is not undone; reset the processor and "
                 "run again to relaunch the kernel.");
+    break;
+  case IOGpu::Notice::ConfigChangedWhileBusy:
+    notice = tr("The GPU configuration was changed while a kernel was "
+                "running: the kernel was aborted (STATUS.DONE | ERROR). Clear "
+                "the flags and launch it again on the new configuration.");
     break;
   }
   if (notice.isEmpty() && v.launchIgnored)

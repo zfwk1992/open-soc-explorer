@@ -76,7 +76,7 @@ Program exited with code: 0
 |---|---|---|
 | `--mode <mode>` | 是（要进入 CLI 时） | `gui`（默认）或 `cli` |
 | `--src <path>` | 是 | 源文件路径 |
-| `-t <type>` | 是 | 源文件类型：`asm`（汇编）、`c`（C 源码）、`bin`（平坦二进制）、`elf`（ELF 可执行文件）。**虽然帮助里写默认值是 `asm`，但目前必须显式给出**，否则报 `No source type specified (--t)` |
+| `-t <type>` | 否 | 源文件类型：`asm`（汇编，默认值）、`c`（C 源码）、`bin`（平坦二进制）、`elf`（ELF 可执行文件）。汇编文件可以省略它（已验证：`--src factorial.s` 不带 `-t` 也能汇编运行）；写成其他值会报 `Invalid source type (--t)` |
 | `--proc <name>` | 是 | 处理器模型 ID，见 2.2 节 |
 | `--isaexts <ext,...>` | 否 | 要启用的 ISA 扩展，逗号分隔，例如 `M` 或 `M,C`。**不给时只有基础指令集**（RV32I/RV64I），程序里的 `mul`、`div` 等会报 `Unknown opcode` |
 | `--reginit <regfile>:<idx>=<v>,...` | 否 | 寄存器初始值，见 2.3 节。可重复使用 |
@@ -85,7 +85,7 @@ Program exited with code: 0
 | `--output <path>` | 否 | 把**报告**写入文件（程序本身的输出仍然打印到 stdout） |
 | `--json` | 否 | 报告使用 JSON 格式 |
 | `--all` | 否 | 打开所有报告项（缓存统计除外） |
-| `-h`, `--help` | 否 | 显示帮助（Windows 上见第 7 节注意事项） |
+| `-h`, `--help` | 否 | 把参数列表打印到 stdout，退出码 0（见第 7 节） |
 
 ### 2.2 处理器 ID
 
@@ -109,7 +109,7 @@ Program exited with code: 0
 Invalid ISA extension 'F' specified (--isaexts). Processor 'RV32_5S' supports extensions: M, C
 ```
 
-（列出的扩展以实际输出为准，待核实。）
+（这就是实际输出：5 级流水线处理器恰好支持 `M` 和 `C`。）
 
 ### 2.3 寄存器初始化 `--reginit`
 
@@ -119,7 +119,7 @@ Invalid ISA extension 'F' specified (--isaexts). Processor 'RV32_5S' supports ex
 --reginit gpr:2=0x7ffffff0,3=0x10000000
 ```
 
-> **重要**：图形界面里每个处理器都有默认寄存器初值（`sp = 0x7ffffff0`、`gp = 0x10000000`），但**命令行模式不会自动应用这些默认值**——实测不带 `--reginit` 时 `x2`（sp）为 0。用到栈的程序最好显式加上上面这行，让结果与 GUI 一致。
+> **说明**：命令行模式会应用与图形界面相同的默认寄存器初值（`sp = 0x7ffffff0`、`gp = 0x10000000`）——实测用 `--regs` 且不带 `--reginit` 时，`x2` 为 `0x7ffffff0`、`x3` 为 `0x10000000`。只有想覆盖默认值时才需要 `--reginit`；你指定的寄存器会替换它的默认值。
 
 同一寄存器重复初始化会报 `Duplicate register initialization`；寄存器文件名写错会列出合法名字。
 
@@ -188,7 +188,7 @@ L1i misses: 11
 L1i writebacks: 0
 ```
 
-> **已知问题**：在当前构建中，只要配置了缓存，程序在**报告已经完整输出之后**退出时会异常结束（Windows 退出码 `-1073740940`，即 `0xC0000374` 堆损坏）。报告内容是完整的，但脚本如果检查退出码会误判为失败（待修复）。
+> **已修复**：早期构建中只要配置了缓存，程序在报告输出完之后退出时会异常结束（Windows 退出码 `-1073740940`，即 `0xC0000374` 堆损坏）。当前构建用 `--cache-preset` 运行后退出码为 0（已验证），脚本可以重新依赖退出码。
 
 ---
 
@@ -393,17 +393,17 @@ INFO: Unknown opcode 'li'
 因此：
 
 - `gpu_vecadd.s`、`npu_matmul.s`、`npu_matmul.c`、`leds.s`、`leds.c`、`switchesAndLeds.c`、`neogeo_mailbox.s`（使用 LED 矩阵）等依赖外设的示例**必须在图形界面中运行**：先在 **I/O** 标签页创建对应外设，再加载程序。
-- 即使你手工把符号换成数值地址，CLI 下该地址也没有设备响应，读写不会有效果（待核实具体行为）。
+- 即使你手工把符号换成数值地址，CLI 下该地址也没有设备响应：它表现得像普通内存（已验证：向 `0xf0000000` 做 `sw` 后再 `lw` 会读回写入的值），程序能跑，但什么都不会显示，状态寄存器也不会变化。
 
 ---
 
 ## 7. Windows 上的注意事项
 
 1. **PowerShell 不等待、不显示输出**：用 `cmd /c "..."`，或 `Start-Process -Wait -NoNewWindow -RedirectStandardOutput out.txt`，或重定向到文件。直接 `& build\Ripes.exe ...` 时 `$LASTEXITCODE` 也拿不到。
-2. **`--help` 会弹出对话框**：作为图形子系统程序，Windows 上 Qt 把帮助文本显示在一个消息框里，而不是打印到控制台（待核实桌面环境下的具体表现）。在 `QT_QPA_PLATFORM=offscreen` 下这个消息框看不见，程序会**一直挂起**。所以：
-   - 想看参数列表时，请在普通桌面会话里**不设 offscreen** 运行 `build\Ripes.exe --help`，或直接查看本章第 2 节；
-   - **参数写错时同样会调用帮助**（先打印 `ERROR: ...` 再显示帮助），在 offscreen 下也会挂起。脚本中请务必先在桌面环境验证命令行，或给外层调用加超时。
-3. **参数错误的退出码是 0**：`main.cpp` 在解析失败后显示帮助并返回 0。脚本不能只靠退出码判断，应同时检查报告文件是否生成。
+2. **`--help` 打印到控制台**：`cmd /c "build\Ripes.exe --help"` 把参数列表写到 stdout 并以退出码 0 结束，在 `QT_QPA_PLATFORM=offscreen` 下也一样（已验证）。早期构建沿用 Qt 对图形子系统程序的默认做法——弹出消息框，在 offscreen 下看不见、程序会挂起——所以如果旧副本在 `--help` 时卡住，原因就在这里。所以：
+   - 想看参数列表时，像上面那样通过 `cmd /c` 运行 `--help`，或直接查看本章第 2 节；
+   - **参数写错时会在 stderr 打印 `ERROR: Unknown option '...'` 和帮助**，退出码为 1（已验证）；stdout 上什么都没有。
+3. **参数错误的退出码是 1**：`main.cpp` 在解析失败后把错误和帮助打印到 stderr 并返回 1；`parseCLIOptions` 的失败（处理器名写错、预设名写错等）也一样。脚本可以依赖退出码。
 4. 程序运行、汇编或超时失败时退出码为 1，并打印以 `ERROR:` 开头的信息。
 
 ---
@@ -413,7 +413,7 @@ INFO: Unknown opcode 'li'
 1. 用 `--cycles --cpi` 在 `RV32_SS`、`RV32_5S_NO_FW_HZ`、`RV32_5S`、`RV32_6S_DUAL` 上运行 `factorial.s`（记得 `--isaexts M`）。哪个周期最少？没有转发和冒险检测的处理器结果正确吗？为什么？（提示：看控制台输出。）
 2. 写一个 `--cache-config` 文件，只模拟 L1D，把 `lines` 从 0 改到 6，记录命中率，画出"组数—命中率"曲线。
 3. 用 `--pipeline` 输出 `factorial.s` 在 `RV32_5S` 上的流水线图，粘贴进电子表格，找出第一个冲刷（flush）。
-4. 去掉 `--reginit`，再用 `--regs` 运行 `factorial.s`，比较 `x2` 的值。程序结果受影响了吗？为什么这次没有？
+4. 用 `--regs` 运行 `factorial.s`，看 `x2`：不带 `--reginit` 它也是 `0x7ffffff0`。再加上 `--reginit gpr:2=0x1000` 运行一次，程序结果变了吗？为什么这次没有？
 5. 用第 5.1 节的脚本批量运行 `examples/assembly` 下所有示例，哪些失败了？失败原因分别是什么？
 
 ## 小结
@@ -421,8 +421,8 @@ INFO: Unknown opcode 'li'
 - `--mode cli --src <文件> -t <asm|c|bin|elf> --proc <ID>` 是最小命令；需要乘除法时加 `--isaexts M`。
 - 报告项：`--cycles`、`--iret`、`--cpi`、`--ipc`、`--pipeline`、`--regs`、`--exectime`、`--runinfo`，或 `--all`；`--json` 改为 JSON，`--output` 写文件。
 - 缓存：`--cache-preset "<名字>"` 或 `--cache-config <json>`，配置后自动输出缓存统计。
-- CLI 不应用默认寄存器初值，需要时用 `--reginit gpr:2=0x7ffffff0,3=0x10000000`。
+- CLI 应用与 GUI 相同的默认寄存器初值（`sp`、`gp`）；只有要覆盖时才用 `--reginit gpr:<编号>=<值>`。
 - **CLI 不能创建外设**：用了外设符号的程序会报 `Unknown opcode 'li'`，GPU/NPU/LED 等示例必须在图形界面运行。
-- Windows 上用 `cmd /c` 获取输出；`--help` 与参数错误会弹出（offscreen 下不可见的）对话框。
+- Windows 上用 `cmd /c` 获取输出；`--help` 打印到 stdout（退出码 0），参数错误打印到 stderr（退出码 1）。
 
 下一章：[16 FAQ 与故障排除](16-faq.md)。

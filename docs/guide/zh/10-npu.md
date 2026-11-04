@@ -480,7 +480,7 @@ static unsigned wait_head(unsigned tail) {
 ## 10.14 局限
 
 - **CPU 没有外部中断输入**：中断只能被观察（部件显示、读 `IRQ_STATUS`），不会打断 CPU。
-- **不能反向执行加速器**：处理器的 **Reverse**（F4）不会倒退 NPU 的状态。按 PLAN2 §6(9) 的修复，反向后要么恢复快照、要么复位到"启动前"并在部件上提示（具体采用哪种待核实）。重来请用 **Reset**（F3）——处理器复位会把 NPU 全部复位（含计数器）。
+- **反向执行只能回退已记录的 NPU 历史**：单元每个 CPU 周期保存一次状态（最多 **Max. undo cycles** 条）；每按一次 **Reverse**（F4）恢复上一个状态，并撤销它的 DMA 在那个周期写入主存的内容，部件上会提示"已反向一个周期：NPU 状态和该周期 DMA 写入的内存已与 CPU 一起回退"。如果反向超出了历史范围（例如单元是在程序运行中途创建的），这一步 NPU 的状态**不会**回退，部件上也会提示（`src/io/iotensorunit.cpp`）。重来请用 **Reset**（F3）——处理器复位会把 NPU 全部复位（含计数器）。
 - **命令行模式不能实例化外设**：NPU 示例只能在 GUI（或 QTest 测试）里运行。
 - 寄存器与描述符都是 32 位；在 RV64 处理器上，地址必须在低 4 GB。
 - DMA_IN / COMPUTE / DMA_OUT 串行，没有双缓冲；没有 requantize（结果是 int32）。
@@ -534,7 +534,7 @@ poll:   lw   t4, 0(t1)
 - 槽 0 完成时：`NO_IRQ` → 不置 `DESC_DONE`；HEAD = 1 ≠ TAIL = 2 → 不置 `QUEUE_EMPTY`。
 - 槽 1 完成时：置 `DESC_DONE`，HEAD = TAIL = 2 → 置 `QUEUE_EMPTY`。
 - 所以 `IRQ_STATUS = 3`，整个批次只有一次"中断"。
-- 忙周期（按模型推算，待在 GUI 中核实）：MATMUL 47 + RELU（FETCH 8 + DMA_IN 16 个字 16 + COMPUTE ceil(16/4) = 4 + DMA_OUT 16 + COMPLETE 1 = 45）= 92。两个描述符之间有 1 个 IDLE 周期，不计入忙周期。
+- 忙周期（按模型推算，并已在 GUI 中确认：`NPU busy cycles: 92`、`NPU MACs: 64`、`IRQ_STATUS: 3`、`Result: OK`）：MATMUL 47 + RELU（FETCH 8 + DMA_IN 16 个字 16 + COMPUTE ceil(16/4) = 4 + DMA_OUT 16 + COMPLETE 1 = 45）= 92。两个描述符之间有 1 个 IDLE 周期，不计入忙周期。
 - 结果：`relu(C)` = 16 7 0 6 / 1 0 0 3 / 4 0 4 0 / 7 6 0 1，程序与表 `EXP` 比较后打印 `Result: OK`。
 
 </details>

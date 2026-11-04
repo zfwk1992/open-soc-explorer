@@ -224,7 +224,7 @@ On a processor without hazard detection you can avoid hazards by inserting `nop`
 
 **Why**: The simulator keeps undoable state for every cycle. The maximum number of undoable cycles is set by **Max. undo cycles:** on the **Edit → Settings → Simulator** page, default 100. History beyond that cannot be reversed; to start over, use **Reset**.
 
-> **Note**: For the reverse behaviour of I/O peripherals such as the SIMT GPU and Tensor Unit see chapters 09 and 10. Text that `ecall` printed to the console is not removed by reversing (to be verified).
+> **Note**: For the reverse behaviour of I/O peripherals such as the SIMT GPU and Tensor Unit see chapters 09 and 10. Text that `ecall` printed to the console is not removed by reversing (verified: the console only ever appends, and is cleared only by its trash-can button).
 
 ## 6.8 VCD waveform tracing
 
@@ -240,7 +240,7 @@ gtkwave ripes.vcd
 
 You can see the PC, the pipeline registers of each stage and the control signals as waveforms over the cycles.
 
-> Which folder a relative path is relative to (Ripes' working directory or the executable's folder) is to be verified; an absolute path is recommended. The VCD file grows with the number of simulated cycles, so watch the disk space on long runs.
+> A relative path is relative to the current working directory of the Ripes process (the VCD writer opens it with a plain `std::ofstream`), i.e. the directory you started it from, which is not necessarily the `build` folder; an absolute path is recommended. The VCD file grows with the number of simulated cycles, so watch the disk space on long runs.
 
 ![VCD options on the Simulator settings page](../images/06-processors-pipelines-vcd-settings.en.png)
 
@@ -259,7 +259,7 @@ You can see the PC, the pipeline registers of each stage and the control signals
 1. It depends on where. Between `addi a1` and `add a2`: the cycle count becomes **13**, because the stall is still there and there is one more instruction. Between `lw` and `addi a1`: 8 instructions and **still 12** cycles — the unrelated instruction fills the slot of the load-use stall. Conclusion: **only an unrelated instruction placed between a load and its user removes the load-use stall**, which is why compilers do instruction scheduling.
 2. The diagram shows 4 dependencies, each stalling 2 cycles: `auipc a0` → `lw a0, ...(a0)`, `lw a0` → `addi a1`, `addi a1` → `add a2`, `add a2` → `beq` — 8 stall cycles in total (7 instructions + 4 fill + 8 = 19). The complete 5-stage pipeline has only 1 load-use stall, hence 7 cycles less. Without forwarding, the dependent instruction must wait in ID until the producer reaches WB.
 3. 21 instructions execute (`li` plus 10 × (`addi` + `bnez`)). Single-cycle: 21 cycles. 5-stage: 43 cycles = 21 instructions + 4 fill cycles + 9 taken branches × 2 flushed cycles (the last branch is not taken). The `addi` → `bnez` dependency is resolved by forwarding and causes no stall.
-4. It is **still wrong**: measured `a0` = 10, `a1` = 11, `a2` = 22 are correct (ALU results can be forwarded), but `a3` = 0, so `beq` went the wrong way and skipped `addi a3`. Besides load-use, a branch right after the instruction computing its operand also compares wrongly on this model (to be verified: presumably the branch comparator receives the un-forwarded old value). On the complete 5-stage pipeline the same program gives `a3` = 7.
+4. It is **still wrong**: measured `a0` = 10, `a1` = 11, `a2` = 22 are correct (ALU results can be forwarded), but `a3` = 0, so `beq` went the wrong way and skipped `addi a3`. Besides load-use, a branch right after the instruction computing its operand also compares wrongly on this model: in `rv5s_no_hz.h` the branch comparator takes its operands straight from the ID/EX register, bypassing the forwarding multiplexers that feed the ALU, so it sees the old register value. On the complete 5-stage pipeline the same program gives `a3` = 7.
 5. 8 independent `addi`s: 9 cycles; 8 chained `addi`s: 13 cycles. Without dependencies both ways issue together and about 2 instructions complete per cycle; with the chain only one can issue per cycle, just like the 5-stage pipeline. (The IPC reported by the CLI is skewed by fill cycles and the retirement count, so comparing cycles is more direct.)
 
 ## Summary

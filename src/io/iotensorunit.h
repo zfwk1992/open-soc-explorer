@@ -60,7 +60,10 @@ class IOTensorUnitView;
  * pushed onto a bounded history (RIPES_SETTING_REWINDSTACKSIZE frames)
  * together with the old contents of every host-memory word the DMA engine
  * wrote in that cycle. ProcessorHandler::processorReversed pops one frame,
- * restores the previous state and undoes the DMA writes.
+ * restores the previous state and undoes the DMA writes (only where memory
+ * still holds what the DMA wrote: the processor rewinds its own stores
+ * first, and a word the CPU and the DMA both wrote in one cycle must end up
+ * at its pre-cycle value).
  */
 class IOTensorUnit : public IOBase {
   Q_OBJECT
