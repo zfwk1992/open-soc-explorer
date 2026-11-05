@@ -59,11 +59,11 @@ class IOTensorUnitView;
  * Reverse execution: after every processor cycle the complete unit state is
  * pushed onto a bounded history (RIPES_SETTING_REWINDSTACKSIZE frames)
  * together with the old contents of every host-memory word the DMA engine
- * wrote in that cycle. ProcessorHandler::processorReversed pops one frame,
- * restores the previous state and undoes the DMA writes (only where memory
- * still holds what the DMA wrote: the processor rewinds its own stores
- * first, and a word the CPU and the DMA both wrote in one cycle must end up
- * at its pre-cycle value).
+ * wrote in that cycle. ProcessorHandler::processorReversing (emitted before
+ * the processor rewinds) pops one frame, restores the previous state and
+ * undoes the DMA writes newest first; the processor then restores its own
+ * stores, so a word the CPU and the DMA both wrote in one cycle ends up at
+ * its pre-cycle value.
  */
 class IOTensorUnit : public IOBase {
   Q_OBJECT
@@ -141,8 +141,9 @@ private:
   /// Slot for ProcessorHandler::processorClocked (direct connection; runs on
   /// the processor thread).
   void processorWasClocked();
-  /// Slot for ProcessorHandler::processorReversed.
-  void processorWasReversed();
+  /// Slot for ProcessorHandler::processorReversing (direct connection; runs
+  /// before the processor rewinds).
+  void processorWillReverse();
 
   /// Reads a whole 32-bit register. Caller holds m_mutex.
   uint32_t regRead(unsigned reg) const;

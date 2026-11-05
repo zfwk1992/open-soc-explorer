@@ -37,6 +37,17 @@ CachePlotWidget::CachePlotWidget(QWidget *parent)
   m_ui->plotView->setScene(new QGraphicsScene(this));
   setWindowTitle(tr("Cache Access Statistics"));
 
+  // Cache the plot-window setting: plotWindowCycles() is on the per-refresh
+  // path. The window is always bounded: a value below 1 (e.g. a stored
+  // setting from before the spin box minimum was raised to 1) plots the last
+  // cycle only, never "everything".
+  const auto windowChanged = [this](const QVariant &v) {
+    m_plotWindowCycles = std::max(1, v.toInt());
+  };
+  windowChanged(RipesSettings::value(RIPES_SETTING_CACHE_MAXCYCLES));
+  connect(RipesSettings::getObserver(RIPES_SETTING_CACHE_MAXCYCLES),
+          &SettingObserver::modified, this, windowChanged);
+
   setupEnumCombobox(m_ui->num, s_cacheVariableStrings);
   setupEnumCombobox(m_ui->den, s_cacheVariableStrings);
   // Translate the visible variable names; item data (enum) is unchanged.
@@ -571,14 +582,6 @@ void CachePlotWidget::updateRatioPlot() {
   }
 
   updateTruncationHint();
-}
-
-int CachePlotWidget::plotWindowCycles() {
-  // The window is always bounded: a value below 1 (e.g. a stored setting
-  // from before the spin box minimum was raised to 1) plots the last cycle
-  // only, never "everything".
-  return std::max(
-      1, RipesSettings::value(RIPES_SETTING_CACHE_MAXCYCLES).toInt());
 }
 
 void CachePlotWidget::dropPointsBeforeWindow() {

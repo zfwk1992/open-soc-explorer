@@ -34,9 +34,16 @@ PipelineDiagramModel::PipelineDiagramModel(QObject *parent)
   connect(ProcessorHandler::get(), &ProcessorHandler::processorReset, this,
           &PipelineDiagramModel::reset);
   // A processor change is followed by a reset (which re-caches the stage
-  // layout too); this keeps the cache right in between.
+  // layout too); in between, the gathered stage infos still belong to the old
+  // processor and must not be looked up against the new stage layout.
   connect(ProcessorHandler::get(), &ProcessorHandler::processorChanged, this,
-          &PipelineDiagramModel::cacheStageLayout);
+          [this] {
+            beginResetModel();
+            m_cycleStageInfos.clear();
+            m_atMaxCycles = false;
+            cacheStageLayout();
+            endResetModel();
+          });
   cacheStageLayout();
 }
 

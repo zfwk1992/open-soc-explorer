@@ -263,6 +263,8 @@ void IOGpu::applyParameters() {
       m_host.doneFlag = false;
       m_host.errorFlag = false;
       m_host.hostError.clear();
+      // A notice about the previous kernel/history no longer applies either.
+      m_notice = Notice::None;
     }
     m_host.ignoredFlag = false;
     // Frames of another configuration cannot be restored.

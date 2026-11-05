@@ -97,8 +97,10 @@ private:
   /// RIPES_SETTING_CACHE_MAXCYCLES) from both series.
   void dropPointsBeforeWindow();
   /// Width of the plot window in cycles: RIPES_SETTING_CACHE_MAXCYCLES,
-  /// clamped to at least 1.
-  static int plotWindowCycles();
+  /// clamped to at least 1 (cached; kept current through the setting's
+  /// observer).
+  int plotWindowCycles() const { return m_plotWindowCycles; }
+  int m_plotWindowCycles = 1;
 
   /**
    * @brief resampleToScreen

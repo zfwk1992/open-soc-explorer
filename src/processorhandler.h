@@ -259,6 +259,10 @@ signals:
   void programChanged();
   void processorReset();
   void processorReversed();
+  // Emitted directly (on the reversing thread, before the processor rewinds)
+  // for every reversal that is going to happen; connect with
+  // Qt::DirectConnection. Peripherals undo their host-memory writes here.
+  void processorReversing();
   // Only connect to this if not updating gui!´ i.e., for logging statistics per
   // cycle. Remember to use Qt::DirectConnection for the slot to be executed
   // directly, instead of concurrently in the event loop.

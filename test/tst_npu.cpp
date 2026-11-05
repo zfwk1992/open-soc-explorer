@@ -1014,9 +1014,19 @@ main:
 
   // Reversing cycle k must leave the pre-cycle value, not the value the CPU
   // stored during cycle k (which is what the DMA's undo log recorded as the
-  // "old" contents).
+  // "old" contents). The NPU undoes its write in the pre-reversal hook
+  // (connected before this observer), so at that point C[0] holds the CPU's
+  // cycle-k value again and the processor's own rewind then restores v0.
+  uint32_t atHook = 0;
+  const auto conn = connect(
+      ProcessorHandler::get(), &ProcessorHandler::processorReversing, this,
+      [&] { atHook = c0(); }, Qt::DirectConnection);
   proc->reverseProcessor();
   QCoreApplication::processEvents();
+  disconnect(conn);
+  QVERIFY2(isCpuValue(atHook),
+           qPrintable(QString("C[0] = 0x%1 at the pre-reversal hook")
+                          .arg(atHook, 0, 16)));
   QCOMPARE(c0(), preCycle);
 
   // Going forward again reproduces the cycle, and the following cycle's CPU

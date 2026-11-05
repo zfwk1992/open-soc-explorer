@@ -224,7 +224,7 @@ public:
 
   void reverse() override {
     m_instructionsRetired--;
-    Design::reverse();
+    RipesVSRTLProcessor::reverse();
     // Ensure that reverses performed when we expected to finish in the
     // following cycle, clears this expectation.
     m_finishInNextCycle = false;

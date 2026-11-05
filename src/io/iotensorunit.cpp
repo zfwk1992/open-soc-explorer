@@ -72,8 +72,10 @@ IOTensorUnit::IOTensorUnit(QWidget *parent)
   // handler runs on whichever thread clocks the processor, in cycle order.
   connect(ProcessorHandler::get(), &ProcessorHandler::processorClocked, this,
           &IOTensorUnit::processorWasClocked, Qt::DirectConnection);
-  connect(ProcessorHandler::get(), &ProcessorHandler::processorReversed, this,
-          &IOTensorUnit::processorWasReversed, Qt::DirectConnection);
+  // Pre-reversal hook: runs before the processor rewinds its own stores, so
+  // the DMA writes of the cycle are undone in true LIFO order.
+  connect(ProcessorHandler::get(), &ProcessorHandler::processorReversing, this,
+          &IOTensorUnit::processorWillReverse, Qt::DirectConnection);
 
   // The widget tree.
   auto *layout = new QVBoxLayout(this);
@@ -377,7 +379,7 @@ void IOTensorUnit::processorWasClocked() {
   m_dirty.store(true, std::memory_order_relaxed);
 }
 
-void IOTensorUnit::processorWasReversed() {
+void IOTensorUnit::processorWillReverse() {
   std::vector<npu::DmaWriteUndo> undo;
   {
     QMutexLocker locker(&m_mutex);
@@ -396,19 +398,16 @@ void IOTensorUnit::processorWasReversed() {
   // Undo the host-memory writes of the reversed cycle, newest first. Done
   // without holding m_mutex (the accesses go through the address space).
   //
-  // The processor has already rewound its own stores of this cycle before
-  // this hook runs. If the CPU stored to a word (v0 -> v1) and the DMA then
-  // overwrote it (v1 -> v2) in the same cycle, the processor's rewind has
-  // restored v0 by now; blindly writing back v1 would lose it. So an entry is
-  // only undone while memory still holds the value the DMA wrote - anything
-  // else means the pre-cycle value is already in place.
-  if (memWrite && memRead) {
-    for (auto it = undo.rbegin(); it != undo.rend(); ++it) {
-      const auto now = static_cast<uint32_t>(memRead(it->addr, it->bytes));
-      if (now != it->newValue)
-        continue;
+  // This runs before the processor rewinds its own stores of the cycle
+  // (ProcessorHandler::processorReversing). The DMA engine steps after the
+  // CPU within a cycle, so its writes are the newest and are undone first;
+  // a word the CPU stored (v0 -> v1) and the DMA then overwrote (v1 -> v2)
+  // goes back to v1 here and to v0 when the processor restores its store.
+  // No read-back is needed, so a DMA target inside a peripheral window is
+  // not touched by a bus read either.
+  if (memWrite) {
+    for (auto it = undo.rbegin(); it != undo.rend(); ++it)
       memWrite(it->addr, it->oldValue, it->bytes);
-    }
   }
   m_dirty.store(true);
 }

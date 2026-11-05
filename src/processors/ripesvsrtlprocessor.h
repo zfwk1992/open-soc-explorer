@@ -30,6 +30,17 @@ public:
 
   virtual void reverseProcessor() override { reverse(); }
 
+  // Both reverse paths (reverseProcessor() and VSRTLWidget::reverse()) end up
+  // here. Announce the reversal before the design rewinds so that peripherals
+  // can undo their host-memory writes of the cycle first (see
+  // RipesProcessor::processorWillReverse). Concrete processors that override
+  // reverse() must chain to this, not to Design::reverse().
+  void reverse() override {
+    if (canReverse() && clockedSignalsEnabled())
+      processorWillReverse.Emit();
+    vsrtl::core::Design::reverse();
+  }
+
   virtual void vcdTrace(bool enable, const QString &filename) override {
     vsrtl::core::Design::vcdTrace(enable, filename.toStdString());
   }

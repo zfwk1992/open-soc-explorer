@@ -472,7 +472,7 @@ public:
       ecallChecker->setSysCallExiting(false);
       m_syscallExitCycle = -1;
     }
-    Design::reverse();
+    RipesVSRTLProcessor::reverse();
     if (memwb_reg->valid_out.uValue() != 0 &&
         isExecutableAddress(memwb_reg->pc_out.uValue())) {
       m_instructionsRetired--;

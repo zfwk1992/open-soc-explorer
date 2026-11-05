@@ -381,6 +381,10 @@ void ProcessorHandler::_selectProcessor(const ProcessorID &id,
   // and out of order.
   m_currentProcessor->processorWasClocked.Connect(
       this, &ProcessorHandler::processorClocked);
+  // Likewise direct: the pre-reversal hook must run before the processor
+  // rewinds, on the same thread.
+  m_currentProcessor->processorWillReverse.Connect(
+      this, &ProcessorHandler::processorReversing);
 
   m_signalWrappers.push_back(std::unique_ptr<vsrtl::GallantSignalWrapperBase>(
       new vsrtl::GallantSignalWrapper(

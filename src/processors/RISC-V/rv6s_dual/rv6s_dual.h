@@ -869,7 +869,7 @@ public:
       ecallChecker->setSysCallExiting(false);
       m_syscallExitCycle = -1;
     }
-    Design::reverse();
+    RipesVSRTLProcessor::reverse();
     m_instructionsRetired -= instructionsRetired();
   }
 

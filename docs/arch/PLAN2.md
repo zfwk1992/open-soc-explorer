@@ -169,3 +169,20 @@ docs/guide/images/manifest_<agent>.json   截图需求清单（第二轮由截�
 7. **`test/tst_accel_e2e.cpp` 手抄 kernel 机器码**：改为用 `gpu::assembleKernel()` 从源文本生成。
 8. **`simtgpu.cpp` `opcodeDefined()` 与 `opcodeForm()` 重复枚举**：合并成一张表。
 9. **反向执行**：GPU/NPU 外设只响应 `processorClocked`，不响应 `ProcessorHandler::processorReversed`。修法（两者选其一并写进文档）：(a) 忙时每周期把模型状态快照进一个有界队列（上限 `RIPES_SETTING_REWINDSTACKSIZE`），`processorReversed` 时弹出一帧；(b) 若状态过大，至少在 reverse 时把外设复位到"启动前"并在部件上明示"反向执行后加速器已复位"。
+
+## 7. 第二阶段评审缺陷清单（已修，2026-11-04/05）
+
+第二轮（合并后的整树评审）：
+1. NPU 反向执行时，CPU 与 DMA 在同一周期写同一字，恢复值错误（当时用"内存仍为 DMA 写入值才撤销"的比较法修补）。
+2. GPU 运行中修改参数后 STATUS 既非 BUSY 也非 DONE，轮询程序永不结束 → 现在以 `DONE|ERROR` 中止并给出错误文本。
+3. GPU kernel 列表通过总线读内存，会清掉 D-pad 等读清寄存器 → 改为直接读内存，遇 I/O 区停止。
+4. CLI 模式输出被按系统语言翻译 → 仅 GUI 模式安装翻译器。
+5. 缓存统计图窗口设置为 0 时不再有界 → 下限 1。
+6. 其余：剪贴板导出使用翻译后的表头、流水线图模型每次重绘重复遍历结构、重复的辅助函数。
+
+第三轮（针对第二轮修复提交 `32ec5cb..b76cd69` 的评审）：
+1. 第二轮第 1 条的比较法在"DMA 写入值恰好等于周期前的值"时仍会错，且撤销路径经总线读内存会触发外设读副作用 → 改为真正的 LIFO：`RipesProcessor::processorWillReverse` / `ProcessorHandler::processorReversing` 在处理器回退**之前**直接发出，NPU 在该钩子里无条件按逆序撤销 DMA 写，然后处理器再恢复自己的存储；不再读内存比较。`tst_e2eReverseSameCycleStore` 增加对钩子时序的断言。
+2. GPU 空闲时修改参数，上一次的 LaunchIgnored / Reverse 提示未清除 → 清除。
+3. 流水线图模型在 `processorChanged` 到 reset 之间仍保留旧处理器的阶段信息 → 切换处理器时一并清空。
+4. 缓存统计图每次刷新都读 QSettings → 通过 SettingObserver 缓存。
+5. 未改（设计取舍）：导出 CSV 表头沿用英文显示标签而非枚举名；GPU `hostError` 文本随历史帧复制、不计入字节预算；配置变更中止后部件按"未启动"显示（模型已复位，无 kernel 可显示）。

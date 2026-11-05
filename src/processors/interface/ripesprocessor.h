@@ -336,6 +336,15 @@ public:
   Gallant::Signal0<> processorWasClocked;
   Gallant::Signal0<> processorWasReversed;
   Gallant::Signal0<> processorWasReset;
+  /**
+   * @brief processorWillReverse
+   * Emitted right before a reversal that is going to happen (i.e. not when
+   * the processor cannot reverse), while registers and memory still hold the
+   * state after the cycle being undone. Peripherals that wrote host memory
+   * during that cycle undo their writes here, before the processor restores
+   * its own stores, so same-cycle writes to one word unwind in LIFO order.
+   */
+  Gallant::Signal0<> processorWillReverse;
 
   /**
    * @brief isExecutableAddress
